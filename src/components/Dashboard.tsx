@@ -20,6 +20,7 @@ const LAYOUT_EMOJI: Record<string, string> = {
   stream: "📜",
   columns: "📊",
   assignment: "📋",
+  quiz: "🎮",
 };
 
 const LAYOUT_LABEL: Record<string, string> = {
@@ -28,6 +29,7 @@ const LAYOUT_LABEL: Record<string, string> = {
   stream: "스트림",
   columns: "칼럼",
   assignment: "과제 배부",
+  quiz: "퀴즈",
 };
 
 type Props = {

@@ -8,7 +8,9 @@ import { GridBoard } from "@/components/GridBoard";
 import { StreamBoard } from "@/components/StreamBoard";
 import { ColumnsBoard } from "@/components/ColumnsBoard";
 import { AssignmentBoard } from "@/components/AssignmentBoard";
+import { QuizBoard, type QuizData } from "@/components/QuizBoard";
 import { UserSwitcher } from "@/components/UserSwitcher";
+import { AuthHeader } from "@/components/AuthHeader";
 import { EditableTitle } from "@/components/EditableTitle";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +21,7 @@ const LAYOUT_LABEL: Record<string, string> = {
   stream: "스트림",
   columns: "칼럼",
   assignment: "과제 배부",
+  quiz: "퀴즈",
 };
 
 export default async function BoardPage({
@@ -34,6 +37,10 @@ export default async function BoardPage({
       sections: { orderBy: { order: "asc" } },
       submissions: true,
       members: { include: { user: true } },
+      quizzes: {
+        include: { questions: { orderBy: { order: "asc" } }, players: true },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
   if (!board) notFound();
@@ -71,7 +78,7 @@ export default async function BoardPage({
   if (!role) {
     return (
       <main className="board-page">
-        <BoardHeader title={board.title} layout={board.layout} mockRole={user.mockRole} />
+        <BoardHeader title={board.title} layout={board.layout} mockRole={user.mockRole} canEdit={false} />
         <div className="forbidden-card">
           <h2>접근 불가</h2>
           <p>{user.name}님은 이 보드의 멤버가 아닙니다.</p>
@@ -121,6 +128,33 @@ export default async function BoardPage({
             currentRole={role!}
           />
         );
+      case "quiz": {
+        const answerToIndex: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 };
+        return (
+          <QuizBoard
+            boardId={board!.id}
+            quizzes={board!.quizzes.map((q) => ({
+              id: q.id,
+              title: q.title,
+              roomCode: q.roomCode,
+              status: q.status as "waiting" | "active" | "finished",
+              currentQuestionIndex: q.currentQ,
+              questions: q.questions.map((qn) => ({
+                id: qn.id,
+                text: qn.question,
+                options: [qn.optionA, qn.optionB, qn.optionC, qn.optionD],
+                correctIndex: answerToIndex[qn.answer] ?? 0,
+                timeLimit: qn.timeLimit,
+              })),
+              players: q.players.map((p) => ({
+                id: p.id,
+                nickname: p.nickname,
+                score: p.score,
+              })),
+            }))}
+          />
+        );
+      }
       case "freeform":
       default:
         return <BoardCanvas {...common} />;
@@ -152,12 +186,12 @@ function BoardHeader({
   mockRole,
   canEdit,
 }: {
-  boardId: string;
+  boardId?: string;
   title: string;
   layout: string;
   userName?: string;
   userRole?: string;
-  mockRole: string;
+  mockRole: string | null;
   canEdit: boolean;
 }) {
   return (
@@ -166,7 +200,11 @@ function BoardHeader({
         <Link href="/" className="board-back-link" aria-label="보드 목록으로">
           ←
         </Link>
-        <EditableTitle boardId={boardId} initialTitle={title} canEdit={canEdit} />
+        {boardId ? (
+          <EditableTitle boardId={boardId} initialTitle={title} canEdit={canEdit} />
+        ) : (
+          <h1 className="board-title">{title}</h1>
+        )}
         <span className="board-layout-badge">{LAYOUT_LABEL[layout] ?? layout}</span>
         {userName && userRole && (
           <span className="board-badge">
@@ -175,7 +213,8 @@ function BoardHeader({
         )}
       </div>
       <div className="board-header-right">
-        <UserSwitcher currentRole={mockRole} />
+        <AuthHeader />
+        {mockRole && <UserSwitcher currentRole={mockRole} />}
       </div>
     </header>
   );

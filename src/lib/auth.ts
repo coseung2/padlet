@@ -1,13 +1,16 @@
 /**
- * DEV-ONLY mock auth. Replace with real auth before production.
+ * Unified auth helper.
  *
- * The current user is picked from a cookie named "as" which is set by
- * src/proxy.ts when the URL has `?as=owner|editor|viewer`.
- * If no cookie is present, defaults to "owner".
+ * Priority:
+ *   1. Real NextAuth session (Google OAuth) — takes precedence
+ *   2. Mock auth via "as" cookie (dev-only, same as before)
+ *
+ * Both paths return the same shape so downstream code is unchanged.
  */
 import "server-only";
 import { cookies } from "next/headers";
 import { db } from "./db";
+import { auth } from "./auth-config";
 import { isMockRoleKey, type MockRoleKey } from "./roles";
 
 const MOCK_USERS: Record<MockRoleKey, string> = {
@@ -17,6 +20,16 @@ const MOCK_USERS: Record<MockRoleKey, string> = {
 };
 
 export async function getCurrentUser() {
+  // 1) Try real NextAuth session first
+  const session = await auth();
+  if (session?.user?.id) {
+    const user = await db.user.findUnique({ where: { id: session.user.id } });
+    if (user) {
+      return { ...user, mockRole: null as string | null };
+    }
+  }
+
+  // 2) Fall back to mock auth via "as" cookie (dev only)
   const cookieStore = await cookies();
   const asRole = cookieStore.get("as")?.value;
   const roleKey: MockRoleKey = isMockRoleKey(asRole) ? asRole : "owner";
@@ -27,5 +40,13 @@ export async function getCurrentUser() {
       `Mock user "${userId}" not found. Did you run \`npm run seed\`?`
     );
   }
-  return { ...user, mockRole: roleKey };
+  return { ...user, mockRole: roleKey as string | null };
+}
+
+/**
+ * Check if the current request has a real (non-mock) authenticated session.
+ */
+export async function isAuthenticated(): Promise<boolean> {
+  const session = await auth();
+  return !!session?.user?.id;
 }
