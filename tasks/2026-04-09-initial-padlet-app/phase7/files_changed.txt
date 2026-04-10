@@ -1,0 +1,25 @@
+package.json
+tsconfig.json
+next.config.ts
+.env
+.env.example
+.gitignore                                               (updated)
+README.md                                                (updated)
+prisma/schema.prisma
+prisma/seed.ts
+src/app/layout.tsx
+src/app/page.tsx
+src/app/globals.css                                      (phase6에서 Notion only로 정리)
+src/app/board/[id]/page.tsx
+src/app/api/boards/[id]/route.ts
+src/app/api/cards/route.ts
+src/app/api/cards/[id]/route.ts
+src/components/BoardCanvas.tsx
+src/components/DraggableCard.tsx
+src/components/AddCardButton.tsx
+src/components/UserSwitcher.tsx
+src/lib/db.ts
+src/lib/auth.ts
+src/lib/rbac.ts
+src/lib/roles.ts
+src/proxy.ts

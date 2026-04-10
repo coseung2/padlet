@@ -1,0 +1,10 @@
+(없음 — MVP 스킵)
+
+phase9 에서 실제 브라우저 대신 `curl` 기반 smoke 테스트로 대체:
+- GET /board/demo → 200
+- GET /board/demo (viewer) → 200 + add-card-btn 숨김
+- POST /api/cards (viewer) → 403
+- POST /api/cards (editor) → 200
+- PATCH /api/cards/:id (owner) → 200
+
+자동화된 단위/통합 테스트는 후속 feature task에서 추가 예정.

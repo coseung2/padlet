@@ -1,0 +1,91 @@
+// Padlet clone — Prisma schema
+// DB: SQLite for local dev. To switch to Postgres:
+//   1) change provider to "postgresql"
+//   2) change DATABASE_URL to postgres://…
+//   3) run `prisma db push --force-reset`
+// Avoid SQLite-specific types (@db.*) so the schema stays portable.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  createdAt DateTime @default(now())
+
+  memberships BoardMember[]
+  cards       Card[]
+}
+
+// layout: "freeform" | "grid" | "stream" | "columns"
+// (columns prep for next task; validated in app via zod)
+model Board {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  title     String
+  layout    String   @default("freeform")
+  createdAt DateTime @default(now())
+
+  members  BoardMember[]
+  cards    Card[]
+  sections Section[]
+}
+
+// Columns/Kanban용 섹션 (grid/stream에선 사용 안 함)
+model Section {
+  id      String @id @default(cuid())
+  boardId String
+  title   String
+  order   Int    @default(0)
+
+  board Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards Card[] @relation("SectionCards")
+
+  @@index([boardId])
+}
+
+// RBAC core: one row per (board, user).
+// role: "owner" | "editor" | "viewer" (validated in app via zod)
+model BoardMember {
+  id      String @id @default(cuid())
+  boardId String
+  userId  String
+  role    String
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, userId])
+  @@index([userId])
+}
+
+model Card {
+  id        String   @id @default(cuid())
+  boardId   String
+  sectionId String?
+  authorId  String
+  title     String
+  content   String
+  color     String?
+  x         Float    @default(0)
+  y         Float    @default(0)
+  width     Float    @default(240)
+  height    Float    @default(160)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  board   Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  section Section? @relation("SectionCards", fields: [sectionId], references: [id], onDelete: SetNull)
+  author  User     @relation(fields: [authorId], references: [id])
+
+  @@index([boardId])
+  @@index([sectionId])
+}

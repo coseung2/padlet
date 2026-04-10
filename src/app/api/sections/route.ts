@@ -1,0 +1,39 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { db } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
+import { requirePermission, ForbiddenError } from "@/lib/rbac";
+
+const CreateSectionSchema = z.object({
+  boardId: z.string().min(1),
+  title: z.string().min(1).max(100),
+});
+
+export async function POST(req: Request) {
+  try {
+    const user = await getCurrentUser();
+    const body = await req.json();
+    const input = CreateSectionSchema.parse(body);
+    await requirePermission(input.boardId, user.id, "edit");
+
+    const maxOrder = await db.section.aggregate({
+      where: { boardId: input.boardId },
+      _max: { order: true },
+    });
+
+    const section = await db.section.create({
+      data: {
+        boardId: input.boardId,
+        title: input.title,
+        order: (maxOrder._max.order ?? -1) + 1,
+      },
+    });
+
+    return NextResponse.json({ section });
+  } catch (e) {
+    if (e instanceof ForbiddenError) return NextResponse.json({ error: e.message }, { status: 403 });
+    if (e instanceof z.ZodError) return NextResponse.json({ error: e.message }, { status: 400 });
+    console.error("[POST /api/sections]", e);
+    return NextResponse.json({ error: "internal" }, { status: 500 });
+  }
+}

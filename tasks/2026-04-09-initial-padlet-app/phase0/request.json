@@ -1,0 +1,21 @@
+{
+  "type": "feature",
+  "slug": "initial-padlet-app",
+  "task_id": "2026-04-09-initial-padlet-app",
+  "change_type": "new_feature",
+  "motivation": "패들렛 클론의 첫 동작 가능 MVP. 3개 디자인 테마를 번갈아 보면서 사용자가 시각 방향을 결정할 수 있어야 함. Docker 비활성 상태라 DB는 SQLite + Prisma로 시작 (Postgres 이행 경로 보장).",
+  "user_story": "사용자로서 샘플 보드를 열어 카드(텍스트/메모)를 읽고, 3개 테마(figma/miro/notion)를 URL 파라미터로 전환하며, 드래그로 카드 위치를 옮기고 새로고침 후에도 위치가 유지되는 걸 볼 수 있다",
+  "success_metric": "1) npm install → seed → dev 3커맨드로 http://localhost:3000/board/demo 가 뜨고 카드가 보인다, 2) ?theme=figma|miro|notion 으로 테마 전환 즉시 반영, 3) 카드 드래그 후 새로고침 시 위치 유지, 4) RBAC: owner/editor/viewer 권한 체크가 서버 사이드에서 작동",
+  "affected_surfaces": [
+    "/ (landing, redirect to demo board)",
+    "/board/[id] (board view)",
+    "/api/boards/[id]",
+    "/api/cards",
+    "/api/cards/[id]"
+  ],
+  "created_at": "2026-04-09T22:45:00+09:00",
+  "notes": {
+    "human_gates_self_approved": "사용자 지시에 따라 오케스트레이터가 모든 사람 게이트 승인. 디자인 선택만 사용자가 직접.",
+    "stack_decision_phase": "phase3 (이 task가 first-feature이므로 스택 결정 포함)"
+  }
+}

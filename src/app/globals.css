@@ -1,0 +1,818 @@
+/* =====================================================
+   Padlet Clone — globals.css
+   Notion-inspired theme (locked in 2026-04-10, phase6).
+   Rejected Figma / Miro variants archived:
+     tasks/2026-04-09-initial-padlet-app/phase5/rejected/
+   ===================================================== */
+
+:root {
+  /* Colors — Warm neutral palette (Notion DESIGN.md) */
+  --color-bg: #f6f5f4;
+  --color-bg-alt: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-alt: rgba(0, 0, 0, 0.05);
+  --color-text: rgba(0, 0, 0, 0.95);
+  --color-text-muted: #615d59;
+  --color-text-faint: #a39e98;
+  --color-accent: #0075de;
+  --color-accent-active: #005bab;
+  --color-accent-tinted-bg: #f2f9ff;
+  --color-accent-tinted-text: #097fe8;
+  --color-border: rgba(0, 0, 0, 0.1);
+  --color-border-hover: rgba(0, 0, 0, 0.15);
+
+  /* Radii */
+  --radius-card: 12px;
+  --radius-btn: 4px;
+  --radius-pill: 9999px;
+
+  /* Typography */
+  --font-display: "Inter", -apple-system, system-ui, "Segoe UI", sans-serif;
+  --font-body: "Inter", -apple-system, system-ui, "Segoe UI", sans-serif;
+  --font-display-tracking: -0.5px;
+
+  /* Shadows — multi-layer soft (Notion signature) */
+  --shadow-card:
+    rgba(0, 0, 0, 0.04) 0px 4px 18px,
+    rgba(0, 0, 0, 0.027) 0px 2.025px 7.85px,
+    rgba(0, 0, 0, 0.02) 0px 0.8px 2.93px,
+    rgba(0, 0, 0, 0.01) 0px 0.175px 1.04px;
+  --shadow-card-hover:
+    rgba(0, 0, 0, 0.06) 0px 12px 34px,
+    rgba(0, 0, 0, 0.04) 0px 4px 14px;
+  --shadow-lift: rgba(0, 0, 0, 0.06) 0px 2px 8px;
+  --shadow-accent: 0 6px 20px rgba(0, 117, 222, 0.25);
+  --shadow-accent-hover: 0 8px 24px rgba(0, 117, 222, 0.3);
+
+  --border-card: 1px solid var(--color-border);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "kern", "liga";
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent-tinted-text);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* -------- Layout -------- */
+
+.board-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+}
+
+.board-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 32px;
+  background: var(--color-bg-alt);
+  border-bottom: var(--border-card);
+  gap: 20px;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.board-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 36px;
+}
+
+.board-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.board-title {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: var(--font-display-tracking);
+  line-height: 1.15;
+  margin: 0;
+  color: var(--color-text);
+}
+
+.board-badge {
+  display: inline-block;
+  padding: 5px 12px;
+  background: var(--color-accent-tinted-bg);
+  color: var(--color-accent-tinted-text);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.125px;
+}
+
+.board-canvas-wrap {
+  position: relative;
+  flex: 1;
+  padding: 32px;
+  overflow: auto;
+}
+
+.board-canvas {
+  position: relative;
+  min-height: 920px;
+  min-width: 900px;
+}
+
+.board-empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 32px 48px;
+  text-align: center;
+  background: var(--color-surface);
+  border: var(--border-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  max-width: 360px;
+}
+
+.board-empty p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+/* -------- Card -------- */
+
+.padlet-card {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: var(--border-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 16px 18px 18px;
+  /* IMPORTANT: do not transition `transform` — dnd-kit updates it per frame
+     during drag; transitioning causes visible lag-then-jump. */
+  transition: box-shadow 180ms ease, border-color 180ms ease;
+  will-change: transform;
+  user-select: none;
+  touch-action: none;
+}
+
+.padlet-card.is-draggable {
+  cursor: grab;
+}
+
+.padlet-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--color-border-hover);
+}
+
+.padlet-card.is-dragging {
+  cursor: grabbing;
+  box-shadow: var(--shadow-card-hover);
+  opacity: 0.96;
+}
+
+.padlet-card-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.25px;
+  margin: 0 28px 8px 0;
+  line-height: 1.3;
+  color: var(--color-text);
+}
+
+.padlet-card-content {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+  color: var(--color-text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.padlet-card-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--color-text-muted);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.padlet-card:hover .padlet-card-delete,
+.padlet-card:focus-within .padlet-card-delete {
+  display: flex;
+}
+
+.padlet-card-delete:hover {
+  background: rgba(0, 0, 0, 0.12);
+  color: var(--color-text);
+}
+
+/* -------- User Switcher (mock RBAC) -------- */
+
+.user-switcher {
+  display: inline-flex;
+  gap: 2px;
+  padding: 4px;
+  background: var(--color-surface-alt);
+  border-radius: var(--radius-pill);
+}
+
+.user-switcher-btn {
+  border: none;
+  background: transparent;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  text-decoration: none;
+  font-family: var(--font-body);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.user-switcher-btn.is-active {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-lift);
+}
+
+.user-switcher-btn:hover:not(.is-active) {
+  color: var(--color-text);
+}
+
+/* -------- Add Card -------- */
+
+.add-card-btn {
+  position: fixed;
+  right: 32px;
+  bottom: 32px;
+  padding: 12px 22px;
+  background: var(--color-accent);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-btn);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-body);
+  cursor: pointer;
+  box-shadow: var(--shadow-accent);
+  transition: background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+  z-index: 30;
+}
+
+.add-card-btn:hover {
+  background: var(--color-accent-active);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-accent-hover);
+}
+
+.add-card-btn:active {
+  transform: scale(0.98);
+}
+
+.add-card-form {
+  position: fixed;
+  right: 32px;
+  bottom: 32px;
+  padding: 16px;
+  background: var(--color-surface);
+  border: var(--border-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card-hover);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 300px;
+  max-width: 380px;
+  z-index: 30;
+}
+
+.add-card-input,
+.add-card-textarea {
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 9px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-btn);
+  color: var(--color-text);
+  background: var(--color-bg);
+  outline: none;
+  transition: border-color 150ms ease;
+}
+
+.add-card-input:focus,
+.add-card-textarea:focus {
+  border-color: var(--color-accent);
+}
+
+.add-card-textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+.add-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.add-card-actions button {
+  padding: 7px 16px;
+  border-radius: var(--radius-btn);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.add-card-actions button:hover:not(:disabled) {
+  background: var(--color-surface-alt);
+}
+
+.add-card-actions button[type="submit"] {
+  background: var(--color-accent);
+  color: #ffffff;
+  border-color: var(--color-accent);
+}
+
+.add-card-actions button[type="submit"]:hover:not(:disabled) {
+  background: var(--color-accent-active);
+}
+
+.add-card-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* -------- Grid Board -------- */
+
+.grid-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+  padding: 0;
+}
+
+.grid-card {
+  position: relative;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: var(--border-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 20px;
+  min-height: 140px;
+  transition: box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.grid-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--color-border-hover);
+}
+
+.grid-card:hover .padlet-card-delete {
+  display: flex;
+}
+
+/* -------- Stream Board -------- */
+
+.stream-board {
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.stream-card {
+  position: relative;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: var(--border-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 20px 24px;
+  transition: box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.stream-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--color-border-hover);
+}
+
+.stream-card:hover .padlet-card-delete {
+  display: flex;
+}
+
+.stream-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.stream-card-number {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-accent-tinted-text);
+  background: var(--color-accent-tinted-bg);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  letter-spacing: 0.125px;
+}
+
+.stream-card-date {
+  font-size: 12px;
+  color: var(--color-text-faint);
+}
+
+/* -------- Columns (Kanban) Board -------- */
+
+.columns-board {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  min-height: calc(100vh - 180px);
+  overflow-x: auto;
+  padding-bottom: 24px;
+}
+
+.column {
+  flex: 0 0 300px;
+  background: var(--color-surface-alt);
+  border-radius: var(--radius-card);
+  border: var(--border-card);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 160px);
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.column-drag-over {
+  border-color: var(--color-accent) !important;
+  box-shadow: 0 0 0 2px var(--color-accent-tinted-bg);
+}
+
+.column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.column-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+  margin: 0;
+  color: var(--color-text);
+}
+
+.column-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-faint);
+  background: var(--color-bg);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.column-cards {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.column-card {
+  position: relative;
+  background: var(--color-surface);
+  border: var(--border-card);
+  border-radius: 8px;
+  padding: 14px 16px;
+  box-shadow: var(--shadow-card);
+  cursor: grab;
+  transition: box-shadow 150ms ease, border-color 150ms ease, opacity 150ms ease;
+  user-select: none;
+}
+
+.column-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--color-border-hover);
+}
+
+.column-card:hover .padlet-card-delete {
+  display: flex;
+}
+
+.column-card:active {
+  cursor: grabbing;
+  opacity: 0.85;
+}
+
+.column-card .padlet-card-title {
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.column-card .padlet-card-content {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.column-unsectioned {
+  opacity: 0.7;
+}
+
+.column-add-btn {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  padding: 12px 20px;
+  background: transparent;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-card);
+  color: var(--color-text-faint);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  min-width: 200px;
+  min-height: 60px;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+
+.column-add-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* -------- Home / Board List -------- */
+
+.home-page {
+  min-height: 100vh;
+  background: var(--color-bg);
+  padding: 48px 32px;
+}
+
+.home-header {
+  max-width: 800px;
+  margin: 0 auto 40px;
+}
+
+.home-title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: var(--font-display-tracking);
+  margin: 0 0 8px;
+  color: var(--color-text);
+}
+
+.home-subtitle {
+  font-size: 15px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.board-list {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.board-list-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 20px 24px;
+  background: var(--color-surface);
+  border: var(--border-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  text-decoration: none;
+  color: var(--color-text);
+  transition: box-shadow 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+.board-list-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--color-border-hover);
+  transform: translateY(-2px);
+}
+
+.board-list-emoji {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.board-list-info {
+  flex: 1;
+}
+
+.board-list-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.25px;
+  margin: 0 0 4px;
+  color: var(--color-text);
+}
+
+.board-list-meta {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* -------- Board Header extras -------- */
+
+.board-back-link {
+  font-size: 20px;
+  text-decoration: none;
+  color: var(--color-text-muted);
+  padding: 4px 8px;
+  border-radius: var(--radius-btn);
+  transition: color 150ms ease, background 150ms ease;
+}
+
+.board-back-link:hover {
+  color: var(--color-text);
+  background: var(--color-surface-alt);
+}
+
+.board-layout-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  background: var(--color-surface-alt);
+  color: var(--color-text-faint);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.board-empty-inline {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--color-text-faint);
+}
+
+.board-empty-inline p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* -------- Forbidden state -------- */
+
+.forbidden-card {
+  padding: 40px;
+  text-align: center;
+  max-width: 420px;
+  margin: 80px auto;
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
+  border: var(--border-card);
+  box-shadow: var(--shadow-card);
+}
+
+.forbidden-card h2 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.25px;
+  margin: 0 0 8px;
+  color: var(--color-text);
+}
+
+.forbidden-card p {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+/* -------- Responsive -------- */
+
+@media (max-width: 1080px) {
+  .board-header {
+    padding: 16px 24px;
+  }
+  .board-canvas-wrap {
+    padding: 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .board-header {
+    padding: 14px 18px;
+    gap: 12px;
+  }
+  .board-header-left {
+    gap: 12px;
+  }
+  .board-title {
+    font-size: 22px;
+  }
+  .board-canvas-wrap {
+    padding: 18px;
+  }
+  .board-canvas {
+    min-width: 0;
+  }
+  .add-card-btn,
+  .add-card-form {
+    right: 18px;
+    bottom: 18px;
+  }
+}
+
+@media (max-width: 560px) {
+  .board-header {
+    padding: 12px 14px;
+  }
+  .board-header-right {
+    gap: 8px;
+  }
+  .board-title {
+    font-size: 20px;
+  }
+  .user-switcher-btn {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+  .user-switcher-btn span:last-child {
+    display: none;
+  }
+  .padlet-card {
+    padding: 14px 16px 16px;
+  }
+  .add-card-form {
+    left: 14px;
+    right: 14px;
+    min-width: auto;
+    max-width: none;
+  }
+}

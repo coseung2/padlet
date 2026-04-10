@@ -1,0 +1,39 @@
+{
+  "references": [
+    {
+      "name": "Padlet",
+      "url": "https://padlet.com",
+      "observed": "Wall layout with free-positioned cards, drag to reposition, realtime collab, card attachments (text/image/link/file)",
+      "role": "primary feature reference"
+    },
+    {
+      "name": "VoltAgent/awesome-design-md",
+      "url": "https://github.com/VoltAgent/awesome-design-md",
+      "observed": "Collection of DESIGN.md files per brand, consumed via npx getdesign@latest add {brand}",
+      "role": "design system source"
+    }
+  ],
+  "design_md_refs": [
+    {
+      "brand": "figma",
+      "local_path": "phase1/design_md_refs/figma_DESIGN.md",
+      "size_lines": 220,
+      "tone": "monochrome interface + vibrant gradient hero, pill geometry",
+      "ok_for_padlet": true
+    },
+    {
+      "brand": "miro",
+      "local_path": "phase1/design_md_refs/miro_DESIGN.md",
+      "size_lines": 110,
+      "tone": "pastel whiteboard + Blue 450 accents, collaborative feel",
+      "ok_for_padlet": true
+    },
+    {
+      "brand": "notion",
+      "local_path": "phase1/design_md_refs/notion_DESIGN.md",
+      "size_lines": 309,
+      "tone": "warm neutrals + whisper borders + soft shadows, minimal",
+      "ok_for_padlet": true
+    }
+  ]
+}

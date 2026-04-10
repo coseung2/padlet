@@ -1,0 +1,42 @@
+[
+  {
+    "pattern_id": "wall-layout",
+    "description": "Cards positioned freely on a canvas with (x, y) coordinates. Users drag cards to arrange.",
+    "source_url": "https://padlet.com",
+    "pros": ["Highest creative freedom", "Matches Padlet's iconic look"],
+    "cons": ["Harder to implement drag + persistence than a grid", "No auto-organization"],
+    "adopted": true
+  },
+  {
+    "pattern_id": "card-grid-fallback",
+    "description": "When cards have no position, lay them in a responsive grid as initial state.",
+    "source_url": "derived",
+    "pros": ["Good empty/new state", "Simple to implement"],
+    "cons": [],
+    "adopted": true
+  },
+  {
+    "pattern_id": "optimistic-drag",
+    "description": "During drag, update client state immediately; on drop, persist to server. Revert on failure.",
+    "source_url": "derived",
+    "pros": ["Feels instantaneous", "Standard pattern with dnd-kit"],
+    "cons": ["Need to handle failure states"],
+    "adopted": true
+  },
+  {
+    "pattern_id": "url-theme-switcher",
+    "description": "?theme=figma|miro|notion query parameter controls the active design theme via CSS variables.",
+    "source_url": "derived",
+    "pros": ["Zero-click theme comparison for selection", "No auth needed", "Easy to delete unused themes after pick"],
+    "cons": ["Not persistent (resets on new tab) — acceptable for MVP"],
+    "adopted": true
+  },
+  {
+    "pattern_id": "rbac-middleware",
+    "description": "Server-side permission check: owner can do anything, editor can add/edit/move cards, viewer can only read.",
+    "source_url": "derived",
+    "pros": ["Proper permission model", "Demonstrates RBAC without auth UI"],
+    "cons": ["Need to inject a mock current user (query param or hardcoded) until auth lands"],
+    "adopted": true
+  }
+]
