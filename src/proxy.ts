@@ -11,7 +11,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const VALID_ROLES = new Set(["owner", "editor", "viewer"]);
-const SKIP_PREFIXES = ["/_next", "/favicon.ico"];
+const SKIP_PREFIXES = ["/_next", "/favicon.ico", "/api/auth"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

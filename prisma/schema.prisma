@@ -15,14 +15,46 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  createdAt DateTime @default(now())
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  image         String?
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
 
   memberships  BoardMember[]
   cards        Card[]
   submissions  Submission[]
+  accounts     Account[]
+  sessions     Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // layout: "freeform" | "grid" | "stream" | "columns"
@@ -39,6 +71,7 @@ model Board {
   cards       Card[]
   sections    Section[]
   submissions Submission[]
+  quizzes     Quiz[]
 }
 
 // Columns/Kanban용 섹션 (grid/stream에선 사용 안 함)
@@ -118,4 +151,73 @@ model Submission {
   @@unique([boardId, userId])
   @@index([boardId])
   @@index([userId])
+}
+
+// ──── Quiz system ────
+
+model Quiz {
+  id          String   @id @default(cuid())
+  boardId     String
+  title       String   @default("")
+  sourceFile  String?  // uploaded PDF/PPT filename
+  sourceText  String?  // extracted text (for reference)
+  roomCode    String   @unique // 6-digit code for students to join
+  status      String   @default("waiting") // "waiting" | "active" | "finished"
+  currentQ    Int      @default(-1) // index of current question (-1 = not started)
+  createdAt   DateTime @default(now())
+
+  board     Board          @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  questions QuizQuestion[]
+  players   QuizPlayer[]
+
+  @@index([boardId])
+  @@index([roomCode])
+}
+
+model QuizQuestion {
+  id       String @id @default(cuid())
+  quizId   String
+  order    Int    @default(0)
+  question String
+  optionA  String
+  optionB  String
+  optionC  String
+  optionD  String
+  answer   String // "A" | "B" | "C" | "D"
+  timeLimit Int   @default(20) // seconds
+
+  quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers QuizAnswer[]
+
+  @@index([quizId])
+}
+
+model QuizPlayer {
+  id       String @id @default(cuid())
+  quizId   String
+  nickname String
+  score    Int    @default(0)
+  joinedAt DateTime @default(now())
+
+  quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers QuizAnswer[]
+
+  @@index([quizId])
+}
+
+model QuizAnswer {
+  id         String   @id @default(cuid())
+  questionId String
+  playerId   String
+  selected   String   // "A" | "B" | "C" | "D"
+  correct    Boolean
+  timeMs     Int      @default(0) // answer time in ms
+  createdAt  DateTime @default(now())
+
+  question QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  player   QuizPlayer   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, playerId])
+  @@index([questionId])
+  @@index([playerId])
 }

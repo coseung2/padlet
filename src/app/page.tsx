@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { Dashboard } from "@/components/Dashboard";
+import { AuthHeader } from "@/components/AuthHeader";
+import { UserSwitcher } from "@/components/UserSwitcher";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +37,10 @@ export default async function HomePage() {
           <div>
             <h1 className="home-title">내 보드</h1>
             <p className="home-subtitle">{user.name}님의 보드</p>
+          </div>
+          <div className="home-header-actions">
+            <AuthHeader />
+            {user.mockRole && <UserSwitcher currentRole={user.mockRole} />}
           </div>
         </div>
       </header>
