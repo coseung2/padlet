@@ -29,7 +29,7 @@ export function ColumnsBoard({
   const [sections, setSections] = useState<SectionData[]>(
     [...initialSections].sort((a, b) => a.order - b.order)
   );
-  const [draggedCard, setDraggedCard] = useState<string | null>(null);
+  const [overSectionId, setOverSectionId] = useState<string | null>(null);
   const canEdit = currentRole === "owner" || currentRole === "editor";
 
   function getCardsForSection(sectionId: string) {
@@ -38,17 +38,10 @@ export function ColumnsBoard({
       .sort((a, b) => a.order - b.order);
   }
 
-  function getUnsectionedCards() {
-    return cards
-      .filter((c) => !c.sectionId)
-      .sort((a, b) => a.order - b.order);
-  }
-
-  async function handleDropOnSection(cardId: string, targetSectionId: string | null) {
-    const sectionCards = targetSectionId
-      ? getCardsForSection(targetSectionId)
-      : getUnsectionedCards();
-    const newOrder = sectionCards.length;
+  async function moveCard(cardId: string, targetSectionId: string) {
+    const targetCards = getCardsForSection(targetSectionId);
+    const newOrder = targetCards.length;
+    const prevCards = [...cards];
 
     setCards((list) =>
       list.map((c) =>
@@ -57,44 +50,63 @@ export function ColumnsBoard({
     );
 
     try {
-      const res = await fetch(`/api/cards/${cardId}/move`, {
+      const res = await fetch(`/api/cards/${cardId}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ sectionId: targetSectionId, order: newOrder }),
       });
       if (!res.ok) {
         console.error("이동 실패:", await res.text());
-        setCards(initialCards); // revert
+        setCards(prevCards);
       }
     } catch (err) {
       console.error(err);
-      setCards(initialCards);
+      setCards(prevCards);
     }
-    setDraggedCard(null);
+  }
+
+  function handleDragStart(e: React.DragEvent, cardId: string) {
+    e.dataTransfer.setData("application/card-id", cardId);
+    e.dataTransfer.effectAllowed = "move";
+    // ghost image opacity
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = "0.5";
+    }
+  }
+
+  function handleDragEnd(e: React.DragEvent) {
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = "1";
+    }
+    setOverSectionId(null);
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }
+
+  function handleDrop(e: React.DragEvent, targetSectionId: string) {
+    e.preventDefault();
+    setOverSectionId(null);
+    const cardId = e.dataTransfer.getData("application/card-id");
+    if (cardId) {
+      moveCard(cardId, targetSectionId);
+    }
   }
 
   async function handleAdd(title: string, content: string) {
-    // 첫 섹션에 추가 (없으면 unsectioned)
     const targetSection = sections[0]?.id ?? null;
-    const order = targetSection ? getCardsForSection(targetSection).length : getUnsectionedCards().length;
-
+    const order = targetSection ? getCardsForSection(targetSection).length : 0;
     try {
       const res = await fetch(`/api/cards`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          boardId,
-          title,
-          content,
-          x: 0,
-          y: 0,
-          order,
-          sectionId: targetSection,
-        }),
+        body: JSON.stringify({ boardId, title, content, x: 0, y: 0, order, sectionId: targetSection }),
       });
       if (res.ok) {
         const { card } = await res.json();
-        setCards((prev) => [...prev, { ...card, sectionId: card.sectionId ?? targetSection }]);
+        setCards((prev) => [...prev, card]);
       } else {
         alert(`카드 추가 실패: ${await res.text()}`);
       }
@@ -104,7 +116,7 @@ export function ColumnsBoard({
   }
 
   async function handleDelete(id: string) {
-    const prev = cards;
+    const prev = [...cards];
     setCards((list) => list.filter((c) => c.id !== id));
     try {
       const res = await fetch(`/api/cards/${id}`, { method: "DELETE" });
@@ -138,28 +150,30 @@ export function ColumnsBoard({
         {sections.map((section) => (
           <div
             key={section.id}
-            className={`column ${draggedCard ? "column-drop-target" : ""}`}
-            onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("column-drag-over"); }}
-            onDragLeave={(e) => e.currentTarget.classList.remove("column-drag-over")}
-            onDrop={(e) => {
-              e.preventDefault();
-              e.currentTarget.classList.remove("column-drag-over");
-              if (draggedCard) handleDropOnSection(draggedCard, section.id);
+            className="column"
+            onDragOver={handleDragOver}
+            onDragEnter={() => setOverSectionId(section.id)}
+            onDragLeave={(e) => {
+              // Only clear if leaving the column itself (not entering a child)
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                setOverSectionId(null);
+              }
             }}
+            onDrop={(e) => handleDrop(e, section.id)}
           >
             <div className="column-header">
               <h3 className="column-title">{section.title}</h3>
               <span className="column-count">{getCardsForSection(section.id).length}</span>
             </div>
-            <div className="column-cards">
+            <div className={`column-cards ${overSectionId === section.id ? "column-cards-active" : ""}`}>
               {getCardsForSection(section.id).map((c) => (
                 <article
                   key={c.id}
                   className="column-card"
                   style={{ backgroundColor: c.color ?? undefined }}
                   draggable={canEdit}
-                  onDragStart={() => setDraggedCard(c.id)}
-                  onDragEnd={() => setDraggedCard(null)}
+                  onDragStart={(e) => handleDragStart(e, c.id)}
+                  onDragEnd={handleDragEnd}
                 >
                   <h4 className="padlet-card-title">{c.title}</h4>
                   <p className="padlet-card-content">{c.content}</p>
@@ -176,45 +190,13 @@ export function ColumnsBoard({
                   )}
                 </article>
               ))}
+              {getCardsForSection(section.id).length === 0 && (
+                <div className="column-empty">카드를 여기로 끌어오세요</div>
+              )}
             </div>
           </div>
         ))}
 
-        {/* unsectioned cards */}
-        {getUnsectionedCards().length > 0 && (
-          <div
-            className={`column column-unsectioned ${draggedCard ? "column-drop-target" : ""}`}
-            onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("column-drag-over"); }}
-            onDragLeave={(e) => e.currentTarget.classList.remove("column-drag-over")}
-            onDrop={(e) => {
-              e.preventDefault();
-              e.currentTarget.classList.remove("column-drag-over");
-              if (draggedCard) handleDropOnSection(draggedCard, null);
-            }}
-          >
-            <div className="column-header">
-              <h3 className="column-title">미분류</h3>
-              <span className="column-count">{getUnsectionedCards().length}</span>
-            </div>
-            <div className="column-cards">
-              {getUnsectionedCards().map((c) => (
-                <article
-                  key={c.id}
-                  className="column-card"
-                  style={{ backgroundColor: c.color ?? undefined }}
-                  draggable={canEdit}
-                  onDragStart={() => setDraggedCard(c.id)}
-                  onDragEnd={() => setDraggedCard(null)}
-                >
-                  <h4 className="padlet-card-title">{c.title}</h4>
-                  <p className="padlet-card-content">{c.content}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Add section button */}
         {canEdit && (
           <button type="button" className="column-add-btn" onClick={handleAddSection}>
             + 섹션 추가
