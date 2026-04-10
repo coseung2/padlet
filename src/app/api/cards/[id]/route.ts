@@ -12,6 +12,8 @@ const PatchCardSchema = z.object({
   y: z.number().optional(),
   width: z.number().optional(),
   height: z.number().optional(),
+  order: z.number().int().optional(),
+  sectionId: z.string().nullable().optional(),
 });
 
 export async function PATCH(
