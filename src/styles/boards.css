@@ -1,0 +1,248 @@
+/* -------- Grid Board -------- */
+
+.grid-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+  padding: 0;
+}
+
+.grid-card {
+  position: relative;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: var(--border-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 20px;
+  min-height: 140px;
+  transition: box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.grid-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--color-border-hover);
+}
+
+.grid-card:hover .padlet-card-delete {
+  display: flex;
+}
+
+/* -------- Stream Board -------- */
+
+.stream-board {
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.stream-card {
+  position: relative;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: var(--border-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 20px 24px;
+  transition: box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.stream-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--color-border-hover);
+}
+
+.stream-card:hover .padlet-card-delete {
+  display: flex;
+}
+
+.stream-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.stream-card-number {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-accent-tinted-text);
+  background: var(--color-accent-tinted-bg);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  letter-spacing: 0.125px;
+}
+
+.stream-card-date {
+  font-size: 12px;
+  color: var(--color-text-faint);
+}
+
+/* -------- Columns (Kanban) Board -------- */
+
+.columns-board {
+  display: flex;
+  gap: 24px;
+  align-items: stretch;
+  min-height: calc(100vh - 140px);
+  overflow-x: auto;
+  padding-bottom: 24px;
+}
+
+.column {
+  flex: 0 0 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0;
+  /* full-height drop zone — just move horizontally to target a column */
+}
+
+.column-cards-active {
+  background: var(--color-accent-tinted-bg);
+  border-radius: var(--radius-card);
+  outline: 2px dashed var(--color-accent);
+  outline-offset: -2px;
+}
+
+.column-empty {
+  padding: 20px;
+  text-align: center;
+  color: var(--color-text-faint);
+  font-size: 13px;
+  border: 2px dashed var(--color-border);
+  border-radius: 8px;
+}
+
+.column-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--color-surface);
+  border: var(--border-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.column-title {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.15px;
+  margin: 0;
+  color: var(--color-text);
+  flex: 1;
+}
+
+.column-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-accent-tinted-text);
+  background: var(--color-accent-tinted-bg);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  letter-spacing: 0.1px;
+}
+
+/* column header context menu */
+.column-header .ctx-menu-wrap {
+  flex-shrink: 0;
+}
+
+.column-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-height: 120px;
+  padding: 4px;
+  border-radius: var(--radius-card);
+  transition: background 200ms ease;
+}
+
+.column-card {
+  position: relative;
+  background: var(--color-surface);
+  border: var(--border-card);
+  border-radius: var(--radius-card);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-card);
+  cursor: grab;
+  transition: box-shadow 150ms ease, border-color 150ms ease, opacity 150ms ease;
+  user-select: none;
+}
+
+.column-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--color-border-hover);
+}
+
+/* column cards use context menu instead of padlet-card-delete */
+.column-card > .padlet-card-delete {
+  display: none !important;
+}
+
+.column-card:active {
+  cursor: grabbing;
+  opacity: 0.85;
+}
+
+.column-card .padlet-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.column-card .padlet-card-content {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.column-unsectioned {
+  opacity: 0.6;
+}
+
+.column-inline-add {
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text-faint);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
+  text-align: center;
+}
+
+.column-inline-add:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-accent-tinted-bg);
+}
+
+.column-add-btn {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  padding: 14px 20px;
+  background: transparent;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-card);
+  color: var(--color-text-faint);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  min-width: 200px;
+  min-height: 48px;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+
+.column-add-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}

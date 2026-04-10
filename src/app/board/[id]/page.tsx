@@ -7,7 +7,9 @@ import { BoardCanvas } from "@/components/BoardCanvas";
 import { GridBoard } from "@/components/GridBoard";
 import { StreamBoard } from "@/components/StreamBoard";
 import { ColumnsBoard } from "@/components/ColumnsBoard";
+import { AssignmentBoard } from "@/components/AssignmentBoard";
 import { UserSwitcher } from "@/components/UserSwitcher";
+import { EditableTitle } from "@/components/EditableTitle";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +18,7 @@ const LAYOUT_LABEL: Record<string, string> = {
   grid: "그리드",
   stream: "스트림",
   columns: "칼럼",
+  assignment: "과제 배부",
 };
 
 export default async function BoardPage({
@@ -29,6 +32,8 @@ export default async function BoardPage({
     include: {
       cards: { orderBy: { order: "asc" } },
       sections: { orderBy: { order: "asc" } },
+      submissions: true,
+      members: { include: { user: true } },
     },
   });
   if (!board) notFound();
@@ -41,6 +46,12 @@ export default async function BoardPage({
     title: c.title,
     content: c.content,
     color: c.color,
+    imageUrl: c.imageUrl,
+    linkUrl: c.linkUrl,
+    linkTitle: c.linkTitle,
+    linkDesc: c.linkDesc,
+    linkImage: c.linkImage,
+    videoUrl: c.videoUrl,
     x: c.x,
     y: c.y,
     width: c.width,
@@ -84,6 +95,32 @@ export default async function BoardPage({
         return <StreamBoard {...common} />;
       case "columns":
         return <ColumnsBoard {...common} initialSections={sectionProps} />;
+      case "assignment":
+        return (
+          <AssignmentBoard
+            boardId={board!.id}
+            description={board!.description}
+            initialSubmissions={board!.submissions.map((sub) => ({
+              id: sub.id,
+              boardId: sub.boardId,
+              userId: sub.userId,
+              content: sub.content,
+              linkUrl: sub.linkUrl,
+              fileUrl: sub.fileUrl,
+              status: sub.status,
+              feedback: sub.feedback,
+              grade: sub.grade,
+              createdAt: sub.createdAt.toISOString(),
+            }))}
+            members={board!.members.map((m) => ({
+              userId: m.userId,
+              userName: m.user.name,
+              role: m.role,
+            }))}
+            currentUserId={user.id}
+            currentRole={role!}
+          />
+        );
       case "freeform":
       default:
         return <BoardCanvas {...common} />;
@@ -93,11 +130,13 @@ export default async function BoardPage({
   return (
     <main className="board-page">
       <BoardHeader
+        boardId={board.id}
         title={board.title}
         layout={board.layout}
         userName={user.name}
         userRole={role}
         mockRole={user.mockRole}
+        canEdit={role === "owner" || role === "editor"}
       />
       {renderBoard()}
     </main>
@@ -105,17 +144,21 @@ export default async function BoardPage({
 }
 
 function BoardHeader({
+  boardId,
   title,
   layout,
   userName,
   userRole,
   mockRole,
+  canEdit,
 }: {
+  boardId: string;
   title: string;
   layout: string;
   userName?: string;
   userRole?: string;
   mockRole: string;
+  canEdit: boolean;
 }) {
   return (
     <header className="board-header">
@@ -123,7 +166,7 @@ function BoardHeader({
         <Link href="/" className="board-back-link" aria-label="보드 목록으로">
           ←
         </Link>
-        <h1 className="board-title">{title}</h1>
+        <EditableTitle boardId={boardId} initialTitle={title} canEdit={canEdit} />
         <span className="board-layout-badge">{LAYOUT_LABEL[layout] ?? layout}</span>
         {userName && userRole && (
           <span className="board-badge">

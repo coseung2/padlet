@@ -20,22 +20,25 @@ model User {
   name      String
   createdAt DateTime @default(now())
 
-  memberships BoardMember[]
-  cards       Card[]
+  memberships  BoardMember[]
+  cards        Card[]
+  submissions  Submission[]
 }
 
 // layout: "freeform" | "grid" | "stream" | "columns"
 // (columns prep for next task; validated in app via zod)
 model Board {
-  id        String   @id @default(cuid())
-  slug      String   @unique
-  title     String
-  layout    String   @default("freeform")
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  layout      String   @default("freeform")
+  description String   @default("")
+  createdAt   DateTime @default(now())
 
-  members  BoardMember[]
-  cards    Card[]
-  sections Section[]
+  members     BoardMember[]
+  cards       Card[]
+  sections    Section[]
+  submissions Submission[]
 }
 
 // Columns/Kanban용 섹션 (grid/stream에선 사용 안 함)
@@ -74,6 +77,12 @@ model Card {
   title     String
   content   String
   color     String?
+  imageUrl  String?
+  linkUrl   String?
+  linkTitle String?
+  linkDesc  String?
+  linkImage String?
+  videoUrl  String?
   x         Float    @default(0)
   y         Float    @default(0)
   width     Float    @default(240)
@@ -88,4 +97,25 @@ model Card {
 
   @@index([boardId])
   @@index([sectionId])
+}
+
+model Submission {
+  id        String   @id @default(cuid())
+  boardId   String
+  userId    String
+  content   String   @default("")
+  linkUrl   String?
+  fileUrl   String?
+  status    String   @default("submitted") // "submitted" | "reviewed" | "returned"
+  feedback  String?
+  grade     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@unique([boardId, userId])
+  @@index([boardId])
+  @@index([userId])
 }

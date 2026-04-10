@@ -23,6 +23,7 @@ const BOARDS = [
   { id: "b_grid", slug: "grid-demo", title: "그리드 보드", layout: "grid" },
   { id: "b_stream", slug: "stream-demo", title: "스트림 보드", layout: "stream" },
   { id: "b_columns", slug: "columns-demo", title: "칼럼 보드 (Kanban)", layout: "columns" },
+  { id: "b_assign", slug: "assignment-demo", title: "과제 배부 보드", layout: "assignment" },
 ];
 
 const MEMBERSHIPS: Array<{ userId: string; role: "owner" | "editor" | "viewer" }> = [
@@ -36,6 +37,12 @@ type SeedCard = {
   title: string;
   content: string;
   color?: string | null;
+  imageUrl?: string | null;
+  linkUrl?: string | null;
+  linkTitle?: string | null;
+  linkDesc?: string | null;
+  linkImage?: string | null;
+  videoUrl?: string | null;
   x: number;
   y: number;
   order?: number;
@@ -44,12 +51,12 @@ type SeedCard = {
 
 const FREEFORM_CARDS: SeedCard[] = [
   { title: "오늘의 목표", content: "보드 흐름을 파악하고 첫 카드를 추가해보기 🎯", color: "#ffd8f4", x: 40, y: 40, authorId: "u_owner" },
-  { title: "좋은 자료", content: "https://padlet.com\n원본 레퍼런스 — UX 관찰용", color: "#c3faf5", x: 320, y: 60, authorId: "u_owner" },
+  { title: "좋은 자료", content: "원본 레퍼런스 — UX 관찰용", color: "#c3faf5", x: 320, y: 60, authorId: "u_owner", linkUrl: "https://padlet.com", linkTitle: "Padlet", linkDesc: "Collaborate better. Padlet is a digital canvas where you can create, share, and collaborate.", linkImage: "https://padlet.com/images/og-image.png" },
   { title: "드래그 테스트", content: "이 카드를 끌어서 아무데나 놓아보세요.\n새로고침해도 위치가 유지됩니다.", color: "#ffe6cd", x: 600, y: 40, authorId: "u_editor" },
   { title: "이번 주 할 일", content: "- 스택 정리\n- 시드 데이터 확장\n- 카드 편집 UX", color: "#fde0f0", x: 40, y: 240, authorId: "u_owner" },
   { title: "질문들", content: "실시간 동기화는 언제 붙일까?\nLiveblocks vs Yjs 벤치마크 필요", color: "#ffc6c6", x: 320, y: 260, authorId: "u_editor" },
-  { title: "아이디어 노트", content: "카드 애니메이션을 살짝 넣으면 느낌이 확 다를 듯", color: "#f2f9ff", x: 600, y: 260, authorId: "u_editor" },
-  { title: "읽을거리", content: "Notion DESIGN.md — 웜 뉴트럴 취향 저격", color: "#f6f5f4", x: 40, y: 440, authorId: "u_owner" },
+  { title: "아이디어 노트", content: "카드 애니메이션을 살짝 넣으면 느낌이 확 다를 듯", color: "#f2f9ff", x: 600, y: 260, authorId: "u_editor", imageUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&h=300&fit=crop" },
+  { title: "읽을거리", content: "Notion DESIGN.md — 웜 뉴트럴 취향 저격", color: "#f6f5f4", x: 40, y: 440, authorId: "u_owner", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" },
   { title: "디자인 톤 메모", content: "figma: 흑백 + 그라데이션\nmiro: 파스텔 + 블루\nnotion: 웜 + 미니멀", x: 320, y: 460, authorId: "u_owner" },
   { title: "버그 리포트", content: "드래그 중 카드가 살짝 겹칠 때 z-index 보정 필요", color: "#fbd4d4", x: 600, y: 460, authorId: "u_editor" },
   { title: "접근성 메모", content: "키보드 드래그도 꼭 테스트", color: "#e3c5c5", x: 40, y: 660, authorId: "u_owner" },
@@ -60,13 +67,13 @@ const FREEFORM_CARDS: SeedCard[] = [
 // ──── Grid cards ────
 const GRID_CARDS: SeedCard[] = [
   { title: "프로젝트 킥오프", content: "4월 첫째 주 시작. 목표: MVP 3주 내 완성.", color: "#ffd8f4", x: 0, y: 0, order: 0, authorId: "u_owner" },
-  { title: "기술 스택 확정", content: "Next.js 16 + SQLite + Prisma + react-draggable", color: "#c3faf5", x: 0, y: 0, order: 1, authorId: "u_owner" },
+  { title: "기술 스택 확정", content: "Next.js 16 + SQLite + Prisma + react-draggable", color: "#c3faf5", x: 0, y: 0, order: 1, authorId: "u_owner", linkUrl: "https://nextjs.org", linkTitle: "Next.js by Vercel", linkDesc: "The React framework for the web.", linkImage: "https://nextjs.org/static/twitter-cards/home.jpg" },
   { title: "디자인 시스템", content: "Notion 테마 선정. 웜 뉴트럴 + whisper border.", color: "#f6f5f4", x: 0, y: 0, order: 2, authorId: "u_owner" },
   { title: "RBAC 구현 완료", content: "owner / editor / viewer 3단계. 서버 강제.", color: "#ffe6cd", x: 0, y: 0, order: 3, authorId: "u_editor" },
   { title: "드래그 동작 수정", content: "dnd-kit → react-draggable 교체. 훨씬 안정적.", color: "#fde0f0", x: 0, y: 0, order: 4, authorId: "u_editor" },
   { title: "보드 레이아웃 확장", content: "Grid + Stream 레이아웃 추가 중.", color: "#f2f9ff", x: 0, y: 0, order: 5, authorId: "u_owner" },
   { title: "시드 데이터 정교화", content: "보드별 카드 세트 + 멱등 시드 스크립트.", color: "#ffc6c6", x: 0, y: 0, order: 6, authorId: "u_editor" },
-  { title: "다음: Columns", content: "Kanban 스타일 칼럼 레이아웃. 3번째 보드 타입.", color: "#fbd4d4", x: 0, y: 0, order: 7, authorId: "u_owner" },
+  { title: "다음: Columns", content: "Kanban 스타일 칼럼 레이아웃. 3번째 보드 타입.", color: "#fbd4d4", x: 0, y: 0, order: 7, authorId: "u_owner", imageUrl: "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=400&h=250&fit=crop" },
   { title: "배포 목표", content: "로컬 dev 먼저. Vercel은 인증 붙인 후.", x: 0, y: 0, order: 8, authorId: "u_owner" },
 ];
 
@@ -77,7 +84,7 @@ const STREAM_CARDS: SeedCard[] = [
   { title: "4/10 — Notion 선정", content: "사용자가 Notion 테마를 선택. 나머지 2개 아카이브. phase6에서 반응형 3-breakpoint 추가 + 미세조정.", color: "#f6f5f4", x: 0, y: 0, order: 2, authorId: "u_owner" },
   { title: "4/10 — 드래그 이슈", content: "dnd-kit의 React 19 호환 문제 + CSS transition 충돌. react-draggable로 교체하여 해결.", color: "#ffc6c6", x: 0, y: 0, order: 3, authorId: "u_editor" },
   { title: "4/10 — RBAC 검증", content: "viewer 403, editor 카드 생성, owner 전권 — 모두 서버 사이드 검증 완료.", color: "#ffe6cd", x: 0, y: 0, order: 4, authorId: "u_editor" },
-  { title: "4/10 — 보드 종류 리서치", content: "Padlet 9개 레이아웃 + Miro/FigJam/Trello/Notion 비교. Grid + Stream + Columns 순서로 확장 결정.", color: "#f2f9ff", x: 0, y: 0, order: 5, authorId: "u_owner" },
+  { title: "4/10 — 보드 종류 리서치", content: "Padlet 9개 레이아웃 + Miro/FigJam/Trello/Notion 비교. Grid + Stream + Columns 순서로 확장 결정.", color: "#f2f9ff", x: 0, y: 0, order: 5, authorId: "u_owner", videoUrl: "https://www.youtube.com/watch?v=Sklc_fQBmcs" },
   { title: "4/10 — Grid + Stream 구현", content: "Board.layout 필드 추가, Section 모델 준비, 레이아웃별 렌더 전략 분기.", color: "#fde0f0", x: 0, y: 0, order: 6, authorId: "u_owner" },
   { title: "다음 — Columns (Kanban)", content: "칼럼 간 드래그 이동 + Section CRUD. Trello 스타일.", x: 0, y: 0, order: 7, authorId: "u_owner" },
 ];
@@ -120,6 +127,12 @@ async function main() {
           title: c.title,
           content: c.content,
           color: c.color ?? null,
+          imageUrl: c.imageUrl ?? null,
+          linkUrl: c.linkUrl ?? null,
+          linkTitle: c.linkTitle ?? null,
+          linkDesc: c.linkDesc ?? null,
+          linkImage: c.linkImage ?? null,
+          videoUrl: c.videoUrl ?? null,
           x: c.x,
           y: c.y,
           order: c.order ?? i,
@@ -145,15 +158,18 @@ async function main() {
   }
 
   const COLUMN_CARDS: SeedCard[] = [
-    { title: "인증 시스템 도입", content: "NextAuth 또는 Clerk 검토 후 구현", color: "#ffd8f4", x: 0, y: 0, order: 0, authorId: "u_owner" },
-    { title: "실시간 동기화", content: "Liveblocks vs Yjs 벤치마크", color: "#c3faf5", x: 0, y: 0, order: 1, authorId: "u_owner" },
-    { title: "이미지 업로드", content: "카드에 이미지 첨부 기능", x: 0, y: 0, order: 2, authorId: "u_editor" },
-    { title: "RBAC 구현", content: "owner/editor/viewer 3단계 서버 강제", color: "#ffe6cd", x: 0, y: 0, order: 0, authorId: "u_editor" },
-    { title: "Grid 레이아웃", content: "CSS Grid auto-fill 기반 카드 배치", color: "#fde0f0", x: 0, y: 0, order: 1, authorId: "u_owner" },
+    // 할 일 (todo) — 이미지 첨부 샘플
+    { title: "인증 시스템 도입", content: "NextAuth 또는 Clerk 검토 후 구현", color: "#ffd8f4", x: 0, y: 0, order: 0, authorId: "u_owner", imageUrl: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=400&h=250&fit=crop" },
+    { title: "실시간 동기화", content: "Liveblocks vs Yjs 벤치마크", color: "#c3faf5", x: 0, y: 0, order: 1, authorId: "u_owner", linkUrl: "https://liveblocks.io", linkTitle: "Liveblocks", linkDesc: "Build collaborative experiences with conflict-free data structures.", linkImage: "https://liveblocks.io/images/og/og-image.png" },
+    { title: "이미지 업로드", content: "카드에 이미지 첨부 기능", x: 0, y: 0, order: 2, authorId: "u_editor", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" },
+    // 진행 중 (progress) — 링크 첨부 샘플
+    { title: "RBAC 구현", content: "owner/editor/viewer 3단계 서버 강제", color: "#ffe6cd", x: 0, y: 0, order: 0, authorId: "u_editor", linkUrl: "https://nextjs.org/docs", linkTitle: "Next.js Documentation", linkDesc: "Find in-depth information about Next.js features and API.", linkImage: "https://nextjs.org/static/twitter-cards/home.jpg" },
+    { title: "Grid 레이아웃", content: "CSS Grid auto-fill 기반 카드 배치", color: "#fde0f0", x: 0, y: 0, order: 1, authorId: "u_owner", imageUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&h=250&fit=crop" },
     { title: "Stream 레이아웃", content: "위→아래 피드형 보드", color: "#f2f9ff", x: 0, y: 0, order: 2, authorId: "u_owner" },
-    { title: "프로젝트 초기 설정", content: "Next.js 16 + SQLite + Prisma", color: "#f6f5f4", x: 0, y: 0, order: 0, authorId: "u_owner" },
-    { title: "Notion 테마 확정", content: "웜 뉴트럴 + whisper border 적용", color: "#ffc6c6", x: 0, y: 0, order: 1, authorId: "u_owner" },
-    { title: "드래그 수정", content: "dnd-kit → react-draggable 교체", color: "#fbd4d4", x: 0, y: 0, order: 2, authorId: "u_editor" },
+    // 완료 (done) — 동영상 첨부 샘플
+    { title: "프로젝트 초기 설정", content: "Next.js 16 + SQLite + Prisma", color: "#f6f5f4", x: 0, y: 0, order: 0, authorId: "u_owner", videoUrl: "https://www.youtube.com/watch?v=Sklc_fQBmcs" },
+    { title: "Notion 테마 확정", content: "웜 뉴트럴 + whisper border 적용", color: "#ffc6c6", x: 0, y: 0, order: 1, authorId: "u_owner", linkUrl: "https://www.notion.so", linkTitle: "Notion – The all-in-one workspace", linkDesc: "A new tool that blends your everyday work apps into one.", linkImage: "https://www.notion.so/images/meta/default.png" },
+    { title: "드래그 수정", content: "dnd-kit → react-draggable 교체", color: "#fbd4d4", x: 0, y: 0, order: 2, authorId: "u_editor", imageUrl: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&h=250&fit=crop" },
   ];
 
   // Assign sections: first 3 = todo, next 3 = progress, last 3 = done
@@ -169,6 +185,12 @@ async function main() {
         title: c.title,
         content: c.content,
         color: c.color ?? null,
+        imageUrl: c.imageUrl ?? null,
+        linkUrl: c.linkUrl ?? null,
+        linkTitle: c.linkTitle ?? null,
+        linkDesc: c.linkDesc ?? null,
+        linkImage: c.linkImage ?? null,
+        videoUrl: c.videoUrl ?? null,
         x: c.x,
         y: c.y,
         order: c.order ?? i,
@@ -176,8 +198,26 @@ async function main() {
     });
   }
 
+  // ──── Assignment board: Submissions (board-level) ────
+  await prisma.submission.deleteMany({ where: { boardId: "b_assign" } });
+
+  // Update board description
+  await prisma.board.update({
+    where: { id: "b_assign" },
+    data: { description: "자료를 활용하여 발표 자료를 만들고 링크를 제출하세요. Canva, Google Slides 등 자유 형식." },
+  });
+
+  const SUBMISSIONS = [
+    { boardId: "b_assign", userId: "u_editor", content: "발표 자료 완성했습니다!", linkUrl: "https://www.canva.com/design/example1/view", status: "submitted" },
+    { boardId: "b_assign", userId: "u_viewer", content: "제출합니다.", linkUrl: "https://docs.google.com/presentation/d/example", status: "reviewed", feedback: "잘했어요! 이미지 출처만 추가하면 완벽합니다.", grade: "A" },
+  ];
+
+  for (const sub of SUBMISSIONS) {
+    await prisma.submission.create({ data: sub });
+  }
+
   const total = FREEFORM_CARDS.length + GRID_CARDS.length + STREAM_CARDS.length + COLUMN_CARDS.length;
-  console.log(`✅ Seed complete — users=${USERS.length}, boards=${BOARDS.length}, sections=${SECTIONS.length}, cards=${total}`);
+  console.log(`✅ Seed complete — users=${USERS.length}, boards=${BOARDS.length}, sections=${SECTIONS.length}, cards=${total}, submissions=${SUBMISSIONS.length}`);
 }
 
 main()

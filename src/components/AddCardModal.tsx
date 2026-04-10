@@ -1,0 +1,297 @@
+"use client";
+
+import { useState, useRef } from "react";
+import { useLinkPreview } from "./useLinkPreview";
+
+export type AddCardData = {
+  title: string;
+  content: string;
+  imageUrl?: string;
+  linkUrl?: string;
+  linkTitle?: string;
+  linkDesc?: string;
+  linkImage?: string;
+  videoUrl?: string;
+  color?: string;
+  sectionId?: string;
+};
+
+type SectionOption = { id: string; title: string };
+
+type Props = {
+  onAdd: (data: AddCardData) => Promise<void>;
+  onClose: () => void;
+  sections?: SectionOption[];
+  defaultSectionId?: string;
+};
+
+const COLOR_PRESETS = [
+  null, "#ffd8f4", "#c3faf5", "#ffe6cd", "#fde0f0",
+  "#f2f9ff", "#ffc6c6", "#f6f5f4", "#e8f5e9", "#fff3e0",
+];
+
+export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Props) {
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
+  const [color, setColor] = useState<string | null>(null);
+  const [sectionId, setSectionId] = useState(defaultSectionId ?? sections?.[0]?.id ?? "");
+  const [showImage, setShowImage] = useState(false);
+  const [showLink, setShowLink] = useState(false);
+  const [showVideo, setShowVideo] = useState(false);
+  const { preview, loading: previewLoading, fetchPreview, reset: resetPreview } = useLinkPreview();
+  const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFileUpload(file: File, type: "image" | "video") {
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: form });
+      if (res.ok) {
+        const { url } = await res.json();
+        if (type === "image") setImageUrl(url);
+        else setVideoUrl(url);
+      } else {
+        alert(`업로드 실패: ${await res.text()}`);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setUploading(false);
+  }
+
+  return (
+    <>
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="add-card-modal">
+        <div className="modal-header">
+          <h2 className="modal-title">새 카드 만들기</h2>
+          <button type="button" className="modal-close" onClick={onClose}>×</button>
+        </div>
+
+        <form
+          className="modal-body"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!title.trim()) return;
+            setBusy(true);
+            await onAdd({
+              title: title.trim(),
+              content: content.trim(),
+              imageUrl: imageUrl || undefined,
+              linkUrl: linkUrl || undefined,
+              linkTitle: preview?.title || undefined,
+              linkDesc: preview?.description || undefined,
+              linkImage: preview?.image || undefined,
+              videoUrl: videoUrl || undefined,
+              color: color || undefined,
+              sectionId: sectionId || undefined,
+            });
+            setBusy(false);
+            onClose();
+          }}
+        >
+          {sections && sections.length > 0 && (
+            <>
+              <label className="modal-field-label">섹션</label>
+              <select
+                value={sectionId}
+                onChange={(e) => setSectionId(e.target.value)}
+                className="modal-select"
+              >
+                {sections.map((s) => (
+                  <option key={s.id} value={s.id}>{s.title}</option>
+                ))}
+              </select>
+            </>
+          )}
+
+          <label className="modal-field-label">제목</label>
+          <input
+            autoFocus
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="카드 제목"
+            className="modal-input"
+            maxLength={200}
+            required
+          />
+
+          <label className="modal-field-label">내용</label>
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="내용을 입력하세요..."
+            rows={3}
+            className="modal-textarea"
+            maxLength={5000}
+          />
+
+          {/* ── 첨부 버튼 바 ── */}
+          <div className="modal-attach-bar">
+            <button
+              type="button"
+              className={`modal-attach-btn ${showImage ? "modal-attach-btn-active" : ""}`}
+              onClick={() => setShowImage(!showImage)}
+            >
+              🖼️ 이미지
+            </button>
+            <button
+              type="button"
+              className={`modal-attach-btn ${showLink ? "modal-attach-btn-active" : ""}`}
+              onClick={() => setShowLink(!showLink)}
+            >
+              🔗 링크
+            </button>
+            <button
+              type="button"
+              className={`modal-attach-btn ${showVideo ? "modal-attach-btn-active" : ""}`}
+              onClick={() => setShowVideo(!showVideo)}
+            >
+              🎬 동영상
+            </button>
+          </div>
+
+          {/* ── 이미지 (개별 토글) ── */}
+          {showImage && (
+            <div className="modal-attach-section">
+              {imageUrl ? (
+                <div className="modal-file-preview">
+                  <img src={imageUrl} alt="" className="modal-preview-img" />
+                  <button type="button" className="modal-file-remove" onClick={() => setImageUrl("")}>제거</button>
+                </div>
+              ) : (
+                <div
+                  className="modal-file-drop"
+                  onClick={() => imageInputRef.current?.click()}
+                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("drag-over"); }}
+                  onDragLeave={(e) => e.currentTarget.classList.remove("drag-over")}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove("drag-over");
+                    const f = e.dataTransfer.files[0];
+                    if (f && f.type.startsWith("image/")) handleFileUpload(f, "image");
+                  }}
+                >
+                  <span className="modal-file-drop-icon">🖼️</span>
+                  <span>{uploading ? "업로드 중..." : "클릭 또는 이미지를 드래그하세요"}</span>
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleFileUpload(f, "image");
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── 링크 (개별 토글) ── */}
+          {showLink && (
+            <div className="modal-attach-section">
+              <input
+                value={linkUrl}
+                onChange={(e) => {
+                  setLinkUrl(e.target.value);
+                  fetchPreview(e.target.value);
+                }}
+                placeholder="https://..."
+                className="modal-input"
+                type="url"
+              />
+              {previewLoading && <div className="link-preview-loading">미리보기 가져오는 중...</div>}
+              {preview && (preview.title || preview.image) && (
+                <div className="link-preview-card">
+                  {preview.image && (
+                    <div className="link-preview-card-image">
+                      <img src={preview.image} alt="" />
+                    </div>
+                  )}
+                  <div className="link-preview-card-body">
+                    {preview.title && <div className="link-preview-card-title">{preview.title}</div>}
+                    {preview.description && <div className="link-preview-card-desc">{preview.description}</div>}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── 동영상 (개별 토글) ── */}
+          {showVideo && (
+            <div className="modal-attach-section">
+              {videoUrl ? (
+                <div className="modal-file-preview">
+                  <video src={videoUrl} className="modal-preview-video-file" controls />
+                  <button type="button" className="modal-file-remove" onClick={() => setVideoUrl("")}>제거</button>
+                </div>
+              ) : (
+                <div
+                  className="modal-file-drop"
+                  onClick={() => videoInputRef.current?.click()}
+                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("drag-over"); }}
+                  onDragLeave={(e) => e.currentTarget.classList.remove("drag-over")}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove("drag-over");
+                    const f = e.dataTransfer.files[0];
+                    if (f && f.type.startsWith("video/")) handleFileUpload(f, "video");
+                  }}
+                >
+                  <span className="modal-file-drop-icon">🎬</span>
+                  <span>{uploading ? "업로드 중..." : "클릭 또는 동영상을 드래그하세요"}</span>
+                  <input
+                    ref={videoInputRef}
+                    type="file"
+                    accept="video/*"
+                    hidden
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleFileUpload(f, "video");
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="modal-color-section">
+            <span className="modal-color-label">카드 색상</span>
+            <div className="modal-color-row">
+              {COLOR_PRESETS.map((c, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className={`modal-color-btn ${color === c ? "modal-color-btn-active" : ""}`}
+                  style={{ background: c ?? "#ffffff" }}
+                  onClick={() => setColor(c)}
+                  aria-label={c ?? "기본"}
+                >
+                  {color === c && "✓"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="modal-actions">
+            <button type="button" onClick={onClose} disabled={busy || uploading} className="modal-btn-cancel">
+              취소
+            </button>
+            <button type="submit" disabled={busy || uploading || !title.trim()} className="modal-btn-submit">
+              {busy ? "추가 중..." : "카드 추가"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </>
+  );
+}

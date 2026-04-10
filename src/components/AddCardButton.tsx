@@ -1,77 +1,36 @@
 "use client";
 
 import { useState } from "react";
+import { AddCardModal, type AddCardData } from "./AddCardModal";
 
 type Props = {
-  onAdd: (title: string, content: string) => Promise<void>;
+  onAdd: (data: AddCardData) => Promise<void>;
+  sections?: { id: string; title: string }[];
 };
 
-export function AddCardButton({ onAdd }: Props) {
+export function AddCardButton({ onAdd, sections }: Props) {
   const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [busy, setBusy] = useState(false);
 
-  if (!open) {
-    return (
+  return (
+    <>
       <button
         type="button"
-        className="add-card-btn"
+        className="add-card-fab"
         onClick={() => setOpen(true)}
         aria-label="카드 추가"
       >
-        + 카드 추가
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
       </button>
-    );
-  }
-
-  return (
-    <form
-      className="add-card-form"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        if (!title.trim()) return;
-        setBusy(true);
-        await onAdd(title.trim(), content.trim());
-        setBusy(false);
-        setTitle("");
-        setContent("");
-        setOpen(false);
-      }}
-    >
-      <input
-        autoFocus
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="카드 제목"
-        className="add-card-input"
-        maxLength={200}
-        required
-      />
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        placeholder="내용 (선택)"
-        rows={4}
-        className="add-card-textarea"
-        maxLength={5000}
-      />
-      <div className="add-card-actions">
-        <button
-          type="button"
-          onClick={() => {
-            setTitle("");
-            setContent("");
-            setOpen(false);
-          }}
-          disabled={busy}
-        >
-          취소
-        </button>
-        <button type="submit" disabled={busy || !title.trim()}>
-          {busy ? "…" : "추가"}
-        </button>
-      </div>
-    </form>
+      {open && (
+        <AddCardModal
+          onAdd={onAdd}
+          onClose={() => setOpen(false)}
+          sections={sections}
+        />
+      )}
+    </>
   );
 }
