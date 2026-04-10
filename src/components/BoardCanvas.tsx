@@ -61,7 +61,14 @@ export function BoardCanvas({
     });
   }
 
-  async function handleAdd(title: string, content: string) {
+  async function handleAdd(data: {
+    title: string;
+    content: string;
+    imageUrl?: string;
+    linkUrl?: string;
+    videoUrl?: string;
+    color?: string;
+  }) {
     const nextPos = {
       x: 40 + (cards.length % 3) * 280,
       y: 40 + Math.floor(cards.length / 3) * 220,
@@ -70,7 +77,19 @@ export function BoardCanvas({
       const res = await fetch(`/api/cards`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ boardId, title, content, ...nextPos }),
+        body: JSON.stringify({
+          boardId,
+          title: data.title,
+          content: data.content,
+          imageUrl: data.imageUrl || null,
+          linkUrl: data.linkUrl || null,
+          linkTitle: data.linkTitle || null,
+          linkDesc: data.linkDesc || null,
+          linkImage: data.linkImage || null,
+          videoUrl: data.videoUrl || null,
+          color: data.color || null,
+          ...nextPos,
+        }),
       });
       if (res.ok) {
         const { card } = await res.json();

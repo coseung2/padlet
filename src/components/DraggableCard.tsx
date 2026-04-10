@@ -5,12 +5,19 @@ import Draggable, {
   type DraggableData,
   type DraggableEvent,
 } from "react-draggable";
+import { CardAttachments } from "./CardAttachments";
 
 export type CardData = {
   id: string;
   title: string;
   content: string;
   color: string | null;
+  imageUrl?: string | null;
+  linkUrl?: string | null;
+  linkTitle?: string | null;
+  linkDesc?: string | null;
+  linkImage?: string | null;
+  videoUrl?: string | null;
   x: number;
   y: number;
   width: number;
@@ -54,6 +61,7 @@ export function DraggableCard({
         }}
         aria-label={card.title}
       >
+        <CardAttachments imageUrl={card.imageUrl} linkUrl={card.linkUrl} linkTitle={card.linkTitle} linkDesc={card.linkDesc} linkImage={card.linkImage} videoUrl={card.videoUrl} />
         <h3 className="padlet-card-title">{card.title}</h3>
         <p className="padlet-card-content">{card.content}</p>
       </article>
@@ -85,6 +93,7 @@ export function DraggableCard({
         }}
         aria-label={card.title}
       >
+        <CardAttachments imageUrl={card.imageUrl} linkUrl={card.linkUrl} linkTitle={card.linkTitle} linkDesc={card.linkDesc} linkImage={card.linkImage} videoUrl={card.videoUrl} />
         <h3 className="padlet-card-title">{card.title}</h3>
         <p className="padlet-card-content">{card.content}</p>
         {canDelete && (

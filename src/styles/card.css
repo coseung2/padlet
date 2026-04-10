@@ -1,0 +1,205 @@
+/* -------- Card -------- */
+
+.padlet-card {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: var(--border-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 16px 18px 18px;
+  /* IMPORTANT: do not transition `transform` — dnd-kit updates it per frame
+     during drag; transitioning causes visible lag-then-jump. */
+  transition: box-shadow 180ms ease, border-color 180ms ease;
+  will-change: transform;
+  user-select: none;
+  touch-action: none;
+}
+
+.padlet-card.is-draggable {
+  cursor: grab;
+}
+
+.padlet-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--color-border-hover);
+}
+
+.padlet-card.is-dragging {
+  cursor: grabbing;
+  box-shadow: var(--shadow-card-hover);
+  opacity: 0.96;
+}
+
+.padlet-card-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.25px;
+  margin: 0 28px 8px 0;
+  line-height: 1.3;
+  color: var(--color-text);
+}
+
+.padlet-card-content {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+  color: var(--color-text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.padlet-card-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--color-text-muted);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.padlet-card:hover .padlet-card-delete,
+.padlet-card:focus-within .padlet-card-delete {
+  display: flex;
+}
+
+.padlet-card-delete:hover {
+  background: rgba(0, 0, 0, 0.12);
+  color: var(--color-text);
+}
+
+/* -------- Card Attachments -------- */
+
+.card-attachments {
+  margin-bottom: 10px;
+}
+
+.card-attach-image {
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.card-attach-image img {
+  display: block;
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+}
+
+.card-attach-video {
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.card-attach-video iframe {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: none;
+}
+
+/* ---- Rich Link Preview (card) ---- */
+
+.card-link-preview {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  margin-bottom: 8px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.card-link-preview:hover {
+  border-color: var(--color-border-hover);
+  box-shadow: var(--shadow-lift);
+}
+
+.card-link-preview-image {
+  width: 100%;
+  max-height: 140px;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+.card-link-preview-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.card-link-preview-body {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.card-link-preview-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-link-preview-desc {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-link-preview-url {
+  font-size: 11px;
+  color: var(--color-text-faint);
+  margin-top: 2px;
+}
+
+/* -------- Card Attachment: Video File -------- */
+
+.card-attach-video video {
+  display: block;
+  width: 100%;
+  max-height: 180px;
+  border-radius: 8px;
+  background: #000;
+}
+
+/* card context menu positioning */
+.card-ctx-menu {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: none;
+}
+
+.column-card:hover .card-ctx-menu,
+.grid-card:hover .card-ctx-menu,
+.stream-card:hover .card-ctx-menu,
+.padlet-card:hover .card-ctx-menu {
+  display: block;
+}

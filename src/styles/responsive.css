@@ -1,0 +1,62 @@
+/* -------- Responsive -------- */
+
+@media (max-width: 1080px) {
+  .board-header {
+    padding: 16px 24px;
+  }
+  .board-canvas-wrap {
+    padding: 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .board-header {
+    padding: 14px 18px;
+    gap: 12px;
+  }
+  .board-header-left {
+    gap: 12px;
+  }
+  .board-title {
+    font-size: 22px;
+  }
+  .board-canvas-wrap {
+    padding: 18px;
+  }
+  .board-canvas {
+    min-width: 0;
+  }
+  .add-card-btn,
+  .add-card-form {
+    right: 18px;
+    bottom: 18px;
+  }
+}
+
+@media (max-width: 560px) {
+  .board-header {
+    padding: 12px 14px;
+  }
+  .board-header-right {
+    gap: 8px;
+  }
+  .board-title {
+    font-size: 20px;
+  }
+  .user-switcher-btn {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+  .user-switcher-btn span:last-child {
+    display: none;
+  }
+  .padlet-card {
+    padding: 14px 16px 16px;
+  }
+  .add-card-form {
+    left: 14px;
+    right: 14px;
+    min-width: auto;
+    max-width: none;
+  }
+}

@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { requirePermission, ForbiddenError } from "@/lib/rbac";
+
+const PatchBoardSchema = z.object({
+  title: z.string().max(200).optional(),
+  description: z.string().max(2000).optional(),
+});
 
 export async function GET(
   _req: Request,
@@ -35,6 +41,40 @@ export async function GET(
       return NextResponse.json({ error: e.message }, { status: 403 });
     }
     console.error("[GET /api/boards/:id]", e);
+    return NextResponse.json({ error: "internal" }, { status: 500 });
+  }
+}
+
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const user = await getCurrentUser();
+
+    const board = await db.board.findFirst({
+      where: { OR: [{ id }, { slug: id }] },
+    });
+    if (!board) {
+      return NextResponse.json({ error: "Board not found" }, { status: 404 });
+    }
+
+    await requirePermission(board.id, user.id, "edit");
+
+    const body = await req.json();
+    const input = PatchBoardSchema.parse(body);
+    const updated = await db.board.update({ where: { id: board.id }, data: input });
+
+    return NextResponse.json({ board: updated });
+  } catch (e) {
+    if (e instanceof ForbiddenError) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
+    if (e instanceof z.ZodError) {
+      return NextResponse.json({ error: e.message }, { status: 400 });
+    }
+    console.error("[PATCH /api/boards/:id]", e);
     return NextResponse.json({ error: "internal" }, { status: 500 });
   }
 }

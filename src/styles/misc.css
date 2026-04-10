@@ -1,0 +1,143 @@
+/* -------- FAB (Add Card) -------- */
+
+.add-card-fab {
+  position: fixed;
+  right: 32px;
+  bottom: 32px;
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-accent);
+  transition: background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+  z-index: 30;
+}
+
+.add-card-fab:hover {
+  background: var(--color-accent-active);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-accent-hover);
+}
+
+.add-card-fab:active {
+  transform: scale(0.95);
+}
+
+/* -------- Context Menu -------- */
+
+.ctx-menu-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.ctx-menu-trigger {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-faint);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 150ms ease, color 150ms ease;
+  padding: 0;
+  line-height: 1;
+}
+
+.ctx-menu-trigger:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--color-text);
+}
+
+.ctx-menu-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  min-width: 140px;
+  background: var(--color-surface);
+  border: var(--border-card);
+  border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+  z-index: 50;
+  padding: 4px;
+  animation: menuIn 120ms ease;
+}
+
+@keyframes menuIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ctx-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 100ms ease;
+  text-align: left;
+}
+
+.ctx-menu-item:hover {
+  background: var(--color-surface-alt);
+}
+
+.ctx-menu-item-danger {
+  color: #dc3545;
+}
+
+.ctx-menu-item-danger:hover {
+  background: rgba(220, 53, 69, 0.08);
+}
+
+.ctx-menu-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+/* -------- Forbidden state -------- */
+
+.forbidden-card {
+  padding: 40px;
+  text-align: center;
+  max-width: 420px;
+  margin: 80px auto;
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
+  border: var(--border-card);
+  box-shadow: var(--shadow-card);
+}
+
+.forbidden-card h2 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.25px;
+  margin: 0 0 8px;
+  color: var(--color-text);
+}
+
+.forbidden-card p {
+  margin: 0;
+  color: var(--color-text-muted);
+}

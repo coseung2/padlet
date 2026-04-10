@@ -1,0 +1,80 @@
+/* =====================================================
+   Padlet Clone — globals.css
+   Notion-inspired theme (locked in 2026-04-10, phase6).
+   Rejected Figma / Miro variants archived:
+     tasks/2026-04-09-initial-padlet-app/phase5/rejected/
+   ===================================================== */
+
+:root {
+  /* Colors — Warm neutral palette (Notion DESIGN.md) */
+  --color-bg: #f6f5f4;
+  --color-bg-alt: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-alt: rgba(0, 0, 0, 0.05);
+  --color-text: rgba(0, 0, 0, 0.95);
+  --color-text-muted: #615d59;
+  --color-text-faint: #a39e98;
+  --color-accent: #0075de;
+  --color-accent-active: #005bab;
+  --color-accent-tinted-bg: #f2f9ff;
+  --color-accent-tinted-text: #097fe8;
+  --color-border: rgba(0, 0, 0, 0.1);
+  --color-border-hover: rgba(0, 0, 0, 0.15);
+
+  /* Radii */
+  --radius-card: 12px;
+  --radius-btn: 4px;
+  --radius-pill: 9999px;
+
+  /* Typography */
+  --font-display: "Inter", -apple-system, system-ui, "Segoe UI", sans-serif;
+  --font-body: "Inter", -apple-system, system-ui, "Segoe UI", sans-serif;
+  --font-display-tracking: -0.5px;
+
+  /* Shadows — multi-layer soft (Notion signature) */
+  --shadow-card:
+    rgba(0, 0, 0, 0.04) 0px 4px 18px,
+    rgba(0, 0, 0, 0.027) 0px 2.025px 7.85px,
+    rgba(0, 0, 0, 0.02) 0px 0.8px 2.93px,
+    rgba(0, 0, 0, 0.01) 0px 0.175px 1.04px;
+  --shadow-card-hover:
+    rgba(0, 0, 0, 0.06) 0px 12px 34px,
+    rgba(0, 0, 0, 0.04) 0px 4px 14px;
+  --shadow-lift: rgba(0, 0, 0, 0.06) 0px 2px 8px;
+  --shadow-accent: 0 6px 20px rgba(0, 117, 222, 0.25);
+  --shadow-accent-hover: 0 8px 24px rgba(0, 117, 222, 0.3);
+
+  --border-card: 1px solid var(--color-border);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "kern", "liga";
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent-tinted-text);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+button {
+  font-family: inherit;
+}

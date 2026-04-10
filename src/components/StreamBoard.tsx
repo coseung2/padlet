@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AddCardButton } from "./AddCardButton";
+import { CardAttachments } from "./CardAttachments";
 import type { CardData } from "./DraggableCard";
 
 type Props = {
@@ -17,12 +18,33 @@ export function StreamBoard({ boardId, initialCards, currentUserId, currentRole 
   );
   const canEdit = currentRole === "owner" || currentRole === "editor";
 
-  async function handleAdd(title: string, content: string) {
+  async function handleAdd(data: {
+    title: string;
+    content: string;
+    imageUrl?: string;
+    linkUrl?: string;
+    videoUrl?: string;
+    color?: string;
+  }) {
     try {
       const res = await fetch(`/api/cards`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ boardId, title, content, x: 0, y: 0, order: cards.length }),
+        body: JSON.stringify({
+          boardId,
+          title: data.title,
+          content: data.content,
+          imageUrl: data.imageUrl || null,
+          linkUrl: data.linkUrl || null,
+          linkTitle: data.linkTitle || null,
+          linkDesc: data.linkDesc || null,
+          linkImage: data.linkImage || null,
+          videoUrl: data.videoUrl || null,
+          color: data.color || null,
+          x: 0,
+          y: 0,
+          order: cards.length,
+        }),
       });
       if (res.ok) {
         const { card } = await res.json();
@@ -41,7 +63,9 @@ export function StreamBoard({ boardId, initialCards, currentUserId, currentRole 
     try {
       const res = await fetch(`/api/cards/${id}`, { method: "DELETE" });
       if (!res.ok) setCards(prev);
-    } catch { setCards(prev); }
+    } catch {
+      setCards(prev);
+    }
   }
 
   return (
@@ -65,6 +89,7 @@ export function StreamBoard({ boardId, initialCards, currentUserId, currentRole 
                 {new Date(c.createdAt ?? Date.now()).toLocaleDateString("ko-KR")}
               </time>
             </div>
+            <CardAttachments imageUrl={c.imageUrl} linkUrl={c.linkUrl} linkTitle={c.linkTitle} linkDesc={c.linkDesc} linkImage={c.linkImage} videoUrl={c.videoUrl} />
             <h3 className="padlet-card-title">{c.title}</h3>
             <p className="padlet-card-content">{c.content}</p>
             {(currentRole === "owner" || (currentRole === "editor" && c.authorId === currentUserId)) && (
