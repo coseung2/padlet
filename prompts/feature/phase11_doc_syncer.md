@@ -61,4 +61,4 @@
 
 ## 핸드오프
 
-`doc_updates.md`를 사람 게이트(push 승인)에 제출. 승인 후 `git push`.
+`doc_updates.md` 완성 → 오케스트레이터 push 검증(`npm run build` + `npm run typecheck` 성공) 통과 → `git push`.

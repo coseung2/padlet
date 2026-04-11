@@ -9,7 +9,7 @@
 | 0 | 요구사항 구조화 (analyst) | `phase0_analyst.md` | `/office-hours` |
 | 1 | 제품/UX 리서치 (researcher) | `phase1_researcher.md` | `/browse` |
 | 2 | 스코프/전략 확정 (strategist) | `phase2_strategist.md` | `/plan-ceo-review` |
-| ★ | **사람 게이트 — 도입 승인** | | |
+| ⚙ | **검증 게이트 — 스코프 검증** | | |
 | 3 | 기술 설계 (architect) | `phase3_architect.md` | `/plan-eng-review`, `/plan-devex-review` |
 | 4 | 디자인 기획 (design_planner) | `phase4_design_planner.md` | `/plan-design-review`, `/design-consultation` |
 | 5 | UI 디자인 (designer) | `phase5_designer.md` | `/design-shotgun`, `/design-html` |
@@ -17,10 +17,10 @@
 | 7 | 구현 (coder) | `phase7_coder.md` | — |
 | 8 | 코드 검수 (code_reviewer) | `phase8_code_reviewer.md` | `/review`, `/cso`, `/codex` |
 | 9 | QA (qa_tester) | `phase9_qa_tester.md` | `/qa`, `/browse`, `/benchmark` |
-| ★ | **사람 게이트 — 배포 승인** | | |
+| ⚙ | **검증 게이트 — 배포 검증** | | |
 | 10 | 배포 (deployer) | `phase10_deployer.md` | `/ship`, `/land-and-deploy` |
 | 11 | 문서 동기화 (doc_syncer) | `phase11_doc_syncer.md` | `/document-release`, `/retro`, `/learn` |
-| ★ | **사람 게이트 — push 승인** | | |
+| ⚙ | **검증 게이트 — push 검증** | | |
 
 ## task 디렉토리
 
@@ -44,7 +44,7 @@ tasks/{YYYY-MM-DD-slug}/
 3. 앞 phase 식별자(`slug`, `task_id`)가 일관되게 유지
 4. TODO/placeholder/TBD 부재
 
-실패 시 해당 phase 재실행. 3회 연속 실패 시 사람 게이트.
+실패 시 해당 phase 재실행. 3회 연속 실패 시 오케스트레이터가 실패 원인 분석 → upstream phase 재실행 또는 사유 기록 후 중단.
 
 ## 핸드오프 원칙
 
@@ -61,7 +61,7 @@ tasks/{YYYY-MM-DD-slug}/
 - 커밋 prefix: `feat:`, `fix:`, `docs:`, `style:`, `refactor:`, `test:`, `chore:`
 
 ### 디자인 (phase5)
-- shotgun 4~6개 변형 중 사람이 선택
+- shotgun 4~6개 변형 중 phase6 검수에서 최적안 결정
 - 선택된 변형만 `phase5/design_spec.md`에 기록
 - 탈락 변형은 `phase5/rejected/`에 아카이브 (삭제 금지)
 

@@ -1,0 +1,3 @@
+# No separate test files added.
+# QA verification will be done via curl smoke tests in phase9.
+# Reason: project does not have a test framework configured (no jest/vitest/playwright).

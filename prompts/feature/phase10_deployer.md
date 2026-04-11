@@ -9,7 +9,7 @@
 - `phase8/REVIEW_OK.marker`
 - `phase9/QA_OK.marker`
 - `phase9/perf_baseline.json`
-- 사람 게이트 — 배포 승인
+- 오케스트레이터 배포 검증 통과
 
 ## 출력
 
@@ -53,7 +53,7 @@ preview / production, 배포 URL
 
 ## 금지
 
-- 사람 게이트 없이 배포
+- 검증 게이트 미통과 상태 배포
 - REVIEW_OK 또는 QA_OK 마커 미존재 상태 배포
 - CI FAIL 상태 머지
 - 프로덕션 검증 건너뛰기

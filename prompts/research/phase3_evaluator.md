@@ -65,4 +65,4 @@ ADOPT / REJECT / NEEDS_MORE_RESEARCH
 
 ## 핸드오프
 
-`decision.md`를 사람 게이트(도입 결정)에 제출.
+`decision.md` 완성 → 오케스트레이터 도입 검증(5개 평가 차원 + 판정 존재) 통과 → 완료.

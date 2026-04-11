@@ -42,4 +42,4 @@
 
 ## 핸드오프
 
-`QA_OK.marker` 존재 → 사람 게이트(배포 승인) → phase10. 부재 → phase7로 반려.
+`QA_OK.marker` 존재 → 오케스트레이터 배포 검증 통과 → phase10. 부재 → phase7로 반려.

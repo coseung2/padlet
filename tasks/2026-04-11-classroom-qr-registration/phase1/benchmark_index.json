@@ -1,0 +1,38 @@
+[
+  {
+    "product": "ClassDojo",
+    "url": "https://www.classdojo.com",
+    "feature": "individual QR code login + class QR",
+    "relevance": "primary reference — individual QR card pattern"
+  },
+  {
+    "product": "Seesaw",
+    "url": "https://help.seesaw.me/hc/en-us/articles/4424230271501-Seesaw-Codes",
+    "feature": "Home Learning Code (QR + 16-letter text code)",
+    "relevance": "primary reference — multi-mode login, PDF/CSV export"
+  },
+  {
+    "product": "Discovery Education",
+    "url": "https://help.discoveryeducation.com/hc/en-us/articles/360061321154-QR-Code-Student-Logins",
+    "feature": "QR badge login",
+    "relevance": "secondary — QR as add-on to existing auth"
+  },
+  {
+    "product": "Google Classroom",
+    "url": "https://classroom.google.com",
+    "feature": "class code join",
+    "relevance": "secondary — class code UX pattern"
+  },
+  {
+    "product": "Kahoot",
+    "url": "https://kahoot.com",
+    "feature": "session PIN + nickname",
+    "relevance": "existing pattern in our quiz board (roomCode)"
+  },
+  {
+    "product": "Schoology",
+    "url": "https://uc.powerschool-docs.com/en/schoology/latest/simplified-login-with-qr-codes",
+    "feature": "simplified QR login for elementary",
+    "relevance": "secondary — LMS-level QR integration"
+  }
+]
