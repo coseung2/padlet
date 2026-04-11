@@ -7,6 +7,7 @@ import { QRPrintSheet } from "./QRPrintSheet";
 
 type Student = {
   id: string;
+  number: number | null;
   name: string;
   qrToken: string;
   textCode: string;
@@ -40,10 +41,57 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
   const [showAddStudents, setShowAddStudents] = useState(false);
   const [showBoardPicker, setShowBoardPicker] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   const refresh = useCallback(() => {
     router.refresh();
   }, [router]);
+
+  const allSelected = students.length > 0 && selected.size === students.length;
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (allSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(students.map((s) => s.id)));
+    }
+  }
+
+  async function handleBatchDelete() {
+    if (selected.size === 0) return;
+    if (!confirm(`선택한 ${selected.size}명의 학생을 삭제하시겠습니까?`)) return;
+
+    setDeleting(true);
+    try {
+      const res = await fetch(
+        `/api/classroom/${classroom.id}/students/batch-delete`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ studentIds: Array.from(selected) }),
+        }
+      );
+      if (res.ok) {
+        setStudents((prev) => prev.filter((s) => !selected.has(s.id)));
+        setSelected(new Set());
+      } else {
+        alert(`삭제 실패: ${await res.text()}`);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setDeleting(false);
+  }
 
   async function handleCopyCode() {
     try {
@@ -120,6 +168,11 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
       );
       if (res.ok) {
         setStudents((prev) => prev.filter((s) => s.id !== studentId));
+        setSelected((prev) => {
+          const next = new Set(prev);
+          next.delete(studentId);
+          return next;
+        });
       } else {
         alert(`삭제 실패: ${await res.text()}`);
       }
@@ -155,6 +208,21 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
         >
           + 학생 추가
         </button>
+        {selected.size > 0 && (
+          <button
+            type="button"
+            className="classroom-action-btn"
+            style={{
+              background: "var(--color-danger, #e53e3e)",
+              color: "#fff",
+              borderColor: "var(--color-danger, #e53e3e)",
+            }}
+            onClick={handleBatchDelete}
+            disabled={deleting}
+          >
+            {deleting ? "삭제 중..." : `${selected.size}명 삭제`}
+          </button>
+        )}
         <QRPrintSheet students={students} classroomName={classroom.name} />
       </div>
 
@@ -175,6 +243,14 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
           <table className="classroom-table">
             <thead>
               <tr>
+                <th className="classroom-th" style={{ width: 36 }}>
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleAll}
+                    title="전체 선택"
+                  />
+                </th>
                 <th className="classroom-th classroom-th-num">#</th>
                 <th className="classroom-th">이름</th>
                 <th className="classroom-th">QR</th>
@@ -184,11 +260,12 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
               </tr>
             </thead>
             <tbody>
-              {students.map((s, i) => (
+              {students.map((s) => (
                 <StudentRow
                   key={s.id}
                   student={s}
-                  index={i + 1}
+                  checked={selected.has(s.id)}
+                  onToggle={() => toggleSelect(s.id)}
                   onReissue={() => handleReissue(s.id)}
                   onDelete={() => handleDelete(s.id)}
                 />
@@ -286,12 +363,14 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
 
 function StudentRow({
   student,
-  index,
+  checked,
+  onToggle,
   onReissue,
   onDelete,
 }: {
   student: Student;
-  index: number;
+  checked: boolean;
+  onToggle: () => void;
   onReissue: () => void;
   onDelete: () => void;
 }) {
@@ -313,7 +392,14 @@ function StudentRow({
 
   return (
     <tr className="classroom-tr">
-      <td className="classroom-td classroom-td-num">{index}</td>
+      <td className="classroom-td" style={{ width: 36 }}>
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={onToggle}
+        />
+      </td>
+      <td className="classroom-td classroom-td-num">{student.number ?? "-"}</td>
       <td className="classroom-td classroom-td-name">{student.name}</td>
       <td className="classroom-td classroom-td-qr">
         {qrSrc ? (

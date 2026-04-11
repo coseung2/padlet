@@ -46,6 +46,35 @@ export async function GET(
   }
 }
 
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const user = await getCurrentUser();
+
+    const board = await db.board.findFirst({
+      where: { OR: [{ id }, { slug: id }] },
+    });
+    if (!board) {
+      return NextResponse.json({ error: "Board not found" }, { status: 404 });
+    }
+
+    await requirePermission(board.id, user.id, "delete_any");
+
+    await db.board.delete({ where: { id: board.id } });
+
+    return new NextResponse(null, { status: 204 });
+  } catch (e) {
+    if (e instanceof ForbiddenError) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
+    console.error("[DELETE /api/boards/:id]", e);
+    return NextResponse.json({ error: "internal" }, { status: 500 });
+  }
+}
+
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }

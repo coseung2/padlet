@@ -4,8 +4,13 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { generateQrToken, generateTextCode } from "@/lib/classroom-utils";
 
+const StudentEntry = z.object({
+  number: z.number().int().min(1),
+  name: z.string().min(1).max(50),
+});
+
 const AddStudentsSchema = z.object({
-  names: z.array(z.string().min(1).max(50)).min(1).max(50),
+  students: z.array(StudentEntry).min(1).max(50),
 });
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -21,11 +26,36 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const body = await req.json();
     const input = AddStudentsSchema.parse(body);
 
+    // Check for duplicate numbers within the request
+    const numbers = input.students.map((s) => s.number);
+    if (new Set(numbers).size !== numbers.length) {
+      return NextResponse.json({ error: "중복된 번호가 있습니다" }, { status: 400 });
+    }
+
+    // Check for duplicate numbers in existing students
+    const existing = await db.student.findMany({
+      where: { classroomId: id, number: { in: numbers } },
+      select: { number: true },
+    });
+    if (existing.length > 0) {
+      const dupes = existing.map((s) => s.number).join(", ");
+      return NextResponse.json(
+        { error: `이미 존재하는 번호: ${dupes}` },
+        { status: 409 }
+      );
+    }
+
     const studentsData = [];
-    for (const name of input.names) {
+    for (const entry of input.students) {
       const qrToken = generateQrToken();
       const textCode = await generateTextCode();
-      studentsData.push({ classroomId: id, name: name.trim(), qrToken, textCode });
+      studentsData.push({
+        classroomId: id,
+        number: entry.number,
+        name: entry.name.trim(),
+        qrToken,
+        textCode,
+      });
     }
 
     const students = await db.$transaction(

@@ -12,21 +12,34 @@ const LAYOUTS = [
   { id: "quiz", emoji: "🎮", label: "퀴즈", desc: "카훗 스타일 실시간 퀴즈 게임" },
 ] as const;
 
+type ClassroomItem = {
+  id: string;
+  name: string;
+  studentCount: number;
+};
+
 type Props = {
+  classrooms: ClassroomItem[];
   onClose: () => void;
 };
 
-export function CreateBoardModal({ onClose }: Props) {
+export function CreateBoardModal({ classrooms, onClose }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [step, setStep] = useState<"layout" | "classroom">("layout");
+  const [selectedLayout, setSelectedLayout] = useState<string | null>(null);
 
-  async function handleSelect(layoutId: string) {
+  async function createBoard(layoutId: string, classroomId?: string) {
     setBusy(true);
     try {
       const res = await fetch("/api/boards", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title: "", layout: layoutId }),
+        body: JSON.stringify({
+          title: "",
+          layout: layoutId,
+          classroomId,
+        }),
       });
       if (res.ok) {
         const { board } = await res.json();
@@ -41,32 +54,92 @@ export function CreateBoardModal({ onClose }: Props) {
     }
   }
 
+  function handleSelect(layoutId: string) {
+    if (layoutId === "columns" && classrooms.length > 0) {
+      setSelectedLayout(layoutId);
+      setStep("classroom");
+    } else {
+      createBoard(layoutId);
+    }
+  }
+
   return (
     <>
       <div className="modal-backdrop" onClick={onClose} />
       <div className="add-card-modal create-board-modal">
         <div className="modal-header">
-          <h2 className="modal-title">새 보드 만들기</h2>
+          <h2 className="modal-title">
+            {step === "layout" ? "새 보드 만들기" : "학급 선택"}
+          </h2>
           <button type="button" className="modal-close" onClick={onClose}>×</button>
         </div>
 
         <div className="modal-body">
-          <p className="create-board-hint">보드 유형을 선택하세요</p>
-          <div className="layout-picker">
-            {LAYOUTS.map((l) => (
-              <button
-                key={l.id}
-                type="button"
-                className="layout-option"
-                onClick={() => handleSelect(l.id)}
-                disabled={busy}
-              >
-                <span className="layout-option-emoji">{l.emoji}</span>
-                <span className="layout-option-label">{l.label}</span>
-                <span className="layout-option-desc">{l.desc}</span>
-              </button>
-            ))}
-          </div>
+          {step === "layout" && (
+            <>
+              <p className="create-board-hint">보드 유형을 선택하세요</p>
+              <div className="layout-picker">
+                {LAYOUTS.map((l) => (
+                  <button
+                    key={l.id}
+                    type="button"
+                    className="layout-option"
+                    onClick={() => handleSelect(l.id)}
+                    disabled={busy}
+                  >
+                    <span className="layout-option-emoji">{l.emoji}</span>
+                    <span className="layout-option-label">{l.label}</span>
+                    <span className="layout-option-desc">{l.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {step === "classroom" && selectedLayout && (
+            <>
+              <p className="create-board-hint">
+                학급을 선택하면 학생별 칼럼이 자동 생성됩니다
+              </p>
+              <div className="layout-picker">
+                <button
+                  type="button"
+                  className="layout-option"
+                  onClick={() => createBoard(selectedLayout)}
+                  disabled={busy}
+                >
+                  <span className="layout-option-emoji">📊</span>
+                  <span className="layout-option-label">빈 칼럼보드</span>
+                  <span className="layout-option-desc">학급 연결 없이 빈 보드 생성</span>
+                </button>
+                {classrooms.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className="layout-option"
+                    onClick={() => createBoard(selectedLayout, c.id)}
+                    disabled={busy}
+                  >
+                    <span className="layout-option-emoji">🏫</span>
+                    <span className="layout-option-label">{c.name}</span>
+                    <span className="layout-option-desc">
+                      학생 {c.studentCount}명 → {c.studentCount}개 칼럼 자동 생성
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="modal-actions" style={{ marginTop: 12 }}>
+                <button
+                  type="button"
+                  className="modal-btn-cancel"
+                  onClick={() => { setStep("layout"); setSelectedLayout(null); }}
+                  disabled={busy}
+                >
+                  ← 뒤로
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </>

@@ -21,6 +21,23 @@ export async function POST(req: Request) {
       : "board";
     const slug = `${baseSlug}-${Date.now().toString(36)}`;
 
+    // If columns layout with classroom, fetch students for auto-sections
+    let students: { number: number | null; name: string }[] = [];
+    if (input.layout === "columns" && input.classroomId) {
+      const classroom = await db.classroom.findUnique({
+        where: { id: input.classroomId },
+        include: {
+          students: { orderBy: [{ number: "asc" }, { createdAt: "asc" }] },
+        },
+      });
+      if (classroom && classroom.teacherId === user.id) {
+        students = classroom.students.map((s) => ({
+          number: s.number,
+          name: s.name,
+        }));
+      }
+    }
+
     const board = await db.board.create({
       data: {
         title: input.title,
@@ -31,6 +48,15 @@ export async function POST(req: Request) {
         members: {
           create: { userId: user.id, role: "owner" },
         },
+        sections:
+          students.length > 0
+            ? {
+                create: students.map((s, i) => ({
+                  title: s.number ? `${s.number}번 ${s.name}` : s.name,
+                  order: i,
+                })),
+              }
+            : undefined,
       },
     });
 

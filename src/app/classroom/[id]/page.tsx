@@ -16,7 +16,7 @@ export default async function ClassroomDetailPage({ params }: Props) {
   const classroom = await db.classroom.findUnique({
     where: { id },
     include: {
-      students: { orderBy: { createdAt: "asc" } },
+      students: { orderBy: [{ number: "asc" }, { createdAt: "asc" }] },
       boards: { orderBy: { createdAt: "desc" } },
     },
   });
@@ -43,6 +43,7 @@ export default async function ClassroomDetailPage({ params }: Props) {
     code: classroom.code,
     students: classroom.students.map((s) => ({
       id: s.id,
+      number: s.number,
       name: s.name,
       qrToken: s.qrToken,
       textCode: s.textCode,

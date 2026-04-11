@@ -26,6 +26,19 @@ export default async function HomePage() {
     orderBy: { board: { createdAt: "desc" } },
   });
 
+  // Fetch classrooms for board creation modal
+  const classrooms = await db.classroom.findMany({
+    where: { teacherId: user.id },
+    include: { _count: { select: { students: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const classroomItems = classrooms.map((c) => ({
+    id: c.id,
+    name: c.name,
+    studentCount: c._count.students,
+  }));
+
   const boardItems = memberships.map((m) => ({
     id: m.board.id,
     slug: m.board.slug,
@@ -50,7 +63,7 @@ export default async function HomePage() {
           </div>
         </div>
       </header>
-      <Dashboard boards={boardItems} />
+      <Dashboard boards={boardItems} classrooms={classroomItems} />
     </main>
   );
 }

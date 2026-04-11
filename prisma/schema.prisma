@@ -79,6 +79,7 @@ model Classroom {
 model Student {
   id          String   @id @default(cuid())
   classroomId String
+  number      Int?              // 출석번호
   name        String
   qrToken     String   @unique   // UUID — encoded in QR
   textCode    String   @unique   // 6-char alphanumeric — manual entry fallback
@@ -88,6 +89,7 @@ model Student {
   classroom   Classroom    @relation(fields: [classroomId], references: [id], onDelete: Cascade)
   quizPlayers QuizPlayer[]
 
+  @@unique([classroomId, number])
   @@index([classroomId])
   @@index([qrToken])
   @@index([textCode])

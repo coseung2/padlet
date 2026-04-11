@@ -4,6 +4,7 @@ import { useState } from "react";
 
 type Student = {
   id: string;
+  number: number | null;
   name: string;
   qrToken: string;
   textCode: string;
@@ -13,6 +14,23 @@ type Props = {
   students: Student[];
   classroomName: string;
 };
+
+/** Render Korean text to a data URL via canvas (jsPDF can't render Korean natively) */
+function textToImage(text: string, fontSize: number, maxWidth: number): string {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d")!;
+  const font = `bold ${fontSize * 3}px "Pretendard", "Noto Sans KR", sans-serif`;
+  ctx.font = font;
+  const metrics = ctx.measureText(text);
+  canvas.width = Math.min(Math.ceil(metrics.width) + 4, maxWidth * 3);
+  canvas.height = Math.ceil(fontSize * 3 * 1.4);
+  ctx.font = font;
+  ctx.fillStyle = "#000";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+  return canvas.toDataURL("image/png");
+}
 
 export function QRPrintSheet({ students, classroomName }: Props) {
   const [generating, setGenerating] = useState(false);
@@ -32,7 +50,6 @@ export function QRPrintSheet({ students, classroomName }: Props) {
 
       const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const pageWidth = 210;
-      const pageHeight = 297;
       const cols = 5;
       const rows = 6;
       const perPage = cols * rows;
@@ -51,19 +68,30 @@ export function QRPrintSheet({ students, classroomName }: Props) {
         })
       );
 
+      // Generate name images (Korean text rendered via canvas)
+      const nameLabels = students.map((s) => {
+        const label = s.number ? `${s.number}번 ${s.name}` : s.name;
+        return textToImage(label, 7, cardW);
+      });
+
       const totalPages = Math.ceil(students.length / perPage);
-      const dateStr = new Date().toLocaleDateString("ko-KR");
+
+      // Header text as image (Korean)
+      const headerImg = textToImage(`${classroomName} - QR 카드`, 12, pageWidth);
+      const dateImg = textToImage(
+        new Date().toLocaleDateString("ko-KR"),
+        8,
+        pageWidth
+      );
 
       for (let page = 0; page < totalPages; page++) {
         if (page > 0) doc.addPage();
 
         // Header
-        doc.setFontSize(12);
-        doc.text(`${classroomName} - QR 카드`, pageWidth / 2, 10, {
-          align: "center",
-        });
-        doc.setFontSize(8);
-        doc.text(dateStr, pageWidth / 2, 15, { align: "center" });
+        const headerW = 80;
+        const headerH = 6;
+        doc.addImage(headerImg, "PNG", (pageWidth - headerW) / 2, 6, headerW, headerH);
+        doc.addImage(dateImg, "PNG", (pageWidth - 40) / 2, 13, 40, 4);
 
         const startIdx = page * perPage;
         const endIdx = Math.min(startIdx + perPage, students.length);
@@ -85,15 +113,21 @@ export function QRPrintSheet({ students, classroomName }: Props) {
           const qrX = x + (cardW - qrSize) / 2;
           doc.addImage(qrDataUrls[i], "PNG", qrX, y + 2, qrSize, qrSize);
 
-          // Student name
-          doc.setFontSize(7);
-          doc.text(students[i].name, x + cardW / 2, y + qrSize + 5, {
-            align: "center",
-          });
+          // Student name (rendered as image for Korean support)
+          const nameW = cardW - 4;
+          const nameH = 4;
+          doc.addImage(
+            nameLabels[i],
+            "PNG",
+            x + (cardW - nameW) / 2,
+            y + qrSize + 3,
+            nameW,
+            nameH
+          );
 
           // Text code
           doc.setFontSize(6);
-          doc.text(students[i].textCode, x + cardW / 2, y + qrSize + 9, {
+          doc.text(students[i].textCode, x + cardW / 2, y + qrSize + 10, {
             align: "center",
           });
         }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import * as XLSX from "xlsx";
 
 type Props = {
   open: boolean;
@@ -9,32 +10,93 @@ type Props = {
   onAdded: () => void;
 };
 
+type ParsedStudent = { number: number; name: string };
+
+function parseTextInput(text: string): ParsedStudent[] {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      // "1 홍길동", "1  홍길동", "1홍길동", "1\t홍길동" 모두 지원
+      const match = line.match(/^(\d+)\s*([가-힣a-zA-Z].+)/);
+      if (match) {
+        return { number: parseInt(match[1], 10), name: match[2].trim() };
+      }
+      return null;
+    })
+    .filter((s): s is ParsedStudent => s !== null);
+}
+
+function parseFileData(data: ArrayBuffer, fileName: string): ParsedStudent[] {
+  const wb = XLSX.read(data, { type: "array" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1 }) as unknown as unknown[][];
+
+  const students: ParsedStudent[] = [];
+  for (const row of rows) {
+    if (!row || row.length < 2) continue;
+    const numVal = row[0];
+    const nameVal = row[1];
+    const num = typeof numVal === "number" ? numVal : parseInt(String(numVal), 10);
+    const name = String(nameVal).trim();
+    if (!isNaN(num) && num > 0 && name) {
+      students.push({ number: num, name });
+    }
+  }
+  return students;
+}
+
 export function AddStudentsModal({ open, classroomId, onClose, onAdded }: Props) {
+  const [mode, setMode] = useState<"text" | "file">("file");
   const [text, setText] = useState("");
+  const [fileStudents, setFileStudents] = useState<ParsedStudent[]>([]);
+  const [fileName, setFileName] = useState("");
   const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   if (!open) return null;
 
-  const names = text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
+  const parsed = mode === "text" ? parseTextInput(text) : fileStudents;
+  const hasInvalidLines =
+    mode === "text" &&
+    text.split("\n").filter((l) => l.trim()).length !== parsed.length;
+
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const data = ev.target?.result as ArrayBuffer;
+      try {
+        const students = parseFileData(data, file.name);
+        setFileStudents(students);
+      } catch {
+        alert("파일을 읽을 수 없습니다. 엑셀 또는 CSV 파일을 확인하세요.");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (names.length === 0) return;
+    if (parsed.length === 0) return;
 
     setBusy(true);
     try {
       const res = await fetch(`/api/classroom/${classroomId}/students`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ names }),
+        body: JSON.stringify({
+          students: parsed.map((s) => ({ number: s.number, name: s.name })),
+        }),
       });
       if (res.ok) {
         onAdded();
       } else {
-        alert(`학생 추가 실패: ${await res.text()}`);
+        const errBody = await res.json().catch(() => null);
+        alert(`학생 추가 실패: ${errBody?.error ?? res.statusText}`);
       }
     } catch (err) {
       console.error(err);
@@ -47,26 +109,128 @@ export function AddStudentsModal({ open, classroomId, onClose, onAdded }: Props)
       <div className="modal-backdrop" onClick={onClose} />
       <div className="add-card-modal add-students-modal">
         <div className="modal-header">
-          <h2 className="modal-title">학생 추가</h2>
+          <h2 className="modal-title">학생 일괄 추가</h2>
           <button type="button" className="modal-close" onClick={onClose}>
             ×
           </button>
         </div>
 
         <form className="modal-body" onSubmit={handleSubmit}>
-          <label className="modal-field-label">
-            학생 이름 (한 줄에 한 명)
-          </label>
-          <textarea
-            autoFocus
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={"홍길동\n김철수\n이영희"}
-            rows={8}
-            className="modal-textarea add-students-textarea"
-          />
+          {/* Mode tabs */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <button
+              type="button"
+              onClick={() => setMode("file")}
+              style={{
+                flex: 1,
+                padding: "8px 0",
+                borderRadius: 6,
+                border: "1px solid var(--color-border, #e2e8f0)",
+                background: mode === "file" ? "var(--color-primary, #3b82f6)" : "transparent",
+                color: mode === "file" ? "#fff" : "inherit",
+                cursor: "pointer",
+                fontWeight: 500,
+              }}
+            >
+              파일 업로드
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("text")}
+              style={{
+                flex: 1,
+                padding: "8px 0",
+                borderRadius: 6,
+                border: "1px solid var(--color-border, #e2e8f0)",
+                background: mode === "text" ? "var(--color-primary, #3b82f6)" : "transparent",
+                color: mode === "text" ? "#fff" : "inherit",
+                cursor: "pointer",
+                fontWeight: 500,
+              }}
+            >
+              직접 입력
+            </button>
+          </div>
+
+          {mode === "file" && (
+            <>
+              <label className="modal-field-label">
+                엑셀 또는 CSV 파일 (A열: 번호, B열: 이름)
+              </label>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleFile}
+                style={{ display: "none" }}
+              />
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                style={{
+                  width: "100%",
+                  padding: "24px 16px",
+                  borderRadius: 8,
+                  border: "2px dashed var(--color-border, #cbd5e1)",
+                  background: "var(--color-surface, #f8fafc)",
+                  cursor: "pointer",
+                  textAlign: "center",
+                  color: "var(--color-muted, #64748b)",
+                }}
+              >
+                {fileName
+                  ? `📄 ${fileName}`
+                  : "클릭하여 파일 선택 (.xlsx, .csv)"}
+              </button>
+              {fileStudents.length > 0 && (
+                <div
+                  style={{
+                    marginTop: 8,
+                    maxHeight: 150,
+                    overflow: "auto",
+                    fontSize: 13,
+                    border: "1px solid var(--color-border, #e2e8f0)",
+                    borderRadius: 6,
+                    padding: 8,
+                  }}
+                >
+                  {fileStudents.map((s, i) => (
+                    <div key={i}>
+                      {s.number}번 {s.name}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {mode === "text" && (
+            <>
+              <label className="modal-field-label">
+                번호와 이름 (한 줄에 한 명)
+              </label>
+              <textarea
+                autoFocus
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder={"1 홍길동\n2 김철수\n3 이영희"}
+                rows={8}
+                className="modal-textarea add-students-textarea"
+              />
+            </>
+          )}
+
           <p className="add-students-count">
-            {names.length > 0 ? `${names.length}명 입력됨` : "이름을 입력하세요"}
+            {parsed.length > 0
+              ? `${parsed.length}명 입력됨`
+              : mode === "file"
+                ? "파일을 업로드하세요"
+                : "번호와 이름을 입력하세요"}
+            {hasInvalidLines && (
+              <span style={{ color: "var(--color-danger, #e53e3e)", marginLeft: 8 }}>
+                형식 오류가 있는 줄이 있습니다
+              </span>
+            )}
           </p>
 
           <div className="modal-actions">
@@ -80,10 +244,10 @@ export function AddStudentsModal({ open, classroomId, onClose, onAdded }: Props)
             </button>
             <button
               type="submit"
-              disabled={busy || names.length === 0}
+              disabled={busy || parsed.length === 0}
               className="modal-btn-submit"
             >
-              {busy ? "추가 중..." : `${names.length}명 추가`}
+              {busy ? "추가 중..." : `${parsed.length}명 추가`}
             </button>
           </div>
         </form>
