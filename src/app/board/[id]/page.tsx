@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { getBoardRole } from "@/lib/rbac";
+import { getCurrentStudent } from "@/lib/student-auth";
+import { getBoardRole, type Role } from "@/lib/rbac";
 import { BoardCanvas } from "@/components/BoardCanvas";
 import { GridBoard } from "@/components/GridBoard";
 import { StreamBoard } from "@/components/StreamBoard";
@@ -45,8 +46,40 @@ export default async function BoardPage({
   });
   if (!board) notFound();
 
-  const user = await getCurrentUser();
-  const role = await getBoardRole(board.id, user.id);
+  // --- Auth: try teacher (NextAuth / mock) first, then student session ---
+  let user: Awaited<ReturnType<typeof getCurrentUser>> | null = null;
+  let role: Role | null = null;
+  let studentViewer: { id: string; name: string; classroomId: string } | null = null;
+
+  try {
+    user = await getCurrentUser();
+    role = await getBoardRole(board.id, user.id);
+  } catch {
+    // getCurrentUser() may throw if mock seed is missing — ignore and try student path
+    user = null;
+  }
+
+  // If teacher path didn't yield a role, check for student session
+  if (!role) {
+    const student = await getCurrentStudent();
+    if (
+      student &&
+      board.classroomId &&
+      student.classroomId === board.classroomId
+    ) {
+      studentViewer = {
+        id: student.id,
+        name: student.name,
+        classroomId: student.classroomId,
+      };
+      role = "viewer";
+    }
+  }
+
+  // Determine the effective user id and display name
+  const effectiveUserId = studentViewer?.id ?? user?.id ?? "";
+  const effectiveUserName = studentViewer?.name ?? user?.name ?? "";
+  const mockRole = user?.mockRole ?? null;
 
   const cardProps = board.cards.map((c) => ({
     id: c.id,
@@ -78,10 +111,10 @@ export default async function BoardPage({
   if (!role) {
     return (
       <main className="board-page">
-        <BoardHeader title={board.title} layout={board.layout} mockRole={user.mockRole} canEdit={false} />
+        <BoardHeader title={board.title} layout={board.layout} mockRole={mockRole} canEdit={false} />
         <div className="forbidden-card">
           <h2>접근 불가</h2>
-          <p>{user.name}님은 이 보드의 멤버가 아닙니다.</p>
+          <p>이 보드에 접근할 권한이 없습니다.</p>
         </div>
       </main>
     );
@@ -91,7 +124,7 @@ export default async function BoardPage({
     const common = {
       boardId: board!.id,
       initialCards: cardProps,
-      currentUserId: user.id,
+      currentUserId: effectiveUserId,
       currentRole: role!,
     };
 
@@ -124,7 +157,7 @@ export default async function BoardPage({
               userName: m.user.name,
               role: m.role,
             }))}
-            currentUserId={user.id}
+            currentUserId={effectiveUserId}
             currentRole={role!}
           />
         );
@@ -167,9 +200,9 @@ export default async function BoardPage({
         boardId={board.id}
         title={board.title}
         layout={board.layout}
-        userName={user.name}
+        userName={effectiveUserName}
         userRole={role}
-        mockRole={user.mockRole}
+        mockRole={mockRole}
         canEdit={role === "owner" || role === "editor"}
       />
       {renderBoard()}
