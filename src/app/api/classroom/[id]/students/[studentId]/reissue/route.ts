@@ -26,7 +26,7 @@ export async function POST(
 
     const updated = await db.student.update({
       where: { id: studentId },
-      data: { qrToken: newToken, textCode: newCode },
+      data: { qrToken: newToken, textCode: newCode, sessionVersion: { increment: 1 } },
     });
 
     return NextResponse.json({

@@ -81,6 +81,7 @@ model Student {
   name        String
   qrToken     String   @unique   // UUID — encoded in QR
   textCode    String   @unique   // 6-char alphanumeric — manual entry fallback
+  sessionVersion Int   @default(1)
   createdAt   DateTime @default(now())
 
   classroom   Classroom    @relation(fields: [classroomId], references: [id], onDelete: Cascade)
