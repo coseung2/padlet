@@ -7,6 +7,7 @@ type BoardItem = {
   slug: string;
   title: string;
   layout: string;
+  quizzes?: { roomCode: string; status: string }[];
 };
 
 type Props = {
@@ -36,18 +37,23 @@ export function StudentDashboard({ studentName, classroomName, boards }: Props) 
         </div>
       ) : (
         <div className="student-board-grid">
-          {boards.map((b) => (
-            <Link
-              key={b.id}
-              href={`/board/${b.slug}`}
-              className="student-board-card"
-            >
-              <span className="student-board-card-title">{b.title}</span>
-              <span className="student-board-card-meta">
-                {LAYOUT_LABEL[b.layout] ?? b.layout}
-              </span>
-            </Link>
-          ))}
+          {boards.map((b) => {
+            const quizCode = b.layout === "quiz" && b.quizzes?.[0]?.roomCode;
+            const href = quizCode ? `/quiz/${quizCode}` : `/board/${b.slug}`;
+            return (
+              <Link
+                key={b.id}
+                href={href}
+                className="student-board-card"
+              >
+                <span className="student-board-card-title">{b.title}</span>
+                <span className="student-board-card-meta">
+                  {LAYOUT_LABEL[b.layout] ?? b.layout}
+                  {quizCode && " — 참여하기"}
+                </span>
+              </Link>
+            );
+          })}
         </div>
       )}
     </>
