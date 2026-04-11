@@ -28,12 +28,17 @@ type Props = {
     students: Student[];
     boards: Board[];
   };
+  allBoards: Board[]; // teacher's all boards for picker
 };
 
-export function ClassroomDetail({ classroom }: Props) {
+export function ClassroomDetail({ classroom, allBoards }: Props) {
   const router = useRouter();
   const [students, setStudents] = useState(classroom.students);
+  const [linkedBoardIds, setLinkedBoardIds] = useState<Set<string>>(
+    new Set(classroom.boards.map((b) => b.id))
+  );
   const [showAddStudents, setShowAddStudents] = useState(false);
+  const [showBoardPicker, setShowBoardPicker] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const refresh = useCallback(() => {
@@ -66,6 +71,40 @@ export function ClassroomDetail({ classroom }: Props) {
         );
       } else {
         alert(`재발급 실패: ${await res.text()}`);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleLinkBoard(boardId: string) {
+    try {
+      const res = await fetch(`/api/boards/${boardId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ classroomId: classroom.id }),
+      });
+      if (res.ok) {
+        setLinkedBoardIds((prev) => new Set(prev).add(boardId));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleUnlinkBoard(boardId: string) {
+    try {
+      const res = await fetch(`/api/boards/${boardId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ classroomId: null }),
+      });
+      if (res.ok) {
+        setLinkedBoardIds((prev) => {
+          const next = new Set(prev);
+          next.delete(boardId);
+          return next;
+        });
       }
     } catch (err) {
       console.error(err);
@@ -159,25 +198,73 @@ export function ClassroomDetail({ classroom }: Props) {
         )}
       </div>
 
-      {/* Linked boards */}
-      {classroom.boards.length > 0 && (
-        <div className="classroom-boards-section">
-          <h2 className="classroom-boards-heading">연결된 보드</h2>
-          <div className="classroom-boards-grid">
-            {classroom.boards.map((b) => (
-              <button
-                key={b.id}
-                type="button"
-                className="classroom-board-card"
-                onClick={() => router.push(`/board/${b.slug}`)}
-              >
-                <span className="classroom-board-title">{b.title || "제목 없음"}</span>
-                <span className="classroom-board-layout">{b.layout}</span>
-              </button>
-            ))}
-          </div>
+      {/* Board management */}
+      <div className="classroom-boards-section">
+        <div className="classroom-boards-header">
+          <h2 className="classroom-boards-heading">학급 보드</h2>
+          <button
+            type="button"
+            className="classroom-action-btn"
+            onClick={() => setShowBoardPicker(!showBoardPicker)}
+          >
+            {showBoardPicker ? "닫기" : "+ 보드 연결"}
+          </button>
         </div>
-      )}
+
+        {/* Board picker */}
+        {showBoardPicker && (
+          <div className="classroom-board-picker">
+            {allBoards.filter((b) => !linkedBoardIds.has(b.id)).length === 0 ? (
+              <p className="classroom-board-picker-empty">연결할 보드가 없습니다. 대시보드에서 보드를 먼저 만들어주세요.</p>
+            ) : (
+              allBoards
+                .filter((b) => !linkedBoardIds.has(b.id))
+                .map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    className="classroom-board-picker-item"
+                    onClick={() => handleLinkBoard(b.id)}
+                  >
+                    <span className="classroom-board-title">{b.title || "제목 없음"}</span>
+                    <span className="classroom-board-layout">{b.layout}</span>
+                    <span className="classroom-board-link-action">+ 연결</span>
+                  </button>
+                ))
+            )}
+          </div>
+        )}
+
+        {/* Linked boards */}
+        {linkedBoardIds.size === 0 ? (
+          <p className="classroom-boards-empty">연결된 보드가 없습니다. 보드를 연결하면 학생들이 볼 수 있습니다.</p>
+        ) : (
+          <div className="classroom-boards-grid">
+            {allBoards
+              .filter((b) => linkedBoardIds.has(b.id))
+              .map((b) => (
+                <div key={b.id} className="classroom-board-card">
+                  <button
+                    type="button"
+                    className="classroom-board-card-body"
+                    onClick={() => router.push(`/board/${b.slug}`)}
+                  >
+                    <span className="classroom-board-title">{b.title || "제목 없음"}</span>
+                    <span className="classroom-board-layout">{b.layout}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="classroom-board-unlink"
+                    onClick={() => handleUnlinkBoard(b.id)}
+                    title="연결 해제"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
 
       {/* Add students modal */}
       {showAddStudents && (

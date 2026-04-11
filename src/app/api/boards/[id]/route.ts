@@ -7,6 +7,7 @@ import { requirePermission, ForbiddenError } from "@/lib/rbac";
 const PatchBoardSchema = z.object({
   title: z.string().max(200).optional(),
   description: z.string().max(2000).optional(),
+  classroomId: z.string().nullable().optional(),
 });
 
 export async function GET(
