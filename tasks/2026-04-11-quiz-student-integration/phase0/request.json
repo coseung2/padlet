@@ -1,0 +1,22 @@
+{
+  "type": "feature",
+  "slug": "quiz-student-integration",
+  "task_id": "2026-04-11-quiz-student-integration",
+  "change_type": "enhancement",
+  "motivation": "학급에 등록된 학생이 QR 로그인 후 퀴즈 보드에 roomCode 입력 없이 바로 참여할 수 있어야 한다. 퀴즈 결과가 Student에 연결되어 선생님이 학생별 성적을 추적할 수 있어야 한다.",
+  "user_story": "학생으로서 학급 대시보드에서 퀴즈 보드를 클릭하면 roomCode 입력 없이 바로 퀴즈에 참여할 수 있고, 선생님으로서 퀴즈 결과를 학생 이름으로 조회할 수 있다",
+  "success_metric": [
+    "학생 대시보드에서 퀴즈 보드 클릭 시 roomCode 입력 없이 자동 참여",
+    "QuizPlayer에 studentId 연결 → 닉네임 대신 실명 표시",
+    "선생님이 퀴즈 결과에서 학생 이름으로 성적 확인 가능",
+    "기존 roomCode 방식(비학급 학생)도 병행 유지"
+  ],
+  "affected_surfaces": [
+    "prisma/schema.prisma (QuizPlayer.studentId 추가)",
+    "/student (퀴즈 보드 카드에 '참여' 버튼)",
+    "/quiz/[code] (학생 세션 감지 → 자동 참여)",
+    "/api/quiz/join (studentId 포함 참여)",
+    "/board/[id] (퀴즈 결과에 학생 이름 표시)"
+  ],
+  "created_at": "2026-04-11T20:30:00+09:00"
+}
