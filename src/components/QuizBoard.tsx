@@ -41,8 +41,14 @@ export function QuizBoard({ boardId, quizzes: initial }: Props) {
   const quiz = quizzes[0] ?? null;
 
   useEffect(() => {
-    const m = document.cookie.match(/llm_settings=([^;]+)/);
-    if (m) { try { setLlm(JSON.parse(decodeURIComponent(m[1]))); } catch {} }
+    const pm = document.cookie.match(/llm_provider=([^;]+)/);
+    const km = document.cookie.match(/llm_api_key=([^;]+)/);
+    if (pm || km) {
+      setLlm({
+        provider: (pm?.[1] as LLMSettings["provider"]) ?? "openai",
+        apiKey: km ? decodeURIComponent(km[1]) : "",
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -89,7 +95,8 @@ export function QuizBoard({ boardId, quizzes: initial }: Props) {
 
   function saveLLM(s: LLMSettings) {
     setLlm(s);
-    document.cookie = `llm_settings=${encodeURIComponent(JSON.stringify(s))};path=/;max-age=31536000;SameSite=Lax`;
+    document.cookie = `llm_provider=${s.provider};path=/;max-age=31536000;SameSite=Lax`;
+    document.cookie = `llm_api_key=${encodeURIComponent(s.apiKey)};path=/;max-age=31536000;SameSite=Lax`;
   }
 
   async function handleCreate() {
@@ -97,11 +104,9 @@ export function QuizBoard({ boardId, quizzes: initial }: Props) {
     try {
       const fd = new FormData();
       fd.append("boardId", boardId);
-      fd.append("textContent", text);
-      fd.append("provider", llm.provider);
-      fd.append("apiKey", llm.apiKey);
+      fd.append("text", text);
       if (file) fd.append("file", file);
-      const res = await fetch("/api/quiz", { method: "POST", body: fd });
+      const res = await fetch("/api/quiz/create", { method: "POST", body: fd });
       if (res.ok) { const { quiz: nq } = await res.json(); setQuizzes([nq]); setText(""); setFile(null); }
       else alert(`퀴즈 생성 실패: ${await res.text()}`);
     } catch { alert("퀴즈 생성 중 오류가 발생했습니다."); }

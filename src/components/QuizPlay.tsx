@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 
 type Question = { id: string; text: string; options: string[]; timeLimit: number };
 type QResult = { correct: boolean; correctIndex: number; points: number; rank: number; totalPlayers: number };
@@ -54,41 +54,105 @@ export function QuizPlay({ initialCode, studentName, studentId }: { initialCode?
     }
   }, [studentId, studentName, initialCode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleEvent = useCallback((data: Record<string, unknown>) => {
-    switch (data.type) {
-      case "player_joined":
-        setState((s) => s.phase === "waiting" || s.phase === "join" ? { phase: "waiting", playerCount: data.playerCount as number } : s);
-        break;
-      case "question_start":
-        setSelected(null);
-        setState({ phase: "question", question: data.question as Question, questionIndex: data.questionIndex as number, totalQuestions: data.totalQuestions as number });
-        startTimer((data.question as Question).timeLimit);
-        break;
-      case "question_result":
-        if (timerRef.current) clearInterval(timerRef.current);
-        { const r = data as unknown as QResult & { type: string }; setMyScore((p) => p + (r.points ?? 0)); setState({ phase: "result", result: r }); }
-        break;
-      case "quiz_finished":
-        if (timerRef.current) clearInterval(timerRef.current);
-        { const ps = (data.players as Player[]) ?? []; const ri = ps.findIndex((p) => p.id === playerId) + 1;
-          setState({ phase: "leaderboard", players: ps, myScore: ps.find((p) => p.id === playerId)?.score ?? myScore, myRank: ri || ps.length }); }
-        break;
-    }
-  }, [playerId, myScore]);
+  // Track the last question index we transitioned to, to avoid re-triggering on duplicate SSE polls
+  const lastQuestionIndexRef = useRef(-1);
+  // Ref to access playerId inside event listeners without re-subscribing
+  const playerIdRef = useRef(playerId);
+  playerIdRef.current = playerId;
 
   useEffect(() => {
     if (!quizId || !playerId) return;
     const es = new EventSource(`/api/quiz/${quizId}/stream?playerId=${playerId}`);
-    es.onmessage = (e) => { try { handleEvent(JSON.parse(e.data)); } catch {} };
-    es.onerror = () => es.close();
-    return () => es.close();
-  }, [quizId, playerId, handleEvent]);
 
-  function startTimer(sec: number) {
-    setTimeLeft(sec);
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => setTimeLeft((p) => { if (p <= 1) { clearInterval(timerRef.current!); return 0; } return p - 1; }), 1000);
-  }
+    // Server emits NAMED events: quiz-status, question, players, answers, finished, error
+    // Each requires addEventListener (onmessage only handles unnamed events)
+
+    es.addEventListener("quiz-status", (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data) as { status: string; currentQ: number };
+        if (data.status === "waiting") {
+          setState((s) => s.phase === "join" || s.phase === "waiting" ? { phase: "waiting", playerCount: 0 } : s);
+        }
+        // "active" and "finished" statuses are handled by "question" and "finished" events respectively
+      } catch { /* ignore parse errors */ }
+    });
+
+    es.addEventListener("question", (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data) as {
+          index: number; total: number; id: string;
+          question: string; optionA: string; optionB: string; optionC: string; optionD: string;
+          timeLimit: number;
+        };
+        // Only transition if this is a genuinely new question (server polls every 1s)
+        if (data.index === lastQuestionIndexRef.current) return;
+        lastQuestionIndexRef.current = data.index;
+
+        const question: Question = {
+          id: data.id,
+          text: data.question,
+          options: [data.optionA, data.optionB, data.optionC, data.optionD],
+          timeLimit: data.timeLimit,
+        };
+        setSelected(null);
+        setState({ phase: "question", question, questionIndex: data.index, totalQuestions: data.total });
+        // Start countdown timer
+        setTimeLeft(data.timeLimit);
+        if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = setInterval(() => {
+          setTimeLeft((p) => { if (p <= 1) { clearInterval(timerRef.current!); return 0; } return p - 1; });
+        }, 1000);
+      } catch { /* ignore parse errors */ }
+    });
+
+    es.addEventListener("players", (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data) as { players: Player[] };
+        setState((s) => {
+          if (s.phase === "waiting" || s.phase === "join") {
+            return { phase: "waiting", playerCount: data.players.length };
+          }
+          return s;
+        });
+      } catch { /* ignore parse errors */ }
+    });
+
+    es.addEventListener("answers", (e: MessageEvent) => {
+      try {
+        // Answer distribution data — informational for host view.
+        // Student client doesn't need to transition state here;
+        // individual result comes from the POST /api/quiz/answer response.
+        JSON.parse(e.data);
+      } catch { /* ignore parse errors */ }
+    });
+
+    es.addEventListener("finished", (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data) as { players: Player[] };
+        if (timerRef.current) clearInterval(timerRef.current);
+        const ps = data.players;
+        const pid = playerIdRef.current;
+        const ri = ps.findIndex((p) => p.id === pid) + 1;
+        const myFinalScore = ps.find((p) => p.id === pid)?.score ?? 0;
+        setState({ phase: "leaderboard", players: ps, myScore: myFinalScore, myRank: ri || ps.length });
+        setMyScore(myFinalScore);
+      } catch { /* ignore parse errors */ }
+    });
+
+    es.addEventListener("error", (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data) as { message: string };
+        setError(data.message);
+        es.close();
+      } catch { /* ignore parse errors */ }
+    });
+
+    es.onerror = () => es.close();
+    return () => {
+      lastQuestionIndexRef.current = -1;
+      es.close();
+    };
+  }, [quizId, playerId]);
 
   async function handleJoin(e: React.FormEvent) {
     e.preventDefault();
@@ -104,8 +168,12 @@ export function QuizPlay({ initialCode, studentName, studentId }: { initialCode?
 
   async function handleAnswer(idx: number) {
     if (selected !== null || !quizId || !playerId) return;
+    const questionId = state.phase === "question" ? state.question.id : undefined;
+    const timeLimitSec = state.phase === "question" ? state.question.timeLimit : 0;
+    const selectedLetter = ["A", "B", "C", "D"][idx];
+    const timeMs = (timeLimitSec - timeLeft) * 1000;
     setSelected(idx); setState({ phase: "answered" });
-    try { await fetch(`/api/quiz/${quizId}/answer`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ playerId, optionIndex: idx, timeLeft }) }); } catch {}
+    try { await fetch("/api/quiz/answer", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ questionId, playerId, selected: selectedLetter, timeMs }) }); } catch {}
   }
 
   // ---- JOIN ----
