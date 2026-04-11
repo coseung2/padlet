@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import Link from "next/link";
 
 type BoardItem = {
@@ -26,10 +28,30 @@ const LAYOUT_LABEL: Record<string, string> = {
 };
 
 export function StudentDashboard({ studentName, classroomName, boards }: Props) {
+  const router = useRouter();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      await fetch("/api/student/logout", { method: "POST" });
+      router.push("/student/login");
+    } catch {
+      setLoggingOut(false);
+    }
+  }
+
   return (
     <>
       <h1 className="student-greeting">{studentName}님, 안녕하세요!</h1>
       <span className="student-classroom-badge">{classroomName}</span>
+      <button
+        className="student-logout-btn"
+        onClick={handleLogout}
+        disabled={loggingOut}
+      >
+        {loggingOut ? "로그아웃 중..." : "로그아웃"}
+      </button>
 
       {boards.length === 0 ? (
         <div className="student-empty">
