@@ -10,6 +10,7 @@ const MAX_AGE = 30 * 24 * 60 * 60; // 30 days
 interface StudentPayload {
   studentId: string;
   classroomId: string;
+  sessionVersion: number;
   exp: number;
 }
 
@@ -37,9 +38,11 @@ function verify(token: string): StudentPayload | null {
 }
 
 export async function createStudentSession(studentId: string, classroomId: string) {
+  const student = await db.student.findUniqueOrThrow({ where: { id: studentId } });
   const payload: StudentPayload = {
     studentId,
     classroomId,
+    sessionVersion: student.sessionVersion,
     exp: Date.now() + MAX_AGE * 1000,
   };
   const token = sign(payload);
@@ -63,6 +66,8 @@ export async function getCurrentStudent() {
     where: { id: payload.studentId },
     include: { classroom: true },
   });
+  if (!student) return null;
+  if (student.sessionVersion !== payload.sessionVersion) return null;
   return student;
 }
 
