@@ -1,0 +1,296 @@
+# Padlet Design System
+
+Notion-inspired. 모든 신규 기능/탭은 이 문서의 토큰과 패턴을 따른다.
+
+---
+
+## 1. 컬러 토큰
+
+소스: `src/styles/base.css`
+
+### 배경/표면
+
+| 토큰 | 값 | 용도 |
+|---|---|---|
+| `--color-bg` | `#f6f5f4` | 페이지 캔버스 |
+| `--color-bg-alt` | `#ffffff` | 헤더, 특수 영역 |
+| `--color-surface` | `#ffffff` | 카드/모달/컨테이너 |
+| `--color-surface-alt` | `rgba(0,0,0,0.05)` | 서브 표면 (user-switcher 배경 등) |
+
+### 텍스트
+
+| 토큰 | 값 | 용도 |
+|---|---|---|
+| `--color-text` | `rgba(0,0,0,0.95)` | 제목, 본문 |
+| `--color-text-muted` | `#615d59` | 설명, 라벨, 보조 텍스트 |
+| `--color-text-faint` | `#a39e98` | 캡션, placeholder, 비활성 |
+
+### 액센트
+
+| 토큰 | 값 | 용도 |
+|---|---|---|
+| `--color-accent` | `#0075de` | CTA 버튼, 링크 |
+| `--color-accent-active` | `#005bab` | hover/pressed 상태 |
+| `--color-accent-tinted-bg` | `#f2f9ff` | 뱃지 배경 |
+| `--color-accent-tinted-text` | `#097fe8` | 뱃지 텍스트, focus outline |
+
+### 보더
+
+| 토큰 | 값 | 용도 |
+|---|---|---|
+| `--color-border` | `rgba(0,0,0,0.1)` | 기본 구분선 |
+| `--color-border-hover` | `rgba(0,0,0,0.15)` | hover 시 강조 |
+
+### 시맨틱 (토큰 외 — 상태 표현용)
+
+| 색상 | 값 | 용도 |
+|---|---|---|
+| Submitted | `#1565c0` | 제출 완료 상태 |
+| Reviewed | `#2e7d32` | 검토 완료 상태 |
+| Returned | `#c62828` | 반려 상태 |
+
+> **규칙**: 신규 컴포넌트에서 하드코딩 hex 금지. 반드시 `var(--color-*)` 토큰 사용. 시맨틱 상태색만 예외.
+
+---
+
+## 2. 타이포그래피
+
+### 폰트 스택
+
+```css
+--font-display: "Inter", -apple-system, system-ui, "Segoe UI", sans-serif;
+--font-body: "Inter", -apple-system, system-ui, "Segoe UI", sans-serif;
+--font-display-tracking: -0.5px;
+```
+
+### 사이즈 체계
+
+| 레벨 | size | weight | letter-spacing | 용도 |
+|---|---|---|---|---|
+| Display | 26px | 700 | -0.5px | 보드 제목 |
+| Title | 20px | 700 | -0.3px | 모달 제목 |
+| Subtitle | 16px | 700 | -0.25px | 카드 제목 |
+| Section | 15px | 700 | -0.15px | 컬럼 헤더 |
+| Body | 14–15px | 400 | normal | 본문, 입력 필드 |
+| Label | 13px | 600 | normal | UI 라벨 |
+| Badge | 12px | 600–700 | 0.125px | 뱃지, 캡션 |
+| Micro | 11px | 600 | 0.1px | 카운트, 보조 |
+
+### 본문 기본값
+
+```css
+font-family: var(--font-body);
+font-size: 15px;
+font-weight: 400;
+line-height: 1.5;
+-webkit-font-smoothing: antialiased;
+font-feature-settings: "kern", "liga";
+```
+
+> **규칙**: 신규 텍스트는 위 8단계 중 하나에 매핑. 임의 사이즈 금지.
+
+---
+
+## 3. 간격 & 반경
+
+### Border Radius
+
+| 토큰 | 값 | 용도 |
+|---|---|---|
+| `--radius-card` | `12px` | 카드, 컨테이너, 모달 |
+| `--radius-btn` | `4px` | 버튼, 인풋 |
+| `--radius-pill` | `9999px` | 뱃지, 스위처, FAB |
+
+### 패딩 기준값
+
+| 요소 | Desktop | 1080px | 768px | 560px |
+|---|---|---|---|---|
+| 헤더 | 18px 32px | 16px 24px | 14px 18px | 12px 14px |
+| 캔버스 | 32px | 24px | 18px | 18px |
+| 카드 (드래그) | 16px 18px 18px | — | — | 14px 16px 16px |
+| 카드 (그리드) | 20px | — | — | — |
+| 모달 헤더 | 20px 24px | — | — | — |
+| 모달 바디 | 16px 24px 24px | — | — | — |
+
+### 갭 기준값
+
+| 레이아웃 | 값 |
+|---|---|
+| Grid 카드 간 | 20px |
+| Stream 카드 간 | 16px |
+| Column 간 | 24px |
+| Column 내 카드 간 | 12px |
+
+---
+
+## 4. 그림자
+
+| 토큰 | 값 | 용도 |
+|---|---|---|
+| `--shadow-card` | 4-layer (max 0.04) | 카드 기본 |
+| `--shadow-card-hover` | 2-layer (max 0.06) | 카드 hover |
+| `--shadow-lift` | `rgba(0,0,0,0.06) 0 2px 8px` | 활성 상태 (스위처 등) |
+| `--shadow-accent` | `0 6px 20px rgba(0,117,222,0.25)` | CTA 버튼 |
+| `--shadow-accent-hover` | `0 8px 24px rgba(0,117,222,0.3)` | CTA hover |
+
+```css
+/* --shadow-card 전체 값 */
+rgba(0,0,0,0.04) 0px 4px 18px,
+rgba(0,0,0,0.027) 0px 2.025px 7.85px,
+rgba(0,0,0,0.02) 0px 0.8px 2.93px,
+rgba(0,0,0,0.01) 0px 0.175px 1.04px;
+```
+
+> **규칙**: 신규 그림자 추가 금지. 위 5개 토큰 중 선택. 모달은 별도 `box-shadow` 허용 (overlay 위 요소).
+
+---
+
+## 5. 보더
+
+```css
+--border-card: 1px solid var(--color-border);
+```
+
+- 기본: whisper-weight `1px solid rgba(0,0,0,0.1)`
+- hover: `--color-border-hover` (`rgba(0,0,0,0.15)`)
+- 2px 이상 보더 금지 (시맨틱 상태색 제외)
+
+---
+
+## 6. 반응형 브레이크포인트
+
+소스: `src/styles/responsive.css`
+
+| 이름 | 조건 | 주요 변화 |
+|---|---|---|
+| Desktop | 기본 | 전체 레이아웃 |
+| Tablet | `max-width: 1080px` | 패딩 축소 |
+| Mobile-L | `max-width: 768px` | 타이틀 22px, 캔버스 스크롤 허용 |
+| Mobile-S | `max-width: 560px` | 타이틀 20px, 아이콘 전용, 폼 full-width |
+
+---
+
+## 7. 컴포넌트 패턴
+
+### 카드 (필수 패턴)
+
+모든 카드 컴포넌트는 이 베이스를 따른다:
+
+```css
+background: var(--color-surface);
+border: var(--border-card);
+border-radius: var(--radius-card);
+box-shadow: var(--shadow-card);
+transition: box-shadow 180ms ease, border-color 180ms ease;
+```
+
+hover 시:
+```css
+box-shadow: var(--shadow-card-hover);
+border-color: var(--color-border-hover);
+```
+
+### 버튼
+
+| 타입 | 배경 | 텍스트 | 반경 | 그림자 |
+|---|---|---|---|---|
+| Primary (CTA) | `--color-accent` | `#ffffff` | `--radius-btn` 또는 `50%` (FAB) | `--shadow-accent` |
+| Secondary | `transparent` | `--color-text-muted` | `--radius-btn` | 없음 |
+| Destructive | `rgba(0,0,0,0.06)` → hover `#fee` | `--color-text-muted` → hover `#c62828` | `--radius-pill` | 없음 |
+
+### 모달
+
+```css
+background: var(--color-surface);
+border: var(--border-card);
+border-radius: var(--radius-card);
+box-shadow: 0 24px 80px rgba(0,0,0,0.18), 0 8px 24px rgba(0,0,0,0.1);
+animation: modalIn 200ms ease;
+```
+
+### 인풋/텍스트에어리어
+
+```css
+font-size: 14px;
+padding: 10px 14px;
+border: 1px solid var(--color-border);
+border-radius: 8px;
+background: var(--color-bg);
+/* focus */
+border-color: var(--color-accent);
+```
+
+### 뱃지/필
+
+```css
+font-size: 12px;
+font-weight: 600–700;
+color: var(--color-accent-tinted-text);
+background: var(--color-accent-tinted-bg);
+padding: 2px 8px;
+border-radius: var(--radius-pill);
+```
+
+---
+
+## 8. 접근성
+
+| 항목 | 규칙 |
+|---|---|
+| Focus | `:focus-visible` — `2px solid #097fe8`, offset `2px` |
+| 터치 타깃 | 최소 24px (권장 32px+) |
+| 키보드 | 삭제 버튼은 `:focus-within`에서도 표시 |
+| 대비 | Primary 텍스트 ~18:1, Secondary ~5.5:1, Accent ~4.6:1 (AA) |
+
+---
+
+## 9. 트랜지션
+
+| 속성 | 지속시간 | 이징 |
+|---|---|---|
+| box-shadow, border-color | 180ms | ease |
+| background, color | 150–160ms | ease |
+| transform (hover lift) | 160ms | ease |
+| 모달 진입 | 200ms | ease |
+
+> **규칙**: `transform`에 transition 걸지 않는다 — dnd-kit이 매 프레임 갱신하므로 lag 발생.
+
+---
+
+## 10. CSS 파일 구조
+
+```
+src/styles/
+├── base.css          # 토큰 정의, 리셋, :focus-visible
+├── layout.css        # 페이지 구조, 헤더, 캔버스
+├── card.css          # 카드 공통, 첨부파일, 링크 프리뷰
+├── modal.css         # 모달, 폼, 파일 업로드
+├── boards.css        # Grid, Stream, Columns 레이아웃
+├── assignment.css    # 과제 보드
+├── home.css          # 대시보드, 보드 리스트
+├── user-switcher.css # RBAC 스위처
+├── export.css        # 내보내기, Canva 연동
+├── misc.css          # FAB, 컨텍스트 메뉴
+├── auth.css          # 로그인, 인증 헤더
+├── quiz.css          # 퀴즈 보드
+└── responsive.css    # 브레이크포인트
+```
+
+> **규칙**: 신규 탭/보드 추가 시 `src/styles/{board-name}.css` 파일을 만들고, 토큰은 `base.css`에서만 참조. 토큰 추가가 필요하면 `base.css`의 `:root`에 추가하고 이 문서도 갱신.
+
+---
+
+## 11. 신규 기능 체크리스트
+
+새 탭/보드/컴포넌트를 만들 때 반드시 확인:
+
+- [ ] 모든 색상이 `var(--color-*)` 토큰 사용 (시맨틱 상태색 제외)
+- [ ] 타이포는 8단계 체계 중 하나에 매핑
+- [ ] 카드류 컴포넌트는 카드 패턴(surface + border + shadow + hover) 준수
+- [ ] border-radius는 3개 토큰 중 하나 사용
+- [ ] 그림자는 5개 토큰 중 하나 사용
+- [ ] 반응형 3 브레이크포인트 대응
+- [ ] `:focus-visible` 스타일 자동 적용 확인
+- [ ] 터치 타깃 최소 24px
+- [ ] `transform`에 transition 없음
+- [ ] CSS 파일은 `src/styles/`에 분리, `base.css` import

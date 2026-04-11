@@ -7,6 +7,7 @@ const CreateBoardSchema = z.object({
   title: z.string().max(200).default(""),
   layout: z.enum(["freeform", "grid", "stream", "columns", "assignment", "quiz"]),
   description: z.string().max(2000).default(""),
+  classroomId: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -26,6 +27,7 @@ export async function POST(req: Request) {
         slug,
         layout: input.layout,
         description: input.description,
+        classroomId: input.classroomId ?? null,
         members: {
           create: { userId: user.id, role: "owner" },
         },
