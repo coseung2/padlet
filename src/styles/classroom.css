@@ -346,11 +346,66 @@
   margin-top: 32px;
 }
 
+.classroom-boards-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
 .classroom-boards-heading {
   font-size: 16px;
   font-weight: 700;
-  margin: 0 0 16px;
+  margin: 0;
   color: var(--color-text);
+}
+
+.classroom-boards-empty {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  padding: 24px 0;
+}
+
+.classroom-board-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--color-bg);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.classroom-board-picker-empty {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+.classroom-board-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--color-surface);
+  border: var(--border-card);
+  border-radius: var(--radius-btn);
+  cursor: pointer;
+  font-family: var(--font-body);
+  text-align: left;
+  transition: border-color 150ms ease;
+}
+
+.classroom-board-picker-item:hover {
+  border-color: var(--color-accent);
+}
+
+.classroom-board-link-action {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-accent);
 }
 
 .classroom-boards-grid {
@@ -360,23 +415,58 @@
 }
 
 .classroom-board-card {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 16px;
   background: var(--color-surface);
   border: var(--border-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
-  cursor: pointer;
-  font-family: var(--font-body);
-  text-align: left;
   transition: box-shadow 180ms ease, border-color 180ms ease;
 }
 
 .classroom-board-card:hover {
   box-shadow: var(--shadow-card-hover);
   border-color: var(--color-border-hover);
+}
+
+.classroom-board-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: var(--font-body);
+  text-align: left;
+}
+
+.classroom-board-unlink {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.06);
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.classroom-board-card:hover .classroom-board-unlink {
+  display: flex;
+}
+
+.classroom-board-unlink:hover {
+  background: #fee;
+  color: #c62828;
 }
 
 .classroom-board-title {
