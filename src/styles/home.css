@@ -9,6 +9,25 @@
   letter-spacing: 0.125px;
 }
 
+/* -------- Dashboard classroom link -------- */
+
+.dashboard-classroom-row {
+  max-width: 960px;
+  margin: 0 auto 16px;
+}
+
+.dashboard-classroom-link {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+
+.dashboard-classroom-link:hover {
+  color: var(--color-accent-active);
+}
+
 /* -------- Home / Board List -------- */
 
 .home-page {

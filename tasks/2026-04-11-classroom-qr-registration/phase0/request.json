@@ -1,0 +1,25 @@
+{
+  "type": "feature",
+  "slug": "classroom-qr-registration",
+  "task_id": "2026-04-11-classroom-qr-registration",
+  "change_type": "new_feature",
+  "motivation": "선생님이 학급을 만들고 학생을 등록하면 개별 QR 코드가 생성되어, 학생이 QR 스캔만으로 로그인하고 학급 소속 보드에 자동 접근할 수 있어야 한다. 초등학생은 이메일/비밀번호 없이 사용 가능해야 함.",
+  "user_story": "선생님으로서 학급을 생성하고 학생 이름을 등록하면 QR 카드 PDF를 출력할 수 있고, 학생으로서 QR을 스캔하면 비밀번호 없이 로그인하여 학급 대시보드에서 소속 보드 목록을 볼 수 있다",
+  "success_metric": [
+    "학급 생성 시 6자리 학급 코드 자동 발급",
+    "학생 등록 시 고유 QR 토큰 생성 및 QR 코드 렌더링",
+    "QR PDF 출력 시 A4 1장에 최대 30명 카드 배치",
+    "QR 스캔 후 3초 이내 학급 대시보드 진입",
+    "학급 소속 학생은 해당 학급 보드 목록 자동 조회"
+  ],
+  "affected_surfaces": [
+    "/classroom (신규 — 선생님 학급 관리)",
+    "/classroom/[id] (신규 — 학급 상세, 학생 명단, QR 출력)",
+    "/student (신규 — 학생 대시보드, 소속 보드 목록)",
+    "/qr/[token] (신규 — QR 스캔 랜딩, 세션 생성)",
+    "/api/classroom/* (신규 — CRUD + QR 생성)",
+    "/api/student/* (신규 — QR 로그인, 보드 조회)",
+    "prisma/schema.prisma (Classroom, ClassroomMember 모델 추가)"
+  ],
+  "created_at": "2026-04-11T14:00:00+09:00"
+}

@@ -39,7 +39,7 @@ Expansion / Selective Expansion / Hold / Reduction 중 하나
 
 1. `ux_patterns.json`에서 최적 패턴 1개 선정 (선정 사유는 research_pack 근거 인용)
 2. MVP/Non-MVP 분리 — 솔로 프로젝트이므로 MVP는 보수적으로
-3. 수용 기준은 **사람/기계가 모두 검증 가능한** 형태로
+3. 수용 기준은 **오케스트레이터가 자동 검증 가능한** 형태로
 4. 스코프 결정 모드를 명시 (이후 phase3 architect에게 신호)
 
 ## gstack 스킬
@@ -54,4 +54,4 @@ Expansion / Selective Expansion / Hold / Reduction 중 하나
 
 ## 핸드오프
 
-`scope_decision.md`를 사람 게이트(도입 승인)에 제출. 승인 후 phase3 진행.
+`scope_decision.md` 완성 → 오케스트레이터 스코프 검증 통과 → phase3 진행.

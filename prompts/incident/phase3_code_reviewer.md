@@ -25,7 +25,7 @@
 4. 판정:
    - **둘 다 PASS** → `touch phase3/REVIEW_OK.marker`
    - **하나라도 FAIL** → 마커 없음, phase2로 반려
-5. 긴급 단축(`severity == critical`) 시 `/codex`를 사람 검토로 대체 가능 (사용자 명시 승인 필수, `SHORT_CIRCUIT.md`에 사유)
+5. 긴급 단축(`severity == critical`) 시 `/codex`를 `/review` 단독으로 대체 가능 (`SHORT_CIRCUIT.md`에 사유 기록)
 
 ## gstack 스킬
 
@@ -41,4 +41,4 @@
 
 ## 핸드오프
 
-`REVIEW_OK.marker` 존재 → 사람 게이트(핫배포 승인) → phase4.
+`REVIEW_OK.marker` 존재 → 오케스트레이터 핫배포 검증 통과 → phase4.

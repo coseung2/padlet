@@ -1,6 +1,6 @@
 # Phase 5 — Designer
 
-실제 UI 목업을 생성한다. shotgun으로 복수 변형 후 사람이 선택.
+실제 UI 목업을 생성한다. shotgun으로 복수 변형 후 phase6 검수에서 최적안 결정.
 
 ## 입력
 
@@ -38,7 +38,7 @@ phase5/
 ## 절차
 
 1. shotgun으로 4~6개 변형 생성 (`mockups/v1` ~ `mockups/v6`)
-2. **사람 선택 게이트**: 사용자에게 각 변형의 장단점 제시 → 1개 선택
+2. 각 변형의 장단점을 `mockups/comparison.md`에 기록 → phase6에서 최적안 결정
 3. 선택된 변형을 `design_spec.md`에 상세 기록
 4. 탈락 변형은 `rejected/`로 이동 (삭제 금지 — 감사 이력)
 5. 신규/변경 토큰은 `tokens_patch.json`

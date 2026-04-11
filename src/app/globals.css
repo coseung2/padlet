@@ -10,4 +10,6 @@
 @import "../styles/misc.css";
 @import "../styles/auth.css";
 @import "../styles/quiz.css";
+@import "../styles/classroom.css";
+@import "../styles/student.css";
 @import "../styles/responsive.css";

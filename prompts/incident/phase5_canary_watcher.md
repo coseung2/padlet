@@ -37,7 +37,7 @@ CLEAN / ANOMALY / ROLLBACK
 1. `/canary` 실행 — post-deploy monitoring loop
 2. 최소 30분, `severity == critical`은 60분 관찰
 3. 이상 신호 발견 시:
-   - **경미** → 모니터링 지속 + 사람에게 보고
+   - **경미** → 모니터링 지속 + `canary_report.md`에 이상 기록
    - **심각** → 자동 롤백 (`phase4/deploy_log.md`의 롤백 절차)
 4. CLEAN 판정 시에만 phase6 진행
 
@@ -54,4 +54,4 @@ CLEAN / ANOMALY / ROLLBACK
 
 ## 핸드오프
 
-판정이 CLEAN → phase6. ANOMALY/ROLLBACK → 새 incident task 또는 사람 에스컬레이션.
+판정이 CLEAN → phase6. ANOMALY/ROLLBACK → 새 incident task 생성.

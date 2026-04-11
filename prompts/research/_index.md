@@ -10,7 +10,7 @@
 | 1 | 조사 (researcher) | `phase1_researcher.md` | — |
 | 2 | 프로토타입 (prototyper) | `phase2_prototyper.md` | — |
 | 3 | 평가/결론 (evaluator) | `phase3_evaluator.md` | — |
-| ★ | **사람 게이트 — 도입 결정** | | |
+| ⚙ | **검증 게이트 — 도입 검증** | | |
 
 ## 트리거
 
@@ -45,7 +45,7 @@ feature `_index.md`와 동일 (파일 존재 / 필수 필드 / 참조 일관성 
 
 ### 프로토타입 (phase2)
 - 빠른 구현 우선, 완성도는 학습 가치가 있는 선까지만
-- 외부 API 키나 비용이 드는 서비스는 사전 사용자 승인 필수
+- 외부 API 키나 비용이 드는 서비스는 `prototype_log.md`에 비용/사유 기록 후 진행
 - 프로토타입 디렉토리는 `question.json` 결정과 무관하게 감사 이력으로 보존
 
 ### 평가 기준 (phase3)

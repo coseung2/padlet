@@ -1,0 +1,22 @@
+{
+  "type": "research",
+  "slug": "student-registration-methods",
+  "task_id": "2026-04-11-student-registration-methods",
+  "question": "교육 플랫폼들의 학생 등록/온보딩 방식 중 Padlet 클론에 가장 적합한 방식은 무엇인가?",
+  "decision_deadline": "2026-04-18",
+  "success_criteria": {
+    "adopt_if": [
+      "K-6 학생이 교사 도움 없이 30초 이내 보드 접속 가능",
+      "COPPA/FERPA 기본 요건 충족 가능",
+      "구현 복잡도 2주 이내 (1인 개발)",
+      "최소 3개 실제 플랫폼 사례 기반 검증"
+    ],
+    "reject_if": [
+      "학생 이메일 필수 (K-6 불가)",
+      "구현 복잡도 4주 초과",
+      "법적 컴플라이언스 불가능"
+    ]
+  },
+  "scope_boundary": "학생 등록/온보딩 UX만. 권한 관리, 콘텐츠 모더레이션, 학부모 동의 UI 구현은 out of scope. 한국 시장 참고만 (1차 타겟 아님).",
+  "created_at": "2026-04-11T10:00:00+09:00"
+}

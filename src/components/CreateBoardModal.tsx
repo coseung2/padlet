@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 const LAYOUTS = [
@@ -12,6 +12,11 @@ const LAYOUTS = [
   { id: "quiz", emoji: "🎮", label: "퀴즈", desc: "카훗 스타일 실시간 퀴즈 게임" },
 ] as const;
 
+type ClassroomOption = {
+  id: string;
+  name: string;
+};
+
 type Props = {
   onClose: () => void;
 };
@@ -19,17 +24,41 @@ type Props = {
 export function CreateBoardModal({ onClose }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [classrooms, setClassrooms] = useState<ClassroomOption[]>([]);
+  const [classroomId, setClassroomId] = useState("");
+
+  useEffect(() => {
+    fetch("/api/classroom")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.classrooms) {
+          setClassrooms(
+            data.classrooms.map((c: { id: string; name: string }) => ({
+              id: c.id,
+              name: c.name,
+            }))
+          );
+        }
+      })
+      .catch(() => {
+        /* ignore — classroom select is optional */
+      });
+  }, []);
 
   async function handleSelect(layoutId: string) {
     setBusy(true);
     try {
+      const body: Record<string, string> = {
+        title: "",
+        layout: layoutId,
+      };
+      if (classroomId) {
+        body.classroomId = classroomId;
+      }
       const res = await fetch("/api/boards", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          title: "",
-          layout: layoutId,
-        }),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         const { board } = await res.json();
@@ -54,6 +83,24 @@ export function CreateBoardModal({ onClose }: Props) {
         </div>
 
         <div className="modal-body">
+          {classrooms.length > 0 && (
+            <>
+              <label className="modal-field-label">학급 연결 (선택)</label>
+              <select
+                className="modal-select"
+                value={classroomId}
+                onChange={(e) => setClassroomId(e.target.value)}
+              >
+                <option value="">없음</option>
+                {classrooms.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+
           <p className="create-board-hint">보드 유형을 선택하세요</p>
           <div className="layout-picker">
             {LAYOUTS.map((l) => (

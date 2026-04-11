@@ -41,6 +41,9 @@ export function Dashboard({ boards }: Props) {
 
   return (
     <>
+      <div className="dashboard-classroom-row">
+        <a href="/classroom" className="dashboard-classroom-link">학급 관리 →</a>
+      </div>
       <div className="board-grid">
         {/* New board card — first position */}
         <button

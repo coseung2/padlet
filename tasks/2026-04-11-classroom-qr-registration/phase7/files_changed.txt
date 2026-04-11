@@ -1,0 +1,47 @@
+# Modified existing files
+prisma/schema.prisma
+package.json
+package-lock.json
+src/app/api/boards/route.ts
+src/app/globals.css
+src/components/CreateBoardModal.tsx
+src/components/Dashboard.tsx
+src/styles/home.css
+
+# New files — lib
+src/lib/student-auth.ts
+src/lib/classroom-utils.ts
+
+# New files — API routes
+src/app/api/classroom/route.ts
+src/app/api/classroom/[id]/route.ts
+src/app/api/classroom/[id]/students/route.ts
+src/app/api/classroom/[id]/students/[studentId]/route.ts
+src/app/api/classroom/[id]/students/[studentId]/reissue/route.ts
+src/app/api/student/auth/route.ts
+src/app/api/student/me/route.ts
+
+# New files — pages
+src/app/classroom/page.tsx
+src/app/classroom/[id]/page.tsx
+src/app/student/page.tsx
+src/app/student/login/page.tsx
+src/app/qr/[token]/page.tsx
+
+# New files — components
+src/components/ClassroomList.tsx
+src/components/ClassroomListPage.tsx
+src/components/ClassroomDetail.tsx
+src/components/CreateClassroomModal.tsx
+src/components/AddStudentsModal.tsx
+src/components/StudentQRCard.tsx
+src/components/QRPrintSheet.tsx
+src/components/StudentDashboard.tsx
+src/components/StudentLoginForm.tsx
+
+# New files — styles
+src/styles/classroom.css
+src/styles/student.css
+
+# New files — docs
+docs/design-system.md

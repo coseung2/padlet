@@ -60,4 +60,4 @@
 
 ## 핸드오프
 
-`incident_entry.md`를 사람 게이트(push 승인)에 제출.
+`incident_entry.md` 완성 → 오케스트레이터 push 검증 통과 → `git push`.

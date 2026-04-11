@@ -1,0 +1,193 @@
+/* -------- Student Pages -------- */
+
+.student-page {
+  min-height: 100vh;
+  background: var(--color-bg);
+  padding: 48px 32px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.student-greeting {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  margin: 0 0 4px;
+  color: var(--color-text);
+}
+
+.student-classroom-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  background: var(--color-accent-tinted-bg);
+  color: var(--color-accent-tinted-text);
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.student-board-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+  margin-top: 24px;
+}
+
+.student-board-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  background: var(--color-surface);
+  border: var(--border-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  text-decoration: none;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.student-board-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--color-border-hover);
+}
+
+.student-board-card-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.student-board-card-meta {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-top: 8px;
+}
+
+/* ---- Student Login ---- */
+
+.student-login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg);
+}
+
+.student-login-card {
+  background: var(--color-surface);
+  border: var(--border-card);
+  border-radius: var(--radius-card);
+  padding: 32px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.18), 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.student-login-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+  margin: 0 0 24px;
+  color: var(--color-text);
+}
+
+.student-login-input {
+  font-family: monospace;
+  font-size: 24px;
+  letter-spacing: 6px;
+  text-align: center;
+  text-transform: uppercase;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  width: 100%;
+  outline: none;
+  color: var(--color-text);
+  background: var(--color-bg);
+  transition: border-color 150ms ease;
+  box-sizing: border-box;
+}
+
+.student-login-input:focus {
+  border-color: var(--color-accent);
+}
+
+.student-login-btn {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--color-accent);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-btn);
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  transition: background 160ms ease;
+}
+
+.student-login-btn:hover {
+  background: var(--color-accent-active);
+}
+
+.student-login-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.student-login-error {
+  color: #c62828;
+  font-size: 13px;
+  text-align: center;
+  margin-top: 8px;
+}
+
+/* ---- Empty state ---- */
+
+.student-empty {
+  text-align: center;
+  padding: 48px;
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+/* ---- QR Landing ---- */
+
+.student-qr-landing {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg);
+  padding: 32px;
+}
+
+.student-qr-error {
+  text-align: center;
+  max-width: 400px;
+}
+
+.student-qr-error h2 {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: var(--color-text);
+}
+
+.student-qr-error p {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin: 0 0 24px;
+  line-height: 1.5;
+}

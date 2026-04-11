@@ -1,0 +1,335 @@
+[
+  {
+    "id": "S01",
+    "platform": "Google Classroom",
+    "title": "Invite students to your class",
+    "url": "https://support.google.com/edu/classroom/answer/6020282",
+    "date": "2025",
+    "author": "Google",
+    "type": "official_docs"
+  },
+  {
+    "id": "S02",
+    "platform": "Google Classroom",
+    "title": "Join a class with a class code",
+    "url": "https://support.google.com/edu/classroom/answer/15605102",
+    "date": "2025",
+    "author": "Google",
+    "type": "official_docs"
+  },
+  {
+    "id": "S03",
+    "platform": "Google Classroom",
+    "title": "Join a class with a class link",
+    "url": "https://support.google.com/edu/classroom/answer/15604494",
+    "date": "2025",
+    "author": "Google",
+    "type": "official_docs"
+  },
+  {
+    "id": "S04",
+    "platform": "Google Classroom",
+    "title": "Get started with SIS roster import",
+    "url": "https://support.google.com/edu/classroom/answer/10495270",
+    "date": "2025",
+    "author": "Google",
+    "type": "official_docs"
+  },
+  {
+    "id": "S05",
+    "platform": "Padlet",
+    "title": "Share a padlet",
+    "url": "https://padlet.help/l/en/article/typfdby7fn-how-to-share-or-publish-a-padlet",
+    "date": "2025",
+    "author": "Padlet",
+    "type": "official_docs"
+  },
+  {
+    "id": "S06",
+    "platform": "Padlet",
+    "title": "Privacy and permission settings",
+    "url": "https://padlet.help/l/en/article/zwbvogdu7a-privacy-and-permission-settings",
+    "date": "2025",
+    "author": "Padlet",
+    "type": "official_docs"
+  },
+  {
+    "id": "S07",
+    "platform": "Padlet",
+    "title": "Changes to privacy settings (October 2025)",
+    "url": "https://padlet.help/l/en/article/6bucgzvaig-changes-to-privacy-settings-october-2025",
+    "date": "2025-10",
+    "author": "Padlet",
+    "type": "official_docs"
+  },
+  {
+    "id": "S08",
+    "platform": "Padlet",
+    "title": "Welcome to Padlet for Schools for administrators",
+    "url": "https://padlet.help/l/en/article/z5f3v3n35l-welcome-to-padlet-for-schools-admins",
+    "date": "2025",
+    "author": "Padlet",
+    "type": "official_docs"
+  },
+  {
+    "id": "S09",
+    "platform": "Padlet",
+    "title": "ClassLink SSO and Rostering",
+    "url": "https://padlet.help/l/en/article/3xayyfkitc-class-link-rostering",
+    "date": "2025",
+    "author": "Padlet",
+    "type": "official_docs"
+  },
+  {
+    "id": "S10",
+    "platform": "ClassDojo",
+    "title": "How Do Student Logins Work?",
+    "url": "https://help.classdojo.com/hc/en-us/articles/360018581572",
+    "date": "2025",
+    "author": "ClassDojo",
+    "type": "official_docs"
+  },
+  {
+    "id": "S11",
+    "platform": "ClassDojo",
+    "title": "Student Login with an Individual QR Code",
+    "url": "https://help.classdojo.com/hc/en-us/articles/360023186432",
+    "date": "2025",
+    "author": "ClassDojo",
+    "type": "official_docs"
+  },
+  {
+    "id": "S12",
+    "platform": "ClassDojo",
+    "title": "Student Login with a Class QR Code",
+    "url": "https://help.classdojo.com/hc/en-us/articles/360023120452",
+    "date": "2025",
+    "author": "ClassDojo",
+    "type": "official_docs"
+  },
+  {
+    "id": "S13",
+    "platform": "ClassDojo",
+    "title": "How to Download Individual Codes for Students",
+    "url": "https://help.classdojo.com/hc/en-us/articles/360018785492",
+    "date": "2025",
+    "author": "ClassDojo",
+    "type": "official_docs"
+  },
+  {
+    "id": "S14",
+    "platform": "ClassDojo",
+    "title": "Student Login with a Text Code",
+    "url": "https://help.classdojo.com/hc/en-us/articles/360023203412",
+    "date": "2025",
+    "author": "ClassDojo",
+    "type": "official_docs"
+  },
+  {
+    "id": "S15",
+    "platform": "Seesaw",
+    "title": "Student sign-in modes",
+    "url": "https://help.seesaw.me/hc/en-us/articles/203495019",
+    "date": "2025",
+    "author": "Seesaw",
+    "type": "official_docs"
+  },
+  {
+    "id": "S16",
+    "platform": "Seesaw",
+    "title": "Home Learning Codes",
+    "url": "https://help.seesaw.me/hc/en-us/articles/360045960531",
+    "date": "2025",
+    "author": "Seesaw",
+    "type": "official_docs"
+  },
+  {
+    "id": "S17",
+    "platform": "Seesaw",
+    "title": "How to generate your class QR code",
+    "url": "https://help.seesaw.me/hc/en-us/articles/205246799",
+    "date": "2025",
+    "author": "Seesaw",
+    "type": "official_docs"
+  },
+  {
+    "id": "S18",
+    "platform": "Seesaw",
+    "title": "How do students join class with email or SSO",
+    "url": "https://help.seesaw.me/hc/en-us/articles/206446885",
+    "date": "2025",
+    "author": "Seesaw",
+    "type": "official_docs"
+  },
+  {
+    "id": "S19",
+    "platform": "Kahoot",
+    "title": "Kahoot! join: How to join a Kahoot! game",
+    "url": "https://support.kahoot.com/hc/en-us/articles/360039890713",
+    "date": "2025",
+    "author": "Kahoot",
+    "type": "official_docs"
+  },
+  {
+    "id": "S20",
+    "platform": "Kahoot",
+    "title": "How to use Kahoot! for free as a participant",
+    "url": "https://support.kahoot.com/hc/en-us/articles/4409807867539",
+    "date": "2025",
+    "author": "Kahoot",
+    "type": "official_docs"
+  },
+  {
+    "id": "S21",
+    "platform": "Nearpod",
+    "title": "Join a Nearpod lesson, video, or activity",
+    "url": "https://nearpod.zendesk.com/hc/en-us/articles/360047121832",
+    "date": "2025",
+    "author": "Nearpod",
+    "type": "official_docs"
+  },
+  {
+    "id": "S22",
+    "platform": "Nearpod",
+    "title": "Verify student names using Google or Office 365 SSO",
+    "url": "https://nearpod.zendesk.com/hc/en-us/articles/360049177871",
+    "date": "2025",
+    "author": "Nearpod",
+    "type": "official_docs"
+  },
+  {
+    "id": "S23",
+    "platform": "Quizlet",
+    "title": "Inviting people to a class",
+    "url": "https://help.quizlet.com/hc/en-us/articles/360037874751",
+    "date": "2025",
+    "author": "Quizlet",
+    "type": "official_docs"
+  },
+  {
+    "id": "S24",
+    "platform": "Quizlet",
+    "title": "Creating a class",
+    "url": "https://help.quizlet.com/hc/en-us/articles/360030513392",
+    "date": "2025",
+    "author": "Quizlet",
+    "type": "official_docs"
+  },
+  {
+    "id": "S25",
+    "platform": "Microsoft Teams",
+    "title": "Get started in your class team",
+    "url": "https://support.microsoft.com/en-us/topic/get-started-in-your-class-team-6b5fd708-35b9-4caf-b66e-d8f2468e4fd5",
+    "date": "2025",
+    "author": "Microsoft",
+    "type": "official_docs"
+  },
+  {
+    "id": "S26",
+    "platform": "Microsoft Teams",
+    "title": "Sync your SIS using School Data Sync",
+    "url": "https://learn.microsoft.com/en-us/microsoft-365/education/deploy/school-data-sync",
+    "date": "2025",
+    "author": "Microsoft",
+    "type": "official_docs"
+  },
+  {
+    "id": "S27",
+    "platform": "Clever",
+    "title": "Rostering for Schools",
+    "url": "https://www.clever.com/products/rostering",
+    "date": "2025",
+    "author": "Clever",
+    "type": "official_docs"
+  },
+  {
+    "id": "S28",
+    "platform": "Clever",
+    "title": "Clever Complete Integration Types",
+    "url": "https://dev.clever.com/docs/integration-types",
+    "date": "2025",
+    "author": "Clever",
+    "type": "official_docs"
+  },
+  {
+    "id": "S29",
+    "platform": "Clever",
+    "title": "Clever API Overview",
+    "url": "https://dev.clever.com/docs/api-overview",
+    "date": "2025",
+    "author": "Clever",
+    "type": "official_docs"
+  },
+  {
+    "id": "S30",
+    "platform": "Classting",
+    "title": "클래스 가입 방법 안내",
+    "url": "https://support.classting.com/hc/ko/articles/900005549323",
+    "date": "2025",
+    "author": "Classting",
+    "type": "official_docs"
+  },
+  {
+    "id": "S31",
+    "platform": "Classting",
+    "title": "학생 아이디 가입 기능 지원 안내",
+    "url": "https://support.classting.com/hc/ko/articles/900004490426",
+    "date": "2025",
+    "author": "Classting",
+    "type": "official_docs"
+  },
+  {
+    "id": "S32",
+    "platform": "HiClass",
+    "title": "하이클래스 학생 가입 방법",
+    "url": "https://www.iorad.com/player/2268646/--------------",
+    "date": "2025",
+    "author": "i-Scream Media",
+    "type": "official_docs"
+  },
+  {
+    "id": "S33",
+    "platform": "COPPA/FERPA",
+    "title": "Complying with COPPA: Frequently Asked Questions",
+    "url": "https://www.ftc.gov/business-guidance/resources/complying-coppa-frequently-asked-questions",
+    "date": "2025",
+    "author": "FTC",
+    "type": "regulatory"
+  },
+  {
+    "id": "S34",
+    "platform": "COPPA/FERPA",
+    "title": "FERPA Compliance Guide (Updated 2026)",
+    "url": "https://www.upguard.com/blog/ferpa-compliance-guide",
+    "date": "2026",
+    "author": "UpGuard",
+    "type": "guide"
+  },
+  {
+    "id": "S35",
+    "platform": "COPPA/FERPA",
+    "title": "COPPA 101 for EdTech Companies",
+    "url": "https://ikeepsafe.org/coppa-101/",
+    "date": "2025",
+    "author": "iKeepSafe",
+    "type": "guide"
+  },
+  {
+    "id": "S36",
+    "platform": "Rostering",
+    "title": "The New Era of K12 Rostering",
+    "url": "https://edtechinsiders.substack.com/p/the-new-era-of-k12-rostering-what",
+    "date": "2025",
+    "author": "EdTech Insiders",
+    "type": "analysis"
+  },
+  {
+    "id": "S37",
+    "platform": "QR Auth",
+    "title": "QR Code Authentication: Complete Implementation Guide",
+    "url": "https://www.oloid.com/blog/qr-code-authentication",
+    "date": "2025",
+    "author": "OLOID",
+    "type": "technical_guide"
+  }
+]

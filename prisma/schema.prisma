@@ -27,6 +27,7 @@ model User {
   submissions  Submission[]
   accounts     Account[]
   sessions     Session[]
+  classrooms   Classroom[]
 }
 
 model Account {
@@ -57,6 +58,38 @@ model Session {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+// ──── Classroom system ────
+
+model Classroom {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique   // 6-char alphanumeric, teacher shares this
+  teacherId String
+  createdAt DateTime @default(now())
+
+  teacher   User      @relation(fields: [teacherId], references: [id])
+  students  Student[]
+  boards    Board[]   @relation("ClassroomBoards")
+
+  @@index([teacherId])
+  @@index([code])
+}
+
+model Student {
+  id          String   @id @default(cuid())
+  classroomId String
+  name        String
+  qrToken     String   @unique   // UUID — encoded in QR
+  textCode    String   @unique   // 6-char alphanumeric — manual entry fallback
+  createdAt   DateTime @default(now())
+
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+
+  @@index([classroomId])
+  @@index([qrToken])
+  @@index([textCode])
+}
+
 // layout: "freeform" | "grid" | "stream" | "columns"
 // (columns prep for next task; validated in app via zod)
 model Board {
@@ -65,8 +98,10 @@ model Board {
   title       String
   layout      String   @default("freeform")
   description String   @default("")
+  classroomId String?
   createdAt   DateTime @default(now())
 
+  classroom   Classroom? @relation("ClassroomBoards", fields: [classroomId], references: [id], onDelete: SetNull)
   members     BoardMember[]
   cards       Card[]
   sections    Section[]

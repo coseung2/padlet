@@ -1,0 +1,42 @@
+[
+  {
+    "pattern_id": "P1",
+    "name": "individual-qr-card",
+    "description": "학생마다 고유 UUID 토큰 → QR 인코딩 → PDF 카드로 출력. 스캔 시 세션 생성, 비밀번호 불필요.",
+    "sources": ["ClassDojo", "Seesaw", "Discovery Education", "TinyTap"],
+    "pros": ["최저 마찰", "이메일 불필요", "초등학생 적합", "9개+ 플랫폼에서 검증"],
+    "cons": ["QR 분실 시 재발급 필요", "카메라 없는 기기 대안 필요"]
+  },
+  {
+    "pattern_id": "P2",
+    "name": "class-code-join",
+    "description": "6자리 영숫자 학급 코드로 학급 가입. 개별 신원은 별도 인증으로 구분.",
+    "sources": ["Google Classroom", "Classting"],
+    "pros": ["구현 간단", "구두 전달 가능"],
+    "cons": ["코드만으로는 개별 신원 불명"]
+  },
+  {
+    "pattern_id": "P3",
+    "name": "ephemeral-session-pin",
+    "description": "라이브 세션용 일회성 PIN. 세션 종료 시 만료.",
+    "sources": ["Kahoot", "Nearpod"],
+    "pros": ["즉시 참여", "계정 불필요"],
+    "cons": ["신원 불명", "데이터 비연속"]
+  },
+  {
+    "pattern_id": "P4",
+    "name": "pdf-card-grid",
+    "description": "A4 1장에 학생 카드 격자 배치 (5x6=30명). 이름 + QR + 텍스트 코드. 절취선 가이드.",
+    "sources": ["ClassDojo", "Seesaw", "Age of Learning"],
+    "pros": ["교실 즉시 사용", "인쇄 1회로 전체 배부"],
+    "cons": ["프린터 필요"]
+  },
+  {
+    "pattern_id": "P5",
+    "name": "text-code-fallback",
+    "description": "QR 대안으로 6~8자리 텍스트 코드 제공. 카메라 없는 기기에서 수동 입력.",
+    "sources": ["ClassDojo", "Seesaw"],
+    "pros": ["카메라 불필요", "구두 전달 가능"],
+    "cons": ["마찰 증가", "입력 오류 가능"]
+  }
+]

@@ -24,6 +24,8 @@ padlet/
 │   ├── feature/               # 새 기능 추가
 │   ├── incident/              # 버그/사고 대응
 │   └── research/              # 기술/UX 탐색
+├── docs/                      # 프로젝트 문서
+│   └── design-system.md       # 디자인 시스템 (토큰/패턴/체크리스트)
 ├── tasks/                     # 작업 단위 산출물 (감사 이력)
 │   └── {YYYY-MM-DD-slug}/
 │       └── phase{N}/
@@ -50,13 +52,13 @@ padlet/
 
 1. 사용자 프롬프트에서 `type` 결정 (모호하면 사용자에게 확인)
 2. `tasks/{YYYY-MM-DD-slug}/phase0/request.json`에 `type` 기록
-3. 해당 파이프라인의 `_index.md`를 읽어 전체 흐름과 사람 게이트 위치 파악
+3. 해당 파이프라인의 `_index.md`를 읽어 전체 흐름과 검증 게이트 파악
 4. Phase 순서대로 `phase{N}_{role}.md` 파일 하나씩 read → 그 phase만 처리
 5. 한 phase 완료 후 검증 게이트 → 다음 phase
 
 ### Phase별 분리 구조
 
-각 phase 파일은 짧게(50줄 안팎) 유지되어 한 phase 처리 시 컨텍스트 ~80줄만 점유한다. 공통 규칙(검증 게이트, 사람 게이트, 파이프라인 공통 규칙)은 각 파이프라인의 `_index.md`에서만 참조한다.
+각 phase 파일은 짧게(50줄 안팎) 유지되어 한 phase 처리 시 컨텍스트 ~80줄만 점유한다. 공통 규칙(검증 게이트, 파이프라인 공통 규칙)은 각 파이프라인의 `_index.md`에서만 참조한다.
 
 ### 핸드오프 규칙 (전역)
 
@@ -65,16 +67,20 @@ padlet/
 3. **다운스트림은 업스트림 산출물을 임의 추정으로 보정하지 않는다** — 누락 시 해당 phase 재실행
 4. 산출물 형식은 각 phase 파일의 필수 필드를 반드시 포함
 
-### 사람 게이트 (사용자 명시 승인 필요)
+### 오케스트레이터 검증 게이트 (자동)
 
-| 게이트 | 위치 |
-|---|---|
-| **도입 승인** | feature phase2 직후 |
-| **방향 승인** | incident phase1 직후 |
-| **배포 승인** | feature phase9 직후 |
-| **핫배포 승인** | incident phase3 직후 |
-| **도입 결정** | research phase3 직후 |
-| **push 승인** | git push 직전 (항상) |
+모든 게이트는 오케스트레이터가 자동으로 판정한다. 사람 개입 없이 진행.
+
+| 게이트 | 위치 | 자동 판정 조건 |
+|---|---|---|
+| **스코프 검증** | feature phase2 직후 | `scope_decision.md` 필수 필드 + 수용 기준 ≥ 3개 + 리스크 분석 존재 |
+| **진단 검증** | incident phase1 직후 | `diagnosis.md` 근본 원인 + 재현 조건 + 권고안 존재 |
+| **배포 검증** | feature phase9 직후 | `QA_OK.marker` 존재 + 수용 기준 전체 PASS |
+| **핫배포 검증** | incident phase3 직후 | `REVIEW_OK.marker` 존재 |
+| **도입 검증** | research phase3 직후 | `decision.md` 5개 평가 차원 + 판정(ADOPT/REVISE/REJECT) 존재 |
+| **push 검증** | git push 직전 | `npm run build` + `npm run typecheck` 성공 + 모든 마커 유효 |
+
+검증 실패 시 해당 phase 재실행. 3회 연속 실패 시 원인 분석 기록 후 중단.
 
 ### gstack 스킬 통합
 
@@ -87,7 +93,7 @@ gstack 스킬과 에이전트 매핑 전체 표는 각 파이프라인 `_index.m
 ### 오케스트레이터 강제 규칙
 
 - 검증 게이트를 통과하지 않은 phase의 산출물을 다음 phase 입력으로 사용하지 않는다
-- 사람 게이트를 임의로 건너뛰지 않는다
+- 오케스트레이터 검증 게이트를 건너뛰지 않는다 — 판정 조건 미충족 시 해당 phase 재실행
 - 산출물 형식을 임의로 추정하지 않고 phase 파일의 형태를 따른다
 - 파이프라인을 섞지 않는다 — `feature`로 시작했으면 incident 절차로 빠지지 않음 (필요 시 새 task)
 - task 디렉토리는 작업 1건 = 디렉토리 1개로 누적
