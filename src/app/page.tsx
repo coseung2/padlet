@@ -3,11 +3,17 @@ import { getCurrentUser } from "@/lib/auth";
 import { Dashboard } from "@/components/Dashboard";
 import { AuthHeader } from "@/components/AuthHeader";
 import { UserSwitcher } from "@/components/UserSwitcher";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const user = await getCurrentUser();
+  let user;
+  try {
+    user = await getCurrentUser();
+  } catch {
+    redirect("/login");
+  }
 
   // Only show boards where the current user is a member
   const memberships = await db.boardMember.findMany({
