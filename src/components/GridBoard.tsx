@@ -23,6 +23,9 @@ export function GridBoard({ boardId, initialCards, currentUserId, currentRole }:
     content: string;
     imageUrl?: string;
     linkUrl?: string;
+    linkTitle?: string;
+    linkDesc?: string;
+    linkImage?: string;
     videoUrl?: string;
     color?: string;
   }) {

@@ -11,8 +11,8 @@ export type LinkPreview = {
 export function useLinkPreview() {
   const [preview, setPreview] = useState<LinkPreview | null>(null);
   const [loading, setLoading] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
-  const abortRef = useRef<AbortController>();
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const abortRef = useRef<AbortController>(undefined);
   const lastUrl = useRef("");
 
   const fetchPreview = useCallback((url: string) => {

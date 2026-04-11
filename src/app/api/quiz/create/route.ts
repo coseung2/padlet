@@ -35,6 +35,7 @@ export async function POST(req: Request) {
 
     if (file && !text) {
       if (file.type === "application/pdf") {
+        // @ts-expect-error pdf-parse types do not correctly export default
         const pdfParse = (await import("pdf-parse")).default;
         const buffer = Buffer.from(await file.arrayBuffer());
         const pdf = await pdfParse(buffer);

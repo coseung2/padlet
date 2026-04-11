@@ -66,6 +66,9 @@ export function BoardCanvas({
     content: string;
     imageUrl?: string;
     linkUrl?: string;
+    linkTitle?: string;
+    linkDesc?: string;
+    linkImage?: string;
     videoUrl?: string;
     color?: string;
   }) {

@@ -20,14 +20,13 @@ export async function PATCH(
 
     const submission = await db.submission.findUnique({
       where: { id },
-      include: { section: true },
     });
     if (!submission) {
       return NextResponse.json({ error: "Submission not found" }, { status: 404 });
     }
 
     // Only owner (teacher) can review/grade
-    await requirePermission(submission.section.boardId, user.id, "edit");
+    await requirePermission(submission.boardId, user.id, "edit");
 
     const body = await req.json();
     const input = PatchSubmissionSchema.parse(body);
