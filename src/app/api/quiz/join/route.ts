@@ -3,10 +3,27 @@ import { db } from "@/lib/db";
 
 export async function POST(req: Request) {
   try {
-    const { roomCode, nickname } = await req.json();
+    const { roomCode, nickname, studentId } = await req.json();
 
-    if (!roomCode || !nickname?.trim()) {
-      return NextResponse.json({ error: "roomCode and nickname required" }, { status: 400 });
+    if (!roomCode) {
+      return NextResponse.json({ error: "roomCode required" }, { status: 400 });
+    }
+
+    // Student join: use studentId to get name, skip nickname
+    // Anonymous join: require nickname
+    let resolvedNickname = nickname?.trim();
+    let resolvedStudentId: string | null = null;
+
+    if (studentId) {
+      const student = await db.student.findUnique({ where: { id: studentId } });
+      if (student) {
+        resolvedNickname = student.name;
+        resolvedStudentId = student.id;
+      }
+    }
+
+    if (!resolvedNickname) {
+      return NextResponse.json({ error: "nickname required" }, { status: 400 });
     }
 
     const quiz = await db.quiz.findUnique({
@@ -22,10 +39,29 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "이미 종료된 퀴즈입니다" }, { status: 400 });
     }
 
+    // If student, check for existing player (prevent duplicate join)
+    if (resolvedStudentId) {
+      const existing = await db.quizPlayer.findUnique({
+        where: { quizId_studentId: { quizId: quiz.id, studentId: resolvedStudentId } },
+      });
+      if (existing) {
+        return NextResponse.json({
+          player: existing,
+          quiz: {
+            id: quiz.id,
+            title: quiz.title,
+            status: quiz.status,
+            questionCount: quiz.questions.length,
+          },
+        });
+      }
+    }
+
     const player = await db.quizPlayer.create({
       data: {
         quizId: quiz.id,
-        nickname: nickname.trim(),
+        nickname: resolvedNickname,
+        studentId: resolvedStudentId,
       },
     });
 

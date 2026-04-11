@@ -17,9 +17,9 @@ const COLORS = ["#e21b3c", "#1368ce", "#d89e00", "#26890c"];
 const SHAPES = ["\u25B2", "\u25C6", "\u25CF", "\u25A0"];
 const LABELS = ["A", "B", "C", "D"];
 
-export function QuizPlay({ initialCode }: { initialCode?: string }) {
+export function QuizPlay({ initialCode, studentName, studentId }: { initialCode?: string; studentName?: string; studentId?: string }) {
   const [code, setCode] = useState(initialCode ?? "");
-  const [nickname, setNickname] = useState("");
+  const [nickname, setNickname] = useState(studentName ?? "");
   const [playerId, setPid] = useState<string | null>(null);
   const [quizId, setQid] = useState<string | null>(null);
   const [state, setState] = useState<GameState>({ phase: "join" });
@@ -31,6 +31,28 @@ export function QuizPlay({ initialCode }: { initialCode?: string }) {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
+
+  // Auto-join for students with session
+  useEffect(() => {
+    if (studentId && studentName && initialCode && state.phase === "join") {
+      setJoining(true);
+      fetch("/api/quiz/join", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ roomCode: initialCode.toUpperCase(), studentId }),
+      })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.player) {
+            setPid(d.player.id);
+            setQid(d.quiz.id);
+            setState({ phase: "waiting", playerCount: 0 });
+          }
+        })
+        .catch(() => {})
+        .finally(() => setJoining(false));
+    }
+  }, [studentId, studentName, initialCode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleEvent = useCallback((data: Record<string, unknown>) => {
     switch (data.type) {
@@ -73,8 +95,8 @@ export function QuizPlay({ initialCode }: { initialCode?: string }) {
     if (!code.trim() || !nickname.trim()) return;
     setJoining(true); setError("");
     try {
-      const res = await fetch("/api/quiz/join", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ roomCode: code.trim().toUpperCase(), nickname: nickname.trim() }) });
-      if (res.ok) { const d = await res.json(); setPid(d.playerId); setQid(d.quizId); setState({ phase: "waiting", playerCount: d.playerCount ?? 0 }); }
+      const res = await fetch("/api/quiz/join", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ roomCode: code.trim().toUpperCase(), nickname: nickname.trim(), studentId: studentId || undefined }) });
+      if (res.ok) { const d = await res.json(); setPid(d.player?.id ?? d.playerId); setQid(d.quiz?.id ?? d.quizId); setState({ phase: "waiting", playerCount: d.playerCount ?? 0 }); }
       else setError((await res.text()) || "입장에 실패했습니다.");
     } catch { setError("서버에 연결할 수 없습니다."); }
     finally { setJoining(false); }

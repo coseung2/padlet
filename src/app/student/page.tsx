@@ -14,6 +14,13 @@ export default async function StudentPage() {
 
   const boards = await db.board.findMany({
     where: { classroomId: student.classroomId },
+    include: {
+      quizzes: {
+        select: { roomCode: true, status: true },
+        take: 1,
+        orderBy: { createdAt: "desc" },
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -22,6 +29,7 @@ export default async function StudentPage() {
     slug: b.slug,
     title: b.title || "제목 없음",
     layout: b.layout,
+    quizzes: b.quizzes,
   }));
 
   return (

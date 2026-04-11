@@ -17,6 +17,11 @@ export async function GET() {
         title: true,
         layout: true,
         _count: { select: { cards: true } },
+        quizzes: {
+          select: { roomCode: true, status: true },
+          take: 1,
+          orderBy: { createdAt: "desc" },
+        },
       },
       orderBy: { createdAt: "desc" },
     });

@@ -1,4 +1,5 @@
 import { QuizPlay } from "@/components/QuizPlay";
+import { getCurrentStudent } from "@/lib/student-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,13 @@ export default async function QuizPage({
   params: Promise<{ code: string }>;
 }) {
   const { code } = await params;
+  const student = await getCurrentStudent();
 
-  return <QuizPlay initialCode={code.toUpperCase()} />;
+  return (
+    <QuizPlay
+      initialCode={code.toUpperCase()}
+      studentName={student?.name}
+      studentId={student?.id}
+    />
+  );
 }

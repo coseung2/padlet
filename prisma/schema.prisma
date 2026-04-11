@@ -83,7 +83,8 @@ model Student {
   textCode    String   @unique   // 6-char alphanumeric — manual entry fallback
   createdAt   DateTime @default(now())
 
-  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  classroom   Classroom    @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  quizPlayers QuizPlayer[]
 
   @@index([classroomId])
   @@index([qrToken])
@@ -228,16 +229,20 @@ model QuizQuestion {
 }
 
 model QuizPlayer {
-  id       String @id @default(cuid())
-  quizId   String
-  nickname String
-  score    Int    @default(0)
-  joinedAt DateTime @default(now())
+  id        String   @id @default(cuid())
+  quizId    String
+  studentId String?
+  nickname  String
+  score     Int      @default(0)
+  joinedAt  DateTime @default(now())
 
   quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  student Student?     @relation(fields: [studentId], references: [id])
   answers QuizAnswer[]
 
+  @@unique([quizId, studentId])
   @@index([quizId])
+  @@index([studentId])
 }
 
 model QuizAnswer {
