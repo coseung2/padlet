@@ -1,0 +1,21 @@
+{
+  "task_id": "2026-04-13-event-signup",
+  "type": "feature",
+  "slug": "event-signup",
+  "title": "행사 신청 보드 (Event-signup layout)",
+  "scope": "ES-1 through ES-11 (1차 배포 범위)",
+  "out_of_scope": ["ES-12 team signup advanced", "ES-13 voting", "ES-14 timetable", "ES-15 Canva autofill posters"],
+  "source_of_truth": [
+    "user prompt (ES-1~ES-11 listed inline)",
+    "canva project/plans/event-signup-roadmap.md (referenced; not present in worktree — using prompt as binding contract)",
+    "seeds-index.md §Seed 3 (referenced; not present in worktree)"
+  ],
+  "branch": "feat/event-signup",
+  "perf_baseline": "Galaxy Tab S6 Lite, Chrome Android",
+  "change_type": "feature_major",
+  "coordination": {
+    "parallel_task": "research/realtime-engine",
+    "conflict_risk": "none (additive schema only)"
+  },
+  "created_at": "2026-04-13"
+}
