@@ -1,4 +1,4 @@
-// Padlet clone — Prisma schema
+// Aura-board — Prisma schema
 // DB: SQLite for local dev. To switch to Postgres:
 //   1) change provider to "postgresql"
 //   2) change DATABASE_URL to postgres://…

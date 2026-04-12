@@ -79,7 +79,7 @@ const GRID_CARDS: SeedCard[] = [
 
 // ──── Stream cards ────
 const STREAM_CARDS: SeedCard[] = [
-  { title: "4/9 — 프로젝트 시작", content: "패들렛 클론 프로젝트 시작. 하네스 설계 완료, 첫 feature 파이프라인 가동.", color: "#ffd8f4", x: 0, y: 0, order: 0, authorId: "u_owner" },
+  { title: "4/9 — 프로젝트 시작", content: "Aura-board 프로젝트 시작. 하네스 설계 완료, 첫 feature 파이프라인 가동.", color: "#ffd8f4", x: 0, y: 0, order: 0, authorId: "u_owner" },
   { title: "4/9 — 3개 테마 비교", content: "Figma / Miro / Notion 디자인 시스템을 받아와서 각각 CSS 테마로 구현. 사용자에게 선택 요청.", color: "#c3faf5", x: 0, y: 0, order: 1, authorId: "u_owner" },
   { title: "4/10 — Notion 선정", content: "사용자가 Notion 테마를 선택. 나머지 2개 아카이브. phase6에서 반응형 3-breakpoint 추가 + 미세조정.", color: "#f6f5f4", x: 0, y: 0, order: 2, authorId: "u_owner" },
   { title: "4/10 — 드래그 이슈", content: "dnd-kit의 React 19 호환 문제 + CSS transition 충돌. react-draggable로 교체하여 해결.", color: "#ffc6c6", x: 0, y: 0, order: 3, authorId: "u_editor" },

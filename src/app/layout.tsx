@@ -3,8 +3,8 @@ import { AuthProvider } from "@/components/AuthProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Padlet Clone",
-  description: "나만의 패들렛 — Notion inspired MVP",
+  title: "Aura-board",
+  description: "나만의 Aura-board — Notion inspired MVP",
 };
 
 export default function RootLayout({
