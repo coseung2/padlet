@@ -1,72 +1,93 @@
 # Cross-Model Review — server-query-perf (Codex / GPT-5-class)
 
-> Captured verbatim from the Codex cross-model review run. The original
-> Codex process could not write to this worktree from its sandbox, so the
-> orchestrator persisted the review body here.
+> Re-review after commit `d0ea159` addressed the three FAIL blockers from
+> the first Codex pass (layout gating for cards+sections, force-dynamic
+> claim revision, index rationale revision). Original Codex run could
+> not write to this worktree from its sandbox, so the orchestrator
+> persisted the review body here verbatim.
+>
+> First pass (verdict FAIL) is preserved in git history — see phase3
+> review-files commit prior to `d0ea159`.
 
 ## Inputs consumed
 - `tasks/2026-04-12-server-query-perf/phase1/diagnosis.md`
-- `tasks/2026-04-12-server-query-perf/phase2/hotfix_design.md`
-- `tasks/2026-04-12-server-query-perf/phase1/evidence/missing_indexes.txt`
-- Commit `aff1047` — add Account/Session/Card indexes
-- Commit `25b0725` — parallelize page-load queries
-- Commit `2c41fe9` — split board page query + drop force-dynamic on 7 pages
-- `prisma/schema.prisma`, `prisma/migrations/20260412_add_perf_indexes/migration.sql`
-- `src/app/board/[id]/page.tsx`, `src/app/page.tsx`, `src/app/classroom/[id]/page.tsx`,
-  `src/app/classroom/page.tsx`, `src/app/student/page.tsx`, `src/app/quiz/[code]/page.tsx`,
-  `src/app/qr/[token]/page.tsx`
+- `tasks/2026-04-12-server-query-perf/phase2/hotfix_design.md` (revised sections on indexes, force-dynamic, board query split)
+- `git show d0ea159` (the fix commit that addresses the three FAIL items)
+- `src/app/board/[id]/page.tsx` (updated layout gating at lines 51–76)
+- `src/app/page.tsx`, `src/app/classroom/[id]/page.tsx`, `src/app/classroom/page.tsx`, `src/app/student/page.tsx`, `src/app/quiz/[code]/page.tsx`, `src/app/qr/[token]/page.tsx`
+- `src/components/BoardCanvas.tsx`, `src/components/GridBoard.tsx`, `src/components/StreamBoard.tsx`, `src/components/ColumnsBoard.tsx`, `src/components/AssignmentBoard.tsx`, `src/components/QuizBoard.tsx`
 - `src/lib/auth.ts`, `src/lib/auth-config.ts`
-- `src/proxy.ts`, `next.config.ts`, `tsconfig.json`
-- `src/components/AuthHeader.tsx`, `src/components/UserSwitcher.tsx`,
-  `src/components/BoardCanvas.tsx`, `src/components/ColumnsBoard.tsx`,
-  `src/components/GridBoard.tsx`, `src/components/StreamBoard.tsx`, `src/components/QuizBoard.tsx`
-- `@auth/prisma-adapter` (`node_modules/@auth/prisma-adapter/index.js`) to verify actual adapter hot path
-- `@auth/core` session actions (`node_modules/@auth/core/lib/actions/session.js`)
-- `next-auth` lib (`node_modules/next-auth/lib/index.js`)
+- `prisma/schema.prisma`, `prisma/migrations/20260412_add_perf_indexes/migration.sql`
+- `next.config.ts`
+- `src/app/api/boards/route.ts` (layout enum)
+- `@auth/prisma-adapter/index.js` (hot-path verification)
 
 ## Independent findings
 
-### HIGH — Router Cache claim for `force-dynamic` removal is unsupported for auth-backed pages
-All 7 pages where `force-dynamic` was dropped still call `auth()` / `cookies()`. In Next.js 16 the App Router's Router Cache key for dynamic segments with dynamic APIs is not kept warm simply by dropping `force-dynamic`; the route stays dynamic and re-renders per request regardless. The stated gain ("탭 뒤로가기/앞으로가기 시 RSC 트리 재실행을 피할 수 있음") is overstated. There is no `staleTimes` / `experimental` knob in `next.config.ts` that would change this behavior. Effect is at best marginal and only kicks in under specific client-cache preload conditions. Revise the claim to "no performance gain; semantic cleanup only" or verify with a measurable experiment.
+### Re-verification of the three prior FAIL items
 
-### HIGH — Board split still over-fetches on quiz / assignment layouts
-Round 2 of the new `BoardPage` always runs `card.findMany` and `section.findMany` even when layout is `assignment` (no cards rendered) or `quiz` (no cards rendered). The conditional branches only cover submissions/members/quizzes — the "always load cards+sections" branch is unconditional. For a quiz or assignment board this is two wasted queries per page load. The diagnosis claim that "freeform/grid/stream/columns 보드는 이제 submissions/members/quizzes 를 한 번도 건드리지 않음" is correct, but the inverse claim — that assignment/quiz save work — is not, because they still pay for cards+sections.
+- **1. FIXED** — `src/app/board/[id]/page.tsx:51–67` now says
+  `const needsCards = !needsAssignmentData && !needsQuizData;` and
+  `const needsSections = board.layout === "columns";`, with
+  `cardsPromise` / `sectionsPromise` set to `null` when not needed.
+  That removes the prior unconditional fetch on `assignment` and `quiz`.
 
-### MEDIUM — Index rationale overstated relative to actual hot paths
-Verified via `@auth/prisma-adapter` and `@auth/core`:
-- This project uses **JWT session strategy** (per `src/lib/auth-config.ts`), which bypasses `Session` lookups entirely. `Session.userId` index is added but has no hot reader in this codebase.
-- PrismaAdapter account lookups use `(provider, providerAccountId)` unique key, not `userId`. `Account.userId` has no hot path except cascade-on-delete of the user row (rare).
-- `Card.authorId` has no visible findMany/findFirst filter on `authorId` in `src/app` or `src/lib` — no hot query exists today. Index is speculative.
+- **2. REVISED** — `hotfix_design.md:66–69` now says `force-dynamic`
+  removal does not guarantee Router Cache benefit and frames it as
+  "시맨틱 클린업". That matches `next.config.ts:3–6` having no
+  `experimental.staleTimes`, plus the board page still calling
+  auth/cookie-backed helpers at `src/app/board/[id]/page.tsx:37–42`
+  and `src/lib/auth-config.ts:15` (`session: { strategy: "jwt" }`).
 
-Indexes are harmless and idempotent, but the diagnosis's performance rationale is wrong. Revise rationale or remove.
+- **3. REVISED** — `hotfix_design.md:11–17` now says the hot path is
+  `(provider, providerAccountId)`, `Session` is not hot-read under
+  JWT, and `Card.authorId` has no current filter query. That matches
+  `@auth/prisma-adapter/index.js:8–13, 66–69`, `src/lib/auth-config.ts:15`,
+  and the absence of any `findMany` / `findFirst` filter on `authorId`
+  in `rg -n '\bauthorId\b' src prisma`.
 
-### MEDIUM — `getCurrentStudent()` now called unconditionally on every board load
-Previously a fallback when teacher auth failed; now always fires in Round 1 `Promise.all`. For authenticated teachers with a stale student cookie this pays an extra `db.student.findUnique` with `classroom` include per page load. For teachers with no student cookie it's a no-op cookie check (fine). Quantify the frequency of stale student cookies in practice; if common, gate the call.
+### Correctness of the new layout gating
 
-### MEDIUM — `CREATE INDEX` vs `CREATE INDEX CONCURRENTLY`
-Migration uses plain `CREATE INDEX IF NOT EXISTS`. At current Supabase scale this is fine — tables are small and brief locks are acceptable. Callout: if the project ever grows to millions of rows, this migration becomes a production lock risk. Either adopt `CONCURRENTLY` now, or document the lock behavior as acceptable at current scale.
+- `src/app/board/[id]/page.tsx:88–101` normalizes all optional
+  results with `?? []`, and the render switch at `src/app/board/[id]/page.tsx:172–234`
+  covers `grid`, `stream`, `columns`, `assignment`, `quiz`, `freeform`,
+  and `default`.
+- `columns` fetches both cards and sections: `page.tsx:53–67`.
+- `assignment` skips cards/sections: `page.tsx:51–54, 68–76, 179–203`,
+  and `AssignmentBoard.tsx:29–38` is safe on empty arrays.
+- `quiz` skips cards/sections and `QuizBoard.tsx:41–42, 133–156`
+  handles `[]` via `const quiz = quizzes[0] ?? null; if (!quiz) return ...`.
+- `grid`, `stream`, `freeform`, and `columns` all tolerate empty
+  arrays via `useState(initial...)` plus empty-state rendering
+  in `GridBoard.tsx:16–18, 77–82`, `StreamBoard.tsx:16–18, 77–82`,
+  `BoardCanvas.tsx:22, 130–139`, and `ColumnsBoard.tsx:35–38,
+  192–193, 345–418`.
+- Unknown layouts fall back to `BoardCanvas` at `page.tsx:232–234`,
+  and normal creation is still constrained to the six known layouts
+  by `src/app/api/boards/route.ts:6–9`:
+  `z.enum(["freeform", "grid", "stream", "columns", "assignment", "quiz"])`.
 
-### MEDIUM — `getCurrentUser().catch(() => null)` swallows DB errors
-The previous code caught only to fall back to the mock-seed path. The new `.catch` swallows any thrown error including DB connectivity failures. A transient DB hiccup now silently renders the board as "no user", potentially showing the 접근 불가 state instead of an error. Narrow the catch to known mock-seed miss cases, or log before returning null.
+### Non-blocking follow-ups
 
-### LOW — `React.cache()` on `getCurrentUser`/`getBoardRole` left on the table
-Within a single render, `getCurrentUser` is called by the page and by multiple auth-dependent utilities (layout, `<AuthHeader>`, etc.). `React.cache()` wrapping would deduplicate these cheaply, but the hotfix intentionally omits it. Worth listing as a low-hanging follow-up.
+- Older, overstated commentary still present in source comments even
+  though the phase2 design doc is corrected:
+  - `src/app/page.tsx:8–10`
+  - `src/app/board/[id]/page.tsx:17–18`
+  - `prisma/migrations/20260412_add_perf_indexes/migration.sql:4–10`
 
-### LOW — No test framework to validate branching layout logic
-The board page now has layout-conditional fetches. Without any test scaffolding, a future layout value change or adding a new layout silently fails to load its relations. Type system does not catch this (layout is a plain string). Consider at minimum a Playwright smoke test per layout, or a local static check.
-
-## Alternative-approaches assessment
-- **Promise.all parallelization (25b0725)**: Validated. This is a real fixed-width latency win, roughly `max(t_a, t_b) − (t_a + t_b)` per page. Keep.
-- **Board 2-round fan-out vs. selective include**: The split is philosophically cleaner but still pays for an always-on cards+sections fetch. A single `findFirst` with layout-conditional include would have been equivalent in round-trip count and payload for the important cases. Marginal choice.
-- **React.cache() for `getCurrentUser`**: Better alternative than Promise.all for deduping across component tree within a single render. Worth adding in a follow-up.
-- **Index strategy**: Harmless but mis-justified. Consider `(boardId, authorId)` composite for `Card` if the follow-up query pattern emerges.
+  These comments still claim index-related hot-path wins that the
+  design doc has since recanted. Not blocking — the authoritative
+  rationale now lives in `hotfix_design.md`.
 
 ## Verdict
-**FAIL** — perf claims don't fully hold up; needs revision before merge.
 
-Main review points: `25b0725` is a real latency win, but `2c41fe9` does not support its biggest claim because removing `force-dynamic` is not a documented Router Cache lever for the six auth/cookie-backed pages, and the board split still over-fetches on quiz/assignment layouts by always loading `cards`/`sections` and all quiz rows. `aff1047` is only partially justified in the current codebase because JWT sessions bypass `Session.userId`, adapter account lookups do not target `Account.userId`, and `Card.authorId` is not mapped to a visible hot query.
+**PASS**
 
-Minimum set of changes required to flip to PASS:
-1. Revise `hotfix_design.md` to accurately scope the `force-dynamic` claim (no router-cache win; semantic cleanup only) or demonstrate a measurable gain.
-2. Either gate `cards` + `sections` fetches by layout (skip on quiz/assignment), or revise the claim to state that the over-fetch is intentional and acceptable.
-3. Revise the index rationale to reflect actual hot paths (JWT strategy, adapter query shapes) or drop/replace indexes with ones that match real queries.
+- All three prior FAIL items are resolved (one by code fix, two by
+  design-doc revision).
+- Layout gating is branch-complete: cards, sections, and layout-
+  specific relations are now only fetched when the renderer reads
+  them, and every layout's render path is safe on empty arrays.
+- No new correctness bugs were introduced by the gating.
+- Remaining follow-ups are stale inline comments; the authoritative
+  rationale lives in `hotfix_design.md`.
