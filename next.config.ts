@@ -45,6 +45,22 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      // CORS for Canva Apps SDK origin (Content Publisher app calls
+      // /api/external/* from inside the Canva editor iframe). Canva hosts each
+      // app on a unique subdomain of canva-apps.com, so we allow the whole
+      // suffix via a regex source match.
+      {
+        source: "/api/external/:path*",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Access-Control-Allow-Methods", value: "GET, POST, OPTIONS" },
+          {
+            key: "Access-Control-Allow-Headers",
+            value: "Authorization, Content-Type",
+          },
+          { key: "Access-Control-Max-Age", value: "86400" },
+        ],
+      },
     ];
   },
 };
