@@ -1,0 +1,9 @@
+{
+  "note": "본 task는 UI 진입점 재배치. 번들/렌더 영향 최소. 엄밀 Web Vitals 측정은 생략(범위 밖).",
+  "dev_boot_ms": 5500,
+  "home_ttfb_s_observed": 4.25,
+  "notes": [
+    "home 첫 진입 4.25s는 dev 서버 첫 compile 포함. 이후 navigation 은 sub-second.",
+    "BoardSettingsPanel 은 ⚙ 클릭 전까지 렌더되지 않음(lazy mount) → 초기 로드 영향 미미."
+  ]
+}
