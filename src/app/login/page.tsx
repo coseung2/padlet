@@ -6,8 +6,8 @@ export default function LoginPage() {
   return (
     <main className="login-page">
       <div className="login-card">
-        <div className="login-logo">P</div>
-        <h1 className="login-title">Padlet Clone</h1>
+        <div className="login-logo">A</div>
+        <h1 className="login-title">Aura-board</h1>
         <p className="login-subtitle">로그인하여 보드를 시작하세요</p>
 
         <button
