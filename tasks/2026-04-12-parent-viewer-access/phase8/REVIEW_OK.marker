@@ -1,0 +1,5 @@
+REVIEW_OK
+date: 2026-04-12
+scope: PV-1 ~ PV-5 Parent Viewer Access — auth + schema
+audit: tasks/2026-04-12-parent-viewer-access/phase8/security_audit.md
+checks: 10 sections PASS; 2 documented deferrals (Upstash IP limit, RLS $transaction GUC)

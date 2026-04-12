@@ -43,7 +43,12 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "invalid_input" }, { status: 400 });
   }
-  const { code: rawCode, email } = parsed.data;
+  const { code: rawCode } = parsed.data;
+  // Normalise email to lowercase for BOTH Parent.email storage AND
+  // boundToEmail FK. Keeping these case-consistent prevents the Postgres FK
+  // violation that arises when a teacher binds a mixed-case email and a
+  // parent submits the same email in another case.
+  const email = parsed.data.email.toLowerCase();
 
   const ip = extractClientIp(req);
   if (isIpLocked(ip)) {
@@ -171,8 +176,9 @@ export async function POST(req: Request) {
         // so subsequent redeems of the same code must use the same email.
         // This pins the remaining 2 uses to the same household. Optional —
         // if the teacher explicitly wants multi-family sharing they can
-        // reissue an unbound code.
-        boundToEmail: invite.boundToEmail ?? email.toLowerCase(),
+        // reissue an unbound code. `email` is already lowercased above for
+        // FK-parity with Parent.email.
+        boundToEmail: invite.boundToEmail ?? email,
       },
     });
 
