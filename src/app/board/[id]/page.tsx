@@ -12,6 +12,7 @@ import { AssignmentBoard } from "@/components/AssignmentBoard";
 import { QuizBoard, type QuizData } from "@/components/QuizBoard";
 import { PlantRoadmapBoard } from "@/components/PlantRoadmapBoard";
 import { EventSignupBoard } from "@/components/event/EventSignupBoard";
+import { DrawingBoard } from "@/components/DrawingBoard";
 import { parseObservationPoints, STALL_THRESHOLD_DAYS } from "@/lib/plant-schemas";
 import type { PlantJournalResponse } from "@/types/plant";
 import { UserSwitcher } from "@/components/UserSwitcher";
@@ -32,6 +33,7 @@ const LAYOUT_LABEL: Record<string, string> = {
   quiz: "퀴즈",
   "plant-roadmap": "식물 관찰",
   "event-signup": "행사 신청",
+  drawing: "그림보드",
 };
 
 export default async function BoardPage({
@@ -60,7 +62,13 @@ export default async function BoardPage({
   const needsQuizData = board.layout === "quiz";
   const needsPlantData = board.layout === "plant-roadmap";
   const needsEventData = board.layout === "event-signup";
-  const needsCards = !needsAssignmentData && !needsQuizData && !needsPlantData && !needsEventData;
+  const needsDrawingData = board.layout === "drawing";
+  const needsCards =
+    !needsAssignmentData &&
+    !needsQuizData &&
+    !needsPlantData &&
+    !needsEventData &&
+    !needsDrawingData;
   const needsSections = board.layout === "columns";
 
   const cardsPromise = needsCards
@@ -392,6 +400,19 @@ export default async function BoardPage({
         );
       case "plant-roadmap":
         return <PlantRoadmapBoard initial={plantJournalInitial!} />;
+      case "drawing": {
+        const viewerKind: "teacher" | "student" | "none" =
+          studentViewer ? "student" : effectiveRole === "owner" ? "teacher" : "none";
+        return (
+          <DrawingBoard
+            boardId={board!.id}
+            boardTitle={board!.title}
+            classroomId={board!.classroomId}
+            viewerKind={viewerKind}
+            studentId={studentViewer?.id ?? null}
+          />
+        );
+      }
       case "event-signup":
         return (
           <EventSignupBoard

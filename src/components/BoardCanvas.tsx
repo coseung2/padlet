@@ -71,6 +71,7 @@ export function BoardCanvas({
     linkImage?: string;
     videoUrl?: string;
     color?: string;
+    attachAssetId?: string;
   }) {
     const nextPos = {
       x: 40 + (cards.length % 3) * 280,
@@ -97,6 +98,15 @@ export function BoardCanvas({
       if (res.ok) {
         const { card } = await res.json();
         setCards((prev) => [...prev, card]);
+        if (data.attachAssetId) {
+          // Fire-and-forget: create AssetAttachment row. Card already has the
+          // imageUrl from the picker so failures here are cosmetic.
+          void fetch(`/api/student-assets/${data.attachAssetId}/attach`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ cardId: card.id }),
+          }).catch(() => {});
+        }
       } else {
         const msg = await res.text();
         console.error("카드 추가 실패:", msg);
