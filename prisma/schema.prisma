@@ -71,9 +71,10 @@ model Classroom {
   teacherId String
   createdAt DateTime @default(now())
 
-  teacher   User      @relation(fields: [teacherId], references: [id])
-  students  Student[]
-  boards    Board[]   @relation("ClassroomBoards")
+  teacher     User                   @relation(fields: [teacherId], references: [id])
+  students    Student[]
+  boards      Board[]                @relation("ClassroomBoards")
+  plantAllows ClassroomPlantAllow[]
 
   @@index([teacherId])
   @@index([code])
@@ -89,8 +90,9 @@ model Student {
   sessionVersion Int   @default(1)
   createdAt   DateTime @default(now())
 
-  classroom   Classroom    @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  quizPlayers QuizPlayer[]
+  classroom     Classroom      @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  quizPlayers   QuizPlayer[]
+  studentPlants StudentPlant[]
 
   @@unique([classroomId, number])
   @@index([classroomId])
@@ -98,8 +100,8 @@ model Student {
   @@index([textCode])
 }
 
-// layout: "freeform" | "grid" | "stream" | "columns"
-// (columns prep for next task; validated in app via zod)
+// layout: "freeform" | "grid" | "stream" | "columns" | "assignment" | "quiz" | "plant-roadmap"
+// (validated in app via zod)
 model Board {
   id          String   @id @default(cuid())
   slug        String   @unique
@@ -109,12 +111,13 @@ model Board {
   classroomId String?
   createdAt   DateTime @default(now())
 
-  classroom   Classroom? @relation("ClassroomBoards", fields: [classroomId], references: [id], onDelete: SetNull)
-  members     BoardMember[]
-  cards       Card[]
-  sections    Section[]
-  submissions Submission[]
-  quizzes     Quiz[]
+  classroom     Classroom?     @relation("ClassroomBoards", fields: [classroomId], references: [id], onDelete: SetNull)
+  members       BoardMember[]
+  cards         Card[]
+  sections      Section[]
+  submissions   Submission[]
+  quizzes       Quiz[]
+  studentPlants StudentPlant[]
 }
 
 // Columns/Kanban용 섹션 (grid/stream에선 사용 안 함)
@@ -268,4 +271,108 @@ model QuizAnswer {
   @@unique([questionId, playerId])
   @@index([questionId])
   @@index([playerId])
+}
+
+// ──── Plant Journal (PJ-1 ~ PJ-6) ────
+
+model PlantSpecies {
+  id         String   @id @default(cuid())
+  key        String   @unique   // "tomato", "strawberry" — program identifier
+  nameKo     String
+  emoji      String
+  difficulty String   @default("easy")   // "easy" | "medium" | "hard"
+  season     String   @default("spring") // "spring" | "summer" | "fall" | "winter" | "all"
+  notes      String   @default("")
+  createdAt  DateTime @default(now())
+
+  stages        PlantStage[]
+  allows        ClassroomPlantAllow[]
+  studentPlants StudentPlant[]
+}
+
+model PlantStage {
+  id                String @id @default(cuid())
+  speciesId         String
+  order             Int
+  key               String
+  nameKo            String
+  description       String @default("")
+  icon              String
+  observationPoints String // JSON-encoded string[]
+
+  species      PlantSpecies       @relation(fields: [speciesId], references: [id], onDelete: Cascade)
+  currentFor   StudentPlant[]     @relation("StudentPlantCurrentStage")
+  observations PlantObservation[]
+
+  @@unique([speciesId, order])
+  @@index([speciesId])
+}
+
+model ClassroomPlantAllow {
+  id          String   @id @default(cuid())
+  classroomId String
+  speciesId   String
+  createdAt   DateTime @default(now())
+
+  classroom Classroom    @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  species   PlantSpecies @relation(fields: [speciesId], references: [id], onDelete: Cascade)
+
+  @@unique([classroomId, speciesId])
+  @@index([classroomId])
+  @@index([speciesId])
+}
+
+model StudentPlant {
+  id             String   @id @default(cuid())
+  boardId        String
+  studentId      String
+  speciesId      String
+  nickname       String
+  currentStageId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  board        Board              @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  student      Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  species      PlantSpecies       @relation(fields: [speciesId], references: [id])
+  currentStage PlantStage         @relation("StudentPlantCurrentStage", fields: [currentStageId], references: [id])
+  observations PlantObservation[]
+
+  @@unique([boardId, studentId])
+  @@index([boardId])
+  @@index([studentId])
+  @@index([speciesId])
+  @@index([currentStageId])
+}
+
+model PlantObservation {
+  id             String   @id @default(cuid())
+  studentPlantId String
+  stageId        String
+  memo           String   @default("")
+  noPhotoReason  String?
+  observedAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  studentPlant StudentPlant            @relation(fields: [studentPlantId], references: [id], onDelete: Cascade)
+  stage        PlantStage              @relation(fields: [stageId], references: [id])
+  images       PlantObservationImage[]
+
+  @@index([studentPlantId])
+  @@index([stageId])
+  @@index([studentPlantId, stageId])
+}
+
+model PlantObservationImage {
+  id            String   @id @default(cuid())
+  observationId String
+  url           String
+  thumbnailUrl  String?
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  observation PlantObservation @relation(fields: [observationId], references: [id], onDelete: Cascade)
+
+  @@index([observationId])
 }
