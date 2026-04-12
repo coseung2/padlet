@@ -1,7 +1,8 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo } from "react";
 import { extractCanvaDesignId } from "@/lib/canva";
+import { CanvaEmbedSlot } from "./CanvaEmbedSlot";
 
 function getYouTubeId(url: string): string | null {
   const m =
@@ -59,10 +60,11 @@ export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl
         </div>
       )}
       {linkUrl && canRenderCanvaEmbed && canvaDesignId ? (
-        // key={designId} forces fresh iframeLoaded/iframeFailed state when
-        // the card's linkUrl points to a different Canva design, so a
-        // stale `failed` flag from the previous design doesn't stick.
-        <CanvaEmbed
+        // Delegated to CanvaEmbedSlot (T0-② virtualization): thumbnail by
+        // default, iframe mounts only on activation + in viewport, with a
+        // global LRU-3 budget. key={designId} forces full remount when the
+        // card's design changes so the slot's internal load state resets.
+        <CanvaEmbedSlot
           key={canvaDesignId}
           designId={canvaDesignId}
           linkUrl={linkUrl}
@@ -106,74 +108,6 @@ export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl
   );
 });
 
-// Canva live-embed branch. Paints the cached thumbnail first so the card
-// has something visible immediately, then fades it out once the iframe
-// paints. An iframe load error falls through to the existing
-// .card-link-preview below (rendered by the parent) — here we render a
-// minimal fallback anchor so the card is never empty even if the parent
-// branch is skipped.
-type CanvaEmbedProps = {
-  designId: string;
-  linkUrl: string;
-  linkTitle: string | null;
-  linkImage: string | null;
-  linkDesc: string | null;
-};
-
-const CanvaEmbed = memo(function CanvaEmbed({
-  designId,
-  linkUrl,
-  linkTitle,
-  linkImage,
-  linkDesc,
-}: CanvaEmbedProps) {
-  const [loaded, setLoaded] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  if (failed) {
-    return (
-      <a
-        href={linkUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`card-link-preview ${linkImage ? "has-image" : ""}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {linkImage && (
-          <div className="card-link-preview-image">
-            <img src={linkImage} alt="" loading="lazy" />
-          </div>
-        )}
-        <div className="card-link-preview-body">
-          <span className="card-link-preview-title">
-            {linkTitle || "Canva design"}
-          </span>
-          {linkDesc && (
-            <span className="card-link-preview-desc">{linkDesc}</span>
-          )}
-          <span className="card-link-preview-url">🔗 canva.com</span>
-        </div>
-      </a>
-    );
-  }
-
-  const embedSrc = `https://www.canva.com/design/${designId}/view?embed&meta`;
-  const title = linkTitle || "Canva design";
-
-  return (
-    <div className="card-canva-embed" data-loaded={loaded ? "true" : "false"}>
-      {linkImage && (
-        <img src={linkImage} alt={`${title} preview`} loading="lazy" />
-      )}
-      <iframe
-        src={embedSrc}
-        title={title}
-        loading="lazy"
-        sandbox="allow-scripts allow-same-origin allow-popups"
-        referrerPolicy="no-referrer-when-downgrade"
-        onLoad={() => setLoaded(true)}
-        onError={() => setFailed(true)}
-      />
-    </div>
-  );
-});
+// NOTE: Legacy inline CanvaEmbed has been replaced by the virtualized
+// CanvaEmbedSlot in ./CanvaEmbedSlot.tsx (T0-② tablet-crash mitigation).
+// All iframe lifecycle lives there now.
