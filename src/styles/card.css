@@ -203,3 +203,40 @@
 .padlet-card:hover .card-ctx-menu {
   display: block;
 }
+
+/* Canva live-embed wrapper (task 2026-04-12-canva-oembed).
+   16:9 responsive box with thumbnail + iframe stacked. The thumbnail
+   fades out once the iframe finishes loading, so the card has something
+   visible immediately (LCP) but ends up showing the live design. */
+.card-canva-embed {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%;
+  min-height: 90px;
+  background: var(--color-bg);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.card-canva-embed > img,
+.card-canva-embed > iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.card-canva-embed > img {
+  object-fit: cover;
+  opacity: 1;
+  transition: opacity 150ms ease;
+}
+.card-canva-embed[data-loaded="true"] > img {
+  opacity: 0;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-canva-embed > img {
+    transition: none;
+  }
+}

@@ -1,0 +1,23 @@
+Files changed in phase7 (canva-oembed implementation)
+
+## Source
+src/lib/canva.ts                              — add CanvaEmbed type, isCanvaDesignUrl, extractCanvaDesignId, resolveCanvaEmbedUrl
+src/app/api/cards/route.ts                    — POST: oEmbed enrichment + URL canonicalization before db.card.create
+src/app/api/cards/[id]/route.ts               — PATCH: URL-change guard + oEmbed enrichment before db.card.update
+src/components/CardAttachments.tsx            — Canva branch (thumbnail-first iframe swap + onError fallback)
+next.config.ts                                — async headers() with frame-src allowlist (self, canva.com, youtube.com)
+src/styles/card.css                           — .card-canva-embed responsive wrapper + prefers-reduced-motion
+
+## Tests
+src/lib/__tests__/canva-embed.test.ts         — 18 table-based unit cases for isCanvaDesignUrl + extractCanvaDesignId
+                                                 (plain tsx runner — ports to vitest/jest later)
+
+## Task artifacts (this phase)
+tasks/2026-04-12-canva-oembed/phase7/files_changed.txt
+tasks/2026-04-12-canva-oembed/phase7/diff_summary.md
+tasks/2026-04-12-canva-oembed/phase7/tests_added.txt
+
+## Untouched (intentional)
+prisma/schema.prisma                          — no schema changes (phase3 §1: Card.kind deferred to follow-up task)
+src/app/api/link-preview/route.ts             — OG fallback path retained without edits
+src/components/AddCardModal.tsx / EditCardModal.tsx — no UI change required; link input already accepts any URL

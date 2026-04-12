@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { requirePermission, getBoardRole, ForbiddenError } from "@/lib/rbac";
+import { isCanvaDesignUrl, resolveCanvaEmbedUrl } from "@/lib/canva";
 
 const PatchCardSchema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -39,7 +40,26 @@ export async function PATCH(
 
     const body = await req.json();
     const input = PatchCardSchema.parse(body);
-    const updated = await db.card.update({ where: { id }, data: input });
+
+    // URL-change guard: re-resolve Canva oEmbed only when linkUrl actually
+    // changes. Drag / resize PATCHes skip the outbound fetch.
+    const patch: typeof input = { ...input };
+    if (
+      typeof patch.linkUrl === "string" &&
+      patch.linkUrl !== card.linkUrl &&
+      isCanvaDesignUrl(patch.linkUrl)
+    ) {
+      const embed = await resolveCanvaEmbedUrl(patch.linkUrl);
+      if (embed) {
+        patch.linkUrl = `https://www.canva.com/design/${embed.designId}/view`;
+        patch.linkTitle = patch.linkTitle ?? embed.title;
+        patch.linkImage = patch.linkImage ?? embed.thumbnailUrl;
+        patch.linkDesc =
+          patch.linkDesc ?? (embed.authorName ? `by ${embed.authorName}` : null);
+      }
+    }
+
+    const updated = await db.card.update({ where: { id }, data: patch });
 
     return NextResponse.json({ card: updated });
   } catch (e) {

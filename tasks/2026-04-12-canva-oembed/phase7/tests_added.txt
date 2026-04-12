@@ -1,0 +1,33 @@
+Tests added in phase7
+
+## Unit (pure sync helpers)
+src/lib/__tests__/canva-embed.test.ts
+  - isCanvaDesignUrl × 9 cases (www /view, /edit, bare, canva.link, mixed-case,
+    query+hash, youtube rejection, blank rejection, root-without-design).
+  - extractCanvaDesignId × 9 cases (www /view, /edit, bare, query+hash,
+    canva.link-null, non-canva-null, malformed-null, blank-null,
+    missing-id-null).
+  - Runner: `npx tsx src/lib/__tests__/canva-embed.test.ts` — exits 0 when
+    all pass, prints failures and exits 1 otherwise.
+  - Last run: 18 passed, 0 failed.
+
+## Integration / E2E (DEFERRED)
+The repo still has no jest/vitest/playwright installed. The following
+cases from phase3 §6-5 are deferred to phase9 (manual QA):
+
+- resolveCanvaEmbedUrl — happy path (fetch mock with Canva oEmbed JSON).
+- resolveCanvaEmbedUrl — timeout path (AbortSignal fires → null).
+- resolveCanvaEmbedUrl — JSON parse error → null.
+- POST /api/cards — Canva URL persists canonicalized linkUrl + linkTitle + linkImage + linkDesc.
+- PATCH /api/cards/:id — drag-only PATCH does NOT trigger oEmbed.
+- PATCH /api/cards/:id — linkUrl change to a Canva URL triggers oEmbed re-resolve.
+- CardAttachments — Canva branch renders thumbnail first, then iframe.
+- CardAttachments — iframe onError falls back to link-preview.
+- CSP header present on GET / responses (curl verification in phase9).
+
+## Regression checklist for phase9
+- YouTube iframe still renders (frame-src allowlist includes youtube.com).
+- NextAuth sign-in callback not blocked by CSP.
+- next/image thumbnails unaffected.
+- Non-Canva generic links still show `.card-link-preview` unchanged.
+- `AddStudentsModal` xlsx dynamic import still works (unrelated regression guard).

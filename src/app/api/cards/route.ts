@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { requirePermission, ForbiddenError } from "@/lib/rbac";
+import { isCanvaDesignUrl, resolveCanvaEmbedUrl } from "@/lib/canva";
 
 const CreateCardSchema = z.object({
   boardId: z.string().min(1),
@@ -30,6 +31,26 @@ export async function POST(req: Request) {
     const input = CreateCardSchema.parse(body);
     await requirePermission(input.boardId, user.id, "edit");
 
+    // Canva oEmbed enrichment — if the user pasted a Canva design URL we
+    // canonicalize it and auto-fill linkTitle/linkImage/linkDesc from
+    // Canva's oEmbed response so the render path can show a live iframe.
+    // Any failure (non-Canva URL, private design, endpoint down) falls
+    // through to the normal link-card flow.
+    let linkUrl = input.linkUrl ?? null;
+    let linkTitle = input.linkTitle ?? null;
+    let linkImage = input.linkImage ?? null;
+    let linkDesc = input.linkDesc ?? null;
+    if (linkUrl && isCanvaDesignUrl(linkUrl)) {
+      const embed = await resolveCanvaEmbedUrl(linkUrl);
+      if (embed) {
+        linkUrl = `https://www.canva.com/design/${embed.designId}/view`;
+        linkTitle = linkTitle ?? embed.title;
+        linkImage = linkImage ?? embed.thumbnailUrl;
+        linkDesc =
+          linkDesc ?? (embed.authorName ? `by ${embed.authorName}` : null);
+      }
+    }
+
     const card = await db.card.create({
       data: {
         boardId: input.boardId,
@@ -38,10 +59,10 @@ export async function POST(req: Request) {
         content: input.content,
         color: input.color ?? null,
         imageUrl: input.imageUrl ?? null,
-        linkUrl: input.linkUrl ?? null,
-        linkTitle: input.linkTitle ?? null,
-        linkDesc: input.linkDesc ?? null,
-        linkImage: input.linkImage ?? null,
+        linkUrl,
+        linkTitle,
+        linkDesc,
+        linkImage,
         videoUrl: input.videoUrl ?? null,
         x: input.x,
         y: input.y,

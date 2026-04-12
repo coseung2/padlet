@@ -326,3 +326,103 @@ export async function resolveCanvaDesignId(url: string): Promise<string | null> 
   const match = finalUrl.match(/\/design\/([A-Za-z0-9_-]+)\//);
   return match?.[1] ?? null;
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// oEmbed live-embed support (task 2026-04-12-canva-oembed)
+// ─────────────────────────────────────────────────────────────────────────
+
+export type CanvaEmbed = {
+  iframeSrc: string;
+  thumbnailUrl: string;
+  title: string;
+  authorName: string;
+  width: number;
+  height: number;
+  designId: string;
+};
+
+// Pure sync predicate — no network. Accepts www-prefixed and bare variants.
+export function isCanvaDesignUrl(rawUrl: string): boolean {
+  if (!rawUrl) return false;
+  let host: string;
+  let pathname: string;
+  try {
+    const u = new URL(rawUrl);
+    host = u.hostname.toLowerCase();
+    pathname = u.pathname;
+  } catch {
+    return false;
+  }
+  const canonicalHost =
+    host === "canva.com" || host === "www.canva.com" || host === "canva.link";
+  if (!canonicalHost) return false;
+  if (host === "canva.link") return true;
+  return /\/design\/[A-Za-z0-9_-]+/.test(pathname);
+}
+
+// Pure sync extractor — returns null when the URL is not a canva.com design
+// page we can name a designId for. Does NOT resolve canva.link short-links.
+export function extractCanvaDesignId(rawUrl: string): string | null {
+  if (!rawUrl) return null;
+  try {
+    const u = new URL(rawUrl);
+    const host = u.hostname.toLowerCase();
+    if (host !== "canva.com" && host !== "www.canva.com") return null;
+    const m = u.pathname.match(/\/design\/([A-Za-z0-9_-]+)/);
+    return m?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Async resolver — may do 1 short-link HEAD plus 1 oEmbed fetch.
+// Returns null on any failure so callers can fall back to the link-preview
+// path without a throw.
+export async function resolveCanvaEmbedUrl(
+  rawUrl: string
+): Promise<CanvaEmbed | null> {
+  if (!isCanvaDesignUrl(rawUrl)) return null;
+
+  // 1. Resolve short-link to its canva.com location when needed.
+  const designId = await resolveCanvaDesignId(rawUrl);
+  if (!designId) return null;
+
+  // 2. Canonicalize to the /view URL so oEmbed responds consistently.
+  const canonicalUrl = `https://www.canva.com/design/${designId}/view`;
+
+  // 3. Ask Canva's oEmbed endpoint. Short, hard timeout: the caller is on
+  //    the card-create hot path.
+  const endpoint = `https://www.canva.com/_oembed?url=${encodeURIComponent(
+    canonicalUrl
+  )}`;
+
+  try {
+    const res = await fetch(endpoint, {
+      signal: AbortSignal.timeout(3000),
+      headers: {
+        "User-Agent": "Aura-board/1.0 (+https://aura-board-app.vercel.app)",
+      },
+    });
+    if (!res.ok) return null;
+
+    const body = (await res.json()) as Record<string, unknown>;
+
+    // 4. Validate — require a thumbnail and the "rich" type Canva actually
+    //    advertises. We intentionally ignore body.html to avoid any
+    //    dangerouslySetInnerHTML path.
+    if (body.type !== "rich") return null;
+    if (typeof body.thumbnail_url !== "string") return null;
+
+    return {
+      iframeSrc: `https://www.canva.com/design/${designId}/view?embed&meta`,
+      thumbnailUrl: String(body.thumbnail_url),
+      title: String(body.title ?? "Canva design"),
+      authorName: String(body.author_name ?? ""),
+      width: Number(body.width ?? 1600),
+      height: Number(body.height ?? 900),
+      designId,
+    };
+  } catch {
+    return null;
+  }
+}
