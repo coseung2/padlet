@@ -1,0 +1,13 @@
+Files changed in fix/quiz-sse-perf (2 hotfix commits + scaffold)
+
+## Server
+src/app/api/quiz/[id]/stream/route.ts      — delta-gated SSE, slim per-tick query, count-then-fetch distribution, cancel() cleanup
+
+## Client
+src/components/QuizBoard.tsx               — memoized Distribution + PlayerList subcomponents, useMemo(sorted)
+
+## Untouched (intentional)
+src/components/QuizPlay.tsx                — already had proper EventSource cleanup + playerIdRef; no change needed
+src/app/quiz/[code]/page.tsx               — no server-query changes needed for this track
+src/app/api/quiz/answer/route.ts           — answer submission path is fine as-is
+src/app/api/quiz/create/route.ts           — quiz creation path is fine as-is

@@ -1,0 +1,22 @@
+퀴즈 클라이언트 상태 업데이트 경로
+
+═══════════════════════════════════════════════════════
+QuizBoard (호스트 뷰)
+═══════════════════════════════════════════════════════
+src/components/QuizBoard.tsx:58-73
+  es.addEventListener("quiz-status", ...) → setQuizzes 전체 객체 교체
+  es.addEventListener("quiz-players", ...) → 전체 players 배열 교체
+
+src/components/QuizBoard.tsx:80+
+  OPT_LABELS.map — 분포 차트 렌더마다 재계산, memo 없음
+
+═══════════════════════════════════════════════════════
+QuizPlay (참가자 뷰)
+═══════════════════════════════════════════════════════
+src/components/QuizPlay.tsx:63-155
+  useEffect([quizId, playerId]) — EventSource 생성
+  cleanup: es.close() — 단, 라우트 전환 시 중복 구독 리스크
+
+누락:
+  - AbortController 사용
+  - StrictMode 더블 마운트 대비 (개발 환경)
