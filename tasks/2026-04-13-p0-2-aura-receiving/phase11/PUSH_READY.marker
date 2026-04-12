@@ -1,0 +1,19 @@
+phase11 PUSH_READY — all gates pass.
+
+gates:
+- phase2  scope_decision.md      10 AC + 10-row risk table        OK
+- phase8  REVIEW_OK.marker + security_audit.md                    OK
+- phase9  QA_OK.marker (10/10 AC curl-verified)                   OK
+- phase10 deploy_log.md + READY_FOR_MERGE                         OK
+- phase11 BLOCKERS.md (Canva app + portal)                        OK
+
+local verification:
+- tsc --noEmit    PASS
+- next build      PASS
+- prisma migrate deploy  applied 20260413_add_external_access_token
+
+deferred (outside autonomy scope):
+- Canva Apps SDK project (B1)
+- Canva Developer Portal registration (B2)
+
+2026-04-12 / branch feat/p0-2-aura-receiving
