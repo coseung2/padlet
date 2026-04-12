@@ -350,20 +350,18 @@ export function RoadmapView({
                   )}
                 </div>
 
-                {(canComposeHere || (isCurrent && canEdit)) && (
+                {canComposeHere && (
                   <div className="plant-stage-body-actions">
-                    {canComposeHere && (
-                      <button
-                        type="button"
-                        className="primary"
-                        onClick={() => {
-                          setEditingObs(null);
-                          setEditorStageId(s.id);
-                        }}
-                      >
-                        관찰 추가
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className="primary"
+                      onClick={() => {
+                        setEditingObs(null);
+                        setEditorStageId(s.id);
+                      }}
+                    >
+                      관찰 추가
+                    </button>
                     {isCurrent && canEdit && (
                       <button
                         type="button"
