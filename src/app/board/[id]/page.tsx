@@ -43,21 +43,28 @@ export default async function BoardPage({
   ]);
   if (!board) notFound();
 
-  // Round 2 — fan out every dependent query.
-  // Layout-specific relations are skipped when they would not be rendered,
-  // so a freeform/grid/stream board no longer pays for submissions, members,
-  // or quiz hydration.
+  // Round 2 — fan out every dependent query that this layout actually renders.
+  // - Card-rendering layouts (freeform / grid / stream / columns) skip
+  //   submissions, members, and quizzes.
+  // - Assignment boards skip cards + sections; quiz boards skip them too.
+  // - Sections are only read by the columns layout — others skip.
   const needsAssignmentData = board.layout === "assignment";
   const needsQuizData = board.layout === "quiz";
+  const needsCards = !needsAssignmentData && !needsQuizData;
+  const needsSections = board.layout === "columns";
 
-  const cardsPromise = db.card.findMany({
-    where: { boardId: board.id },
-    orderBy: { order: "asc" },
-  });
-  const sectionsPromise = db.section.findMany({
-    where: { boardId: board.id },
-    orderBy: { order: "asc" },
-  });
+  const cardsPromise = needsCards
+    ? db.card.findMany({
+        where: { boardId: board.id },
+        orderBy: { order: "asc" },
+      })
+    : null;
+  const sectionsPromise = needsSections
+    ? db.section.findMany({
+        where: { boardId: board.id },
+        orderBy: { order: "asc" },
+      })
+    : null;
   const submissionsPromise = needsAssignmentData
     ? db.submission.findMany({ where: { boardId: board.id } })
     : null;
@@ -78,7 +85,7 @@ export default async function BoardPage({
     ? getBoardRole(board.id, user.id)
     : Promise.resolve(null);
 
-  const [cards, sections, submissionsRaw, membersRaw, quizzesRaw, role] = await Promise.all([
+  const [cardsRaw, sectionsRaw, submissionsRaw, membersRaw, quizzesRaw, role] = await Promise.all([
     cardsPromise,
     sectionsPromise,
     submissionsPromise,
@@ -87,6 +94,8 @@ export default async function BoardPage({
     rolePromise,
   ]);
 
+  const cards = cardsRaw ?? [];
+  const sections = sectionsRaw ?? [];
   const submissions = submissionsRaw ?? [];
   const members = membersRaw ?? [];
   const quizzes = quizzesRaw ?? [];

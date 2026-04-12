@@ -1,7 +1,7 @@
 From 7f0139004f2ae85acd06c7bc0f0c9b8d0fdb857f Mon Sep 17 00:00:00 2001
 From: coseung2 <coseung2@users.noreply.github.com>
 Date: Sun, 12 Apr 2026 10:35:52 +0900
-Subject: [PATCH 1/4] incident(perf): server-query-perf track scaffold
+Subject: [PATCH 1/5] incident(perf): server-query-perf track scaffold
  (phase0+phase1)
 
 Triage + diagnosis for server-side query performance issues.
@@ -279,7 +279,7 @@ index 0000000..a2b3e59
 From aff10473e62e9c4296c5b0c0cc117d32eeb80d50 Mon Sep 17 00:00:00 2001
 From: coseung2 <coseung2@users.noreply.github.com>
 Date: Sun, 12 Apr 2026 10:42:20 +0900
-Subject: [PATCH 2/4] fix: add missing perf indexes on Account/Session/Card
+Subject: [PATCH 2/5] fix: add missing perf indexes on Account/Session/Card
  (server-query-perf)
 
 NextAuth session validation and account lookups ran without an index
@@ -354,7 +354,7 @@ index 632a195..5353479 100644
 From 25b0725cc0267003f6cc4e4458024e2c78548d97 Mon Sep 17 00:00:00 2001
 From: coseung2 <coseung2@users.noreply.github.com>
 Date: Sun, 12 Apr 2026 10:43:08 +0900
-Subject: [PATCH 3/4] fix: parallelize independent page-load queries
+Subject: [PATCH 3/5] fix: parallelize independent page-load queries
  (server-query-perf)
 
 HomePage and ClassroomDetailPage fired their two independent
@@ -468,7 +468,7 @@ index 11a019c..4364704 100644
 From 2c41fe9fe129c08ae6718cc51c514d207d765f12 Mon Sep 17 00:00:00 2001
 From: coseung2 <coseung2@users.noreply.github.com>
 Date: Sun, 12 Apr 2026 10:46:27 +0900
-Subject: [PATCH 4/4] fix: split board page query + drop force-dynamic
+Subject: [PATCH 4/5] fix: split board page query + drop force-dynamic
  (server-query-perf)
 
 BoardPage previously fetched the board with cards, sections,
@@ -800,6 +800,1025 @@ index 3f78b3d..50f3a6c 100644
  export default async function StudentPage() {
    const student = await getCurrentStudent();
  
+-- 
+2.43.0
+
+
+From cd7ab541c1921872e62a92928973fe8e998208fa Mon Sep 17 00:00:00 2001
+From: coseung2 <coseung2@users.noreply.github.com>
+Date: Sun, 12 Apr 2026 10:49:27 +0900
+Subject: [PATCH 5/5] incident(perf): server-query-perf phase2 artifacts
+
+Hotfix design, git format-patch, files_changed, and tests_added
+for the 3-commit server-query-perf hotfix series.
+
+Verification substitute: typecheck + build both PASS (no test
+framework in project).
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+---
+ .../phase2/code_diff.patch                    | 805 ++++++++++++++++++
+ .../phase2/files_changed.txt                  |  23 +
+ .../phase2/hotfix_design.md                   |  97 +++
+ .../phase2/tests_added.txt                    |  43 +
+ 4 files changed, 968 insertions(+)
+ create mode 100644 tasks/2026-04-12-server-query-perf/phase2/code_diff.patch
+ create mode 100644 tasks/2026-04-12-server-query-perf/phase2/files_changed.txt
+ create mode 100644 tasks/2026-04-12-server-query-perf/phase2/hotfix_design.md
+ create mode 100644 tasks/2026-04-12-server-query-perf/phase2/tests_added.txt
+
+diff --git a/tasks/2026-04-12-server-query-perf/phase2/code_diff.patch b/tasks/2026-04-12-server-query-perf/phase2/code_diff.patch
+new file mode 100644
+index 0000000..bc4d0a1
+--- /dev/null
++++ b/tasks/2026-04-12-server-query-perf/phase2/code_diff.patch
+@@ -0,0 +1,805 @@
++From 7f0139004f2ae85acd06c7bc0f0c9b8d0fdb857f Mon Sep 17 00:00:00 2001
++From: coseung2 <coseung2@users.noreply.github.com>
++Date: Sun, 12 Apr 2026 10:35:52 +0900
++Subject: [PATCH 1/4] incident(perf): server-query-perf track scaffold
++ (phase0+phase1)
++
++Triage + diagnosis for server-side query performance issues.
++Scope: force-dynamic removal, query parallelization, missing indexes,
++board page query split, caching strategy.
++
++Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
++---
++ .../phase0/request.json                       | 10 +++
++ .../phase0/triage.md                          | 39 +++++++++
++ .../phase1/diagnosis.md                       | 87 +++++++++++++++++++
++ .../phase1/evidence/force_dynamic_usages.txt  | 12 +++
++ .../phase1/evidence/missing_indexes.txt       | 35 ++++++++
++ .../phase1/evidence/sequential_queries.txt    | 29 +++++++
++ 6 files changed, 212 insertions(+)
++ create mode 100644 tasks/2026-04-12-server-query-perf/phase0/request.json
++ create mode 100644 tasks/2026-04-12-server-query-perf/phase0/triage.md
++ create mode 100644 tasks/2026-04-12-server-query-perf/phase1/diagnosis.md
++ create mode 100644 tasks/2026-04-12-server-query-perf/phase1/evidence/force_dynamic_usages.txt
++ create mode 100644 tasks/2026-04-12-server-query-perf/phase1/evidence/missing_indexes.txt
++ create mode 100644 tasks/2026-04-12-server-query-perf/phase1/evidence/sequential_queries.txt
++
++diff --git a/tasks/2026-04-12-server-query-perf/phase0/request.json b/tasks/2026-04-12-server-query-perf/phase0/request.json
++new file mode 100644
++index 0000000..de78ca8
++--- /dev/null
+++++ b/tasks/2026-04-12-server-query-perf/phase0/request.json
++@@ -0,0 +1,10 @@
+++{
+++  "type": "incident",
+++  "slug": "server-query-perf",
+++  "task_id": "2026-04-12-server-query-perf",
+++  "severity": "high",
+++  "symptom": "탭 전환 및 보드 열기 시 페이지 로드가 눈에 띄게 느림 (전체적인 서버 응답 지연)",
+++  "first_observed": "2026-04-12",
+++  "affected_surfaces": ["/", "/board/:id", "/classroom/:id", "/student"],
+++  "created_at": "2026-04-12T00:00:00+09:00"
+++}
++diff --git a/tasks/2026-04-12-server-query-perf/phase0/triage.md b/tasks/2026-04-12-server-query-perf/phase0/triage.md
++new file mode 100644
++index 0000000..99cd6af
++--- /dev/null
+++++ b/tasks/2026-04-12-server-query-perf/phase0/triage.md
++@@ -0,0 +1,39 @@
+++# Triage — server-query-perf
+++
+++## 증상 (관찰 가능한 행동만)
+++
+++- 사용자 보고: "탭간의 이동이나 보드 열때 등 웹이 전체적으로 느려"
+++- 재현 경로: 대시보드 ↔ 보드 ↔ 교실 페이지 이동 시마다 눈에 띄는 지연
+++- 데이터 손실/에러 없음. 기능은 정상 동작하되 응답 시간 저하
+++
+++## severity 근거
+++
+++- **high** 분류
+++- 핵심 기능(보드 열기, 페이지 이동)의 UX가 크게 저하
+++- 데이터 손실/보안 영향 없으므로 `critical` 아님
+++- 사용자가 일상적으로 겪는 빈번한 경로 → `medium` 보다 심각
+++
+++## 초기 관찰 (증거)
+++
+++사전 분석에서 3개 Explore 에이전트가 병렬 조사한 결과:
+++
+++1. **모든 페이지 `force-dynamic`** — Next.js 캐싱 완전 비활성화
+++   - `src/app/page.tsx:8`, `src/app/board/[id]/page.tsx:17`, `src/app/classroom/page.tsx:6`, `src/app/classroom/[id]/page.tsx:6`, `src/app/student/page.tsx:6`
+++2. **보드 페이지 단일 쿼리 과부하** — `src/app/board/[id]/page.tsx:34-46` (카드+섹션+제출물+멤버+퀴즈 전체)
+++3. **순차 DB 호출** — `src/app/page.tsx:19-34`, `src/app/board/[id]/page.tsx:34-64`, `src/app/classroom/[id]/page.tsx:16-32`
+++4. **누락 인덱스** — `prisma/schema.prisma` L48 (Account.userId), L56 (Session.userId), L149 (Card.authorId)
+++
+++## 스코프 (이 트랙에서만 다룰 것)
+++
+++- 서버 사이드 데이터 로드 경로 (페이지 RSC, API routes, Prisma 쿼리, 인덱스)
+++- 캐싱 전략 (revalidation, unstable_cache, HTTP cache headers)
+++
+++## 스코프 외 (다른 트랙으로 분기)
+++
+++- 클라이언트 렌더링/번들 → `client-render-perf` 트랙
+++- 퀴즈 SSE 스트림 → `quiz-sse-perf` 트랙
+++
+++## 긴급 단축 여부
+++
+++- `severity == high` 이므로 긴급 단축 **미적용**
+++- 정상 phase 순서 (phase1 진단 → phase2 핫픽스 → phase3 검수) 준수
++diff --git a/tasks/2026-04-12-server-query-perf/phase1/diagnosis.md b/tasks/2026-04-12-server-query-perf/phase1/diagnosis.md
++new file mode 100644
++index 0000000..ff54625
++--- /dev/null
+++++ b/tasks/2026-04-12-server-query-perf/phase1/diagnosis.md
++@@ -0,0 +1,87 @@
+++# Diagnosis — server-query-perf
+++
+++## 1. 재현 절차
+++
+++1. 로컬 dev 서버 기동: `fuser -k 3000/tcp; rm -rf .next; PORT=3000 npm run dev`
+++2. `/` (대시보드) 접속 → 보드 목록 로드 완료까지 체감 1~2초+
+++3. 보드 링크 클릭 → `/board/:id` 로드 완료까지 체감 2~3초+
+++4. 뒤로가기 → 다시 대시보드 전체 쿼리 재실행 (캐시 없음)
+++5. 반복 시 매번 동일한 지연 재현
+++
+++## 2. 증상 범위
+++
+++- **영향 받는 사용자**: 모든 인증 사용자 (owner/editor/viewer)
+++- **영향 받는 페이지**: `/`, `/board/:id`, `/classroom/:id`, `/student`, `/quiz/:code`, `/qr/:token`
+++- **시작 시점**: `force-dynamic` 도입 이후 지속. 데이터 증가에 따라 심화.
+++
+++## 3. 근본 원인
+++
+++### 3-1. Next.js 캐시 완전 비활성화
+++- `force-dynamic` 지시자가 모든 주요 페이지에 박혀 있음
+++- Data Cache, Full Route Cache, Router Cache 전부 무효화
+++- 탭 전환마다 RSC 전체 재실행 + DB 재쿼리
+++
+++### 3-2. 보드 페이지 단일 쿼리에 과도한 `include`
+++`src/app/board/[id]/page.tsx:34-46`:
+++```ts
+++include: {
+++  cards: { orderBy: { order: "asc" } },       // 전체 카드
+++  sections: { orderBy: { order: "asc" } },    // 전체 섹션
+++  submissions: true,                          // 전체 제출
+++  members: { include: { user: true } },       // 유저 풀필드
+++  quizzes: {
+++    include: { questions: { ... }, players: true },  // 퀴즈+질문+플레이어 전체
+++  },
+++}
+++```
+++- 카드 100개 + 퀴즈 2개 × 플레이어 50명 = 수백~수천 레코드
+++- 단일 응답 payload 비대 + Prisma hydrate 오버헤드
+++
+++### 3-3. 직렬 DB 호출 (병렬화 누락)
+++`src/app/board/[id]/page.tsx:34-64`:
+++1. board 조회
+++2. `getCurrentUser()` (users.findUnique)
+++3. `getBoardRole()` (boardMember.findFirst)
+++4. `getCurrentStudent()` (student.findUnique)
+++→ 4개 독립 쿼리가 순차 실행. 각 쿼리 레이턴시 누적.
+++
+++### 3-4. 누락 인덱스
+++- `prisma/schema.prisma:48` — `Account.userId` 인덱스 없음 (NextAuth 세션 조회 시 풀스캔)
+++- `prisma/schema.prisma:56` — `Session.userId` 인덱스 없음
+++- `prisma/schema.prisma:149` — `Card.authorId` 인덱스 없음
+++
+++### 3-5. API routes에 캐시 헤더 부재
+++- `Cache-Control` 헤더 미설정
+++- Next.js `fetch` 의 `revalidate` 옵션 미사용
+++- 클라이언트가 동일 데이터 반복 요청
+++
+++## 4. 증거 목록
+++
+++- `evidence/force_dynamic_usages.txt` — force-dynamic 사용 위치 전수조사
+++- `evidence/sequential_queries.txt` — 직렬 DB 호출 코드 스니펫
+++- `evidence/missing_indexes.txt` — 누락 인덱스 목록
+++
+++## 5. 수정 방향 (제안만)
+++
+++### 5-1. 캐싱 전략
+++- `force-dynamic` 제거. 대신 동적 부분만 `unstable_cache` 또는 `revalidate` 활용
+++- 인증된 유저별 데이터는 `cache()` (React cache)로 요청 범위 메모이제이션
+++- 공개 API 응답에 `Cache-Control: private, max-age=30, stale-while-revalidate=60`
+++
+++### 5-2. 보드 쿼리 분리
+++- `board` 기본 조회 + `cards` 페이지네이션 (최초 50개) + `members/quizzes` 별도 로드
+++- 필요한 필드만 `select` 로 한정
+++
+++### 5-3. 병렬화
+++- `getCurrentUser()` + `getBoardRole()` + `getCurrentStudent()` → `Promise.all()`
+++- 대시보드: `boardMember.findMany()` + `classroom.findMany()` 병렬
+++
+++### 5-4. 인덱스 추가
+++- Prisma migration으로 `Account.userId`, `Session.userId`, `Card.authorId` 인덱스 생성
+++- 기존 데이터 마이그레이션은 SQLite → PostgreSQL 전환 이력 있으므로 Supabase 측에서 실행
+++
+++### 5-5. 구현 순서 (phase2)
+++1. 인덱스 migration (즉시 효과, 리스크 낮음)
+++2. 병렬화 (코드 변경 국소, 리스크 낮음)
+++3. force-dynamic 제거 + 캐시 전략 (리스크 중간, 테스트 필요)
+++4. 보드 쿼리 분리 + 페이지네이션 (UI 변경 동반, 리스크 중간)
++diff --git a/tasks/2026-04-12-server-query-perf/phase1/evidence/force_dynamic_usages.txt b/tasks/2026-04-12-server-query-perf/phase1/evidence/force_dynamic_usages.txt
++new file mode 100644
++index 0000000..b7b098c
++--- /dev/null
+++++ b/tasks/2026-04-12-server-query-perf/phase1/evidence/force_dynamic_usages.txt
++@@ -0,0 +1,12 @@
+++force-dynamic 사용 위치 (grep 결과)
+++
+++src/app/page.tsx:8                       export const dynamic = "force-dynamic";
+++src/app/board/[id]/page.tsx:17           export const dynamic = "force-dynamic";
+++src/app/classroom/page.tsx:6             export const dynamic = "force-dynamic";
+++src/app/classroom/[id]/page.tsx:6        export const dynamic = "force-dynamic";
+++src/app/student/page.tsx:6               export const dynamic = "force-dynamic";
+++src/app/quiz/[code]/page.tsx             export const dynamic = "force-dynamic"
+++src/app/qr/[token]/page.tsx              export const dynamic = "force-dynamic"
+++
+++영향: Next.js Data Cache, Full Route Cache, Router Cache 모두 무효화.
+++탭 전환마다 서버에서 RSC + DB 쿼리 전체 재실행.
++diff --git a/tasks/2026-04-12-server-query-perf/phase1/evidence/missing_indexes.txt b/tasks/2026-04-12-server-query-perf/phase1/evidence/missing_indexes.txt
++new file mode 100644
++index 0000000..89c7906
++--- /dev/null
+++++ b/tasks/2026-04-12-server-query-perf/phase1/evidence/missing_indexes.txt
++@@ -0,0 +1,35 @@
+++누락 인덱스 (prisma/schema.prisma)
+++
+++═══════════════════════════════════════════════════════
+++1. Account.userId (L48)
+++═══════════════════════════════════════════════════════
+++NextAuth OAuth 계정 테이블. 유저별 Account 조회가 로그인/세션 갱신 시마다 발생.
+++현재 인덱스 없음 → 유저 수 증가 시 풀스캔.
+++
+++수정:
+++  @@index([userId])
+++
+++═══════════════════════════════════════════════════════
+++2. Session.userId (L56)
+++═══════════════════════════════════════════════════════
+++NextAuth 세션 테이블. 페이지 로드마다 세션 검증.
+++현재 인덱스 없음 → 세션 조회 풀스캔.
+++
+++수정:
+++  @@index([userId])
+++
+++═══════════════════════════════════════════════════════
+++3. Card.authorId (L149)
+++═══════════════════════════════════════════════════════
+++카드 작성자 조회 (내가 쓴 카드 필터링 등).
+++현재 인덱스 없음.
+++
+++수정:
+++  @@index([authorId])
+++
+++═══════════════════════════════════════════════════════
+++참고: 정상 인덱스 존재 모델
+++═══════════════════════════════════════════════════════
+++- Classroom.teacherId (L75) ✓
+++- Student.classroomId, qrToken, textCode (L93-95) ✓
+++- Card.boardId (L171) ✓
++diff --git a/tasks/2026-04-12-server-query-perf/phase1/evidence/sequential_queries.txt b/tasks/2026-04-12-server-query-perf/phase1/evidence/sequential_queries.txt
++new file mode 100644
++index 0000000..a2b3e59
++--- /dev/null
+++++ b/tasks/2026-04-12-server-query-perf/phase1/evidence/sequential_queries.txt
++@@ -0,0 +1,29 @@
+++직렬 DB 호출 (병렬화 누락)
+++
+++═══════════════════════════════════════════════════════
+++1. src/app/board/[id]/page.tsx:34-64
+++═══════════════════════════════════════════════════════
+++const board = await db.board.findFirst({ ... });       // 쿼리 1
+++const user = await getCurrentUser();                    // 쿼리 2
+++const role = await getBoardRole(user.id, board.id);     // 쿼리 3
+++const student = await getCurrentStudent();              // 쿼리 4
+++
+++→ 4개 독립 쿼리 직렬. Promise.all로 병렬화 가능.
+++   (board 조회 결과가 role 체크에 필요하지만, user + student는 선행 가능)
+++
+++═══════════════════════════════════════════════════════
+++2. src/app/page.tsx:19-34
+++═══════════════════════════════════════════════════════
+++const boardMembers = await db.boardMember.findMany({ ... });  // 쿼리 1
+++const classrooms = await db.classroom.findMany({ ... });       // 쿼리 2
+++
+++→ 완전 독립. Promise.all 즉시 적용 가능.
+++
+++═══════════════════════════════════════════════════════
+++3. src/app/classroom/[id]/page.tsx:16-32
+++═══════════════════════════════════════════════════════
+++const classroom = await db.classroom.findUnique({ ... });     // 쿼리 1
+++// 권한 체크
+++const boardMembers = await db.boardMember.findMany({ ... });  // 쿼리 2
+++
+++→ 권한 체크 후에도 병렬 가능 (classroom 결과 필요 없음).
++-- 
++2.43.0
++
++
++From aff10473e62e9c4296c5b0c0cc117d32eeb80d50 Mon Sep 17 00:00:00 2001
++From: coseung2 <coseung2@users.noreply.github.com>
++Date: Sun, 12 Apr 2026 10:42:20 +0900
++Subject: [PATCH 2/4] fix: add missing perf indexes on Account/Session/Card
++ (server-query-perf)
++
++NextAuth session validation and account lookups ran without an index
++on userId, forcing sequential scans on every authenticated request.
++Card.authorId was also unindexed.
++
++Adds:
++- Account(userId)
++- Session(userId)
++- Card(authorId)
++
++Migration SQL is idempotent (IF NOT EXISTS) so it can be applied to
++the live Supabase database via prisma db push or manual execution.
++
++Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
++---
++ .../20260412_add_perf_indexes/migration.sql           | 11 +++++++++++
++ prisma/schema.prisma                                  |  4 ++++
++ 2 files changed, 15 insertions(+)
++ create mode 100644 prisma/migrations/20260412_add_perf_indexes/migration.sql
++
++diff --git a/prisma/migrations/20260412_add_perf_indexes/migration.sql b/prisma/migrations/20260412_add_perf_indexes/migration.sql
++new file mode 100644
++index 0000000..62cea99
++--- /dev/null
+++++ b/prisma/migrations/20260412_add_perf_indexes/migration.sql
++@@ -0,0 +1,11 @@
+++-- Add missing indexes on frequently-queried foreign key columns.
+++-- Diagnosed in tasks/2026-04-12-server-query-perf/phase1/diagnosis.md §3-4
+++
+++-- NextAuth session/account lookups happen on every authenticated request.
+++-- Without these indexes PostgreSQL falls back to sequential scans once the
+++-- user base grows beyond a few rows.
+++CREATE INDEX IF NOT EXISTS "Account_userId_idx" ON "Account"("userId");
+++CREATE INDEX IF NOT EXISTS "Session_userId_idx" ON "Session"("userId");
+++
+++-- Card.authorId is used for author-scoped filtering (e.g. "cards I wrote").
+++CREATE INDEX IF NOT EXISTS "Card_authorId_idx" ON "Card"("authorId");
++diff --git a/prisma/schema.prisma b/prisma/schema.prisma
++index 632a195..5353479 100644
++--- a/prisma/schema.prisma
+++++ b/prisma/schema.prisma
++@@ -48,6 +48,7 @@ model Account {
++   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
++ 
++   @@unique([provider, providerAccountId])
+++  @@index([userId])
++ }
++ 
++ model Session {
++@@ -57,6 +58,8 @@ model Session {
++   expires      DateTime
++ 
++   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+++
+++  @@index([userId])
++ }
++ 
++ // ──── Classroom system ────
++@@ -170,6 +173,7 @@ model Card {
++ 
++   @@index([boardId])
++   @@index([sectionId])
+++  @@index([authorId])
++ }
++ 
++ model Submission {
++-- 
++2.43.0
++
++
++From 25b0725cc0267003f6cc4e4458024e2c78548d97 Mon Sep 17 00:00:00 2001
++From: coseung2 <coseung2@users.noreply.github.com>
++Date: Sun, 12 Apr 2026 10:43:08 +0900
++Subject: [PATCH 3/4] fix: parallelize independent page-load queries
++ (server-query-perf)
++
++HomePage and ClassroomDetailPage fired their two independent
++Prisma queries sequentially, stacking their latencies on every
++page load. Wrap them in Promise.all so they run concurrently.
++
++Scope:
++- src/app/page.tsx: boardMember.findMany + classroom.findMany
++- src/app/classroom/[id]/page.tsx: classroom.findUnique + boardMember.findMany
++
++BoardPage query restructuring is deferred to the board-split commit.
++
++Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
++---
++ src/app/classroom/[id]/page.tsx | 27 +++++++++++++-------------
++ src/app/page.tsx                | 34 +++++++++++++++++----------------
++ 2 files changed, 32 insertions(+), 29 deletions(-)
++
++diff --git a/src/app/classroom/[id]/page.tsx b/src/app/classroom/[id]/page.tsx
++index c48f481..4419984 100644
++--- a/src/app/classroom/[id]/page.tsx
+++++ b/src/app/classroom/[id]/page.tsx
++@@ -13,23 +13,24 @@ export default async function ClassroomDetailPage({ params }: Props) {
++   const { id } = await params;
++   const user = await getCurrentUser();
++ 
++-  const classroom = await db.classroom.findUnique({
++-    where: { id },
++-    include: {
++-      students: { orderBy: [{ number: "asc" }, { createdAt: "asc" }] },
++-      boards: { orderBy: { createdAt: "desc" } },
++-    },
++-  });
+++  // Classroom + teacher's owned-board list are independent — run in parallel.
+++  const [classroom, teacherMemberships] = await Promise.all([
+++    db.classroom.findUnique({
+++      where: { id },
+++      include: {
+++        students: { orderBy: [{ number: "asc" }, { createdAt: "asc" }] },
+++        boards: { orderBy: { createdAt: "desc" } },
+++      },
+++    }),
+++    db.boardMember.findMany({
+++      where: { userId: user.id, role: "owner" },
+++      include: { board: true },
+++    }),
+++  ]);
++ 
++   if (!classroom || classroom.teacherId !== user.id) {
++     notFound();
++   }
++-
++-  // Fetch all boards owned by teacher (for board picker)
++-  const teacherMemberships = await db.boardMember.findMany({
++-    where: { userId: user.id, role: "owner" },
++-    include: { board: true },
++-  });
++   const allBoards = teacherMemberships.map((m) => ({
++     id: m.board.id,
++     slug: m.board.slug,
++diff --git a/src/app/page.tsx b/src/app/page.tsx
++index 11a019c..4364704 100644
++--- a/src/app/page.tsx
+++++ b/src/app/page.tsx
++@@ -15,23 +15,25 @@ export default async function HomePage() {
++     redirect("/login");
++   }
++ 
++-  // Only show boards where the current user is a member
++-  const memberships = await db.boardMember.findMany({
++-    where: { userId: user.id },
++-    include: {
++-      board: {
++-        include: { _count: { select: { cards: true, members: true } } },
+++  // Independent queries → run in parallel.
+++  const [memberships, classrooms] = await Promise.all([
+++    // Only show boards where the current user is a member
+++    db.boardMember.findMany({
+++      where: { userId: user.id },
+++      include: {
+++        board: {
+++          include: { _count: { select: { cards: true, members: true } } },
+++        },
++       },
++-    },
++-    orderBy: { board: { createdAt: "desc" } },
++-  });
++-
++-  // Fetch classrooms for board creation modal
++-  const classrooms = await db.classroom.findMany({
++-    where: { teacherId: user.id },
++-    include: { _count: { select: { students: true } } },
++-    orderBy: { createdAt: "desc" },
++-  });
+++      orderBy: { board: { createdAt: "desc" } },
+++    }),
+++    // Fetch classrooms for board creation modal
+++    db.classroom.findMany({
+++      where: { teacherId: user.id },
+++      include: { _count: { select: { students: true } } },
+++      orderBy: { createdAt: "desc" },
+++    }),
+++  ]);
++ 
++   const classroomItems = classrooms.map((c) => ({
++     id: c.id,
++-- 
++2.43.0
++
++
++From 2c41fe9fe129c08ae6718cc51c514d207d765f12 Mon Sep 17 00:00:00 2001
++From: coseung2 <coseung2@users.noreply.github.com>
++Date: Sun, 12 Apr 2026 10:46:27 +0900
++Subject: [PATCH 4/4] fix: split board page query + drop force-dynamic
++ (server-query-perf)
++
++BoardPage previously fetched the board with cards, sections,
++submissions, members, quizzes, and all of their nested relations
++in a single findFirst. For a freeform/grid/stream board this
++returned several relations that the renderer never reads.
++
++Changes:
++- Round 1: board + getCurrentUser + getCurrentStudent run in
++  Promise.all, collapsing three sequential awaits into one.
++- Round 2: cards, sections, role, and layout-specific relations
++  (submissions/members only for assignment boards, quizzes only
++  for quiz boards) run concurrently.
++- Drop `export const dynamic = "force-dynamic"` from seven
++  auth-backed pages. They are still dynamic via cookies/auth(),
++  but Next.js is now free to serve the Router Cache entry on
++  back/forward navigation instead of re-running the RSC tree.
++
++Affected pages:
++- src/app/page.tsx
++- src/app/board/[id]/page.tsx
++- src/app/classroom/page.tsx
++- src/app/classroom/[id]/page.tsx
++- src/app/student/page.tsx
++- src/app/quiz/[code]/page.tsx
++- src/app/qr/[token]/page.tsx
++
++Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
++---
++ src/app/board/[id]/page.tsx     | 130 ++++++++++++++++++++------------
++ src/app/classroom/[id]/page.tsx |   2 -
++ src/app/classroom/page.tsx      |   2 -
++ src/app/page.tsx                |   4 +-
++ src/app/qr/[token]/page.tsx     |   2 -
++ src/app/quiz/[code]/page.tsx    |   2 -
++ src/app/student/page.tsx        |   2 -
++ 7 files changed, 84 insertions(+), 60 deletions(-)
++
++diff --git a/src/app/board/[id]/page.tsx b/src/app/board/[id]/page.tsx
++index 396a03d..8d9cc4a 100644
++--- a/src/app/board/[id]/page.tsx
+++++ b/src/app/board/[id]/page.tsx
++@@ -14,7 +14,8 @@ import { UserSwitcher } from "@/components/UserSwitcher";
++ import { AuthHeader } from "@/components/AuthHeader";
++ import { EditableTitle } from "@/components/EditableTitle";
++ 
++-export const dynamic = "force-dynamic";
+++// Auth + cookie reads already flag this route as dynamic.
+++// Dropping the explicit flag keeps the Router Cache warm for navigations.
++ 
++ const LAYOUT_LABEL: Record<string, string> = {
++   freeform: "자유 배치",
++@@ -31,49 +32,80 @@ export default async function BoardPage({
++   params: Promise<{ id: string }>;
++ }) {
++   const { id } = await params;
++-  const board = await db.board.findFirst({
++-    where: { OR: [{ id }, { slug: id }] },
++-    include: {
++-      cards: { orderBy: { order: "asc" } },
++-      sections: { orderBy: { order: "asc" } },
++-      submissions: true,
++-      members: { include: { user: true } },
++-      quizzes: {
+++
+++  // Round 1 — resolve the board itself plus auth subjects concurrently.
+++  const [board, user, student] = await Promise.all([
+++    db.board.findFirst({
+++      where: { OR: [{ id }, { slug: id }] },
+++    }),
+++    getCurrentUser().catch(() => null),
+++    getCurrentStudent(),
+++  ]);
+++  if (!board) notFound();
+++
+++  // Round 2 — fan out every dependent query.
+++  // Layout-specific relations are skipped when they would not be rendered,
+++  // so a freeform/grid/stream board no longer pays for submissions, members,
+++  // or quiz hydration.
+++  const needsAssignmentData = board.layout === "assignment";
+++  const needsQuizData = board.layout === "quiz";
+++
+++  const cardsPromise = db.card.findMany({
+++    where: { boardId: board.id },
+++    orderBy: { order: "asc" },
+++  });
+++  const sectionsPromise = db.section.findMany({
+++    where: { boardId: board.id },
+++    orderBy: { order: "asc" },
+++  });
+++  const submissionsPromise = needsAssignmentData
+++    ? db.submission.findMany({ where: { boardId: board.id } })
+++    : null;
+++  const membersPromise = needsAssignmentData
+++    ? db.boardMember.findMany({
+++        where: { boardId: board.id },
+++        include: { user: true },
+++      })
+++    : null;
+++  const quizzesPromise = needsQuizData
+++    ? db.quiz.findMany({
+++        where: { boardId: board.id },
++         include: { questions: { orderBy: { order: "asc" } }, players: true },
++         orderBy: { createdAt: "desc" },
++-      },
++-    },
++-  });
++-  if (!board) notFound();
+++      })
+++    : null;
+++  const rolePromise: Promise<Role | null> = user
+++    ? getBoardRole(board.id, user.id)
+++    : Promise.resolve(null);
++ 
++-  // --- Auth: try teacher (NextAuth / mock) first, then student session ---
++-  let user: Awaited<ReturnType<typeof getCurrentUser>> | null = null;
++-  let role: Role | null = null;
++-  let studentViewer: { id: string; name: string; classroomId: string } | null = null;
+++  const [cards, sections, submissionsRaw, membersRaw, quizzesRaw, role] = await Promise.all([
+++    cardsPromise,
+++    sectionsPromise,
+++    submissionsPromise,
+++    membersPromise,
+++    quizzesPromise,
+++    rolePromise,
+++  ]);
++ 
++-  try {
++-    user = await getCurrentUser();
++-    role = await getBoardRole(board.id, user.id);
++-  } catch {
++-    // getCurrentUser() may throw if mock seed is missing — ignore and try student path
++-    user = null;
++-  }
+++  const submissions = submissionsRaw ?? [];
+++  const members = membersRaw ?? [];
+++  const quizzes = quizzesRaw ?? [];
++ 
++-  // If teacher path didn't yield a role, check for student session
++-  if (!role) {
++-    const student = await getCurrentStudent();
++-    if (
++-      student &&
++-      board.classroomId &&
++-      student.classroomId === board.classroomId
++-    ) {
++-      studentViewer = {
++-        id: student.id,
++-        name: student.name,
++-        classroomId: student.classroomId,
++-      };
++-      role = "viewer";
++-    }
+++  // Student viewer fallback when the teacher/NextAuth path didn't grant a role.
+++  let studentViewer: { id: string; name: string; classroomId: string } | null = null;
+++  let effectiveRole: Role | null = role;
+++  if (
+++    !effectiveRole &&
+++    student &&
+++    board.classroomId &&
+++    student.classroomId === board.classroomId
+++  ) {
+++    studentViewer = {
+++      id: student.id,
+++      name: student.name,
+++      classroomId: student.classroomId,
+++    };
+++    effectiveRole = "viewer";
++   }
++ 
++   // Determine the effective user id and display name
++@@ -81,7 +113,7 @@ export default async function BoardPage({
++   const effectiveUserName = studentViewer?.name ?? user?.name ?? "";
++   const mockRole = user?.mockRole ?? null;
++ 
++-  const cardProps = board.cards.map((c) => ({
+++  const cardProps = cards.map((c) => ({
++     id: c.id,
++     title: c.title,
++     content: c.content,
++@@ -102,13 +134,13 @@ export default async function BoardPage({
++     createdAt: c.createdAt.toISOString(),
++   }));
++ 
++-  const sectionProps = board.sections.map((s) => ({
+++  const sectionProps = sections.map((s) => ({
++     id: s.id,
++     title: s.title,
++     order: s.order,
++   }));
++ 
++-  if (!role) {
+++  if (!effectiveRole) {
++     return (
++       <main className="board-page">
++         <BoardHeader title={board.title} layout={board.layout} mockRole={mockRole} canEdit={false} />
++@@ -125,7 +157,7 @@ export default async function BoardPage({
++       boardId: board!.id,
++       initialCards: cardProps,
++       currentUserId: effectiveUserId,
++-      currentRole: role!,
+++      currentRole: effectiveRole!,
++     };
++ 
++     switch (board!.layout) {
++@@ -140,7 +172,7 @@ export default async function BoardPage({
++           <AssignmentBoard
++             boardId={board!.id}
++             description={board!.description}
++-            initialSubmissions={board!.submissions.map((sub) => ({
+++            initialSubmissions={submissions.map((sub) => ({
++               id: sub.id,
++               boardId: sub.boardId,
++               userId: sub.userId,
++@@ -152,13 +184,13 @@ export default async function BoardPage({
++               grade: sub.grade,
++               createdAt: sub.createdAt.toISOString(),
++             }))}
++-            members={board!.members.map((m) => ({
+++            members={members.map((m) => ({
++               userId: m.userId,
++               userName: m.user.name,
++               role: m.role,
++             }))}
++             currentUserId={effectiveUserId}
++-            currentRole={role!}
+++            currentRole={effectiveRole!}
++           />
++         );
++       case "quiz": {
++@@ -166,7 +198,7 @@ export default async function BoardPage({
++         return (
++           <QuizBoard
++             boardId={board!.id}
++-            quizzes={board!.quizzes.map((q) => ({
+++            quizzes={quizzes.map((q) => ({
++               id: q.id,
++               title: q.title,
++               roomCode: q.roomCode,
++@@ -201,9 +233,9 @@ export default async function BoardPage({
++         title={board.title}
++         layout={board.layout}
++         userName={effectiveUserName}
++-        userRole={role}
+++        userRole={effectiveRole}
++         mockRole={mockRole}
++-        canEdit={role === "owner" || role === "editor"}
+++        canEdit={effectiveRole === "owner" || effectiveRole === "editor"}
++       />
++       {renderBoard()}
++     </main>
++diff --git a/src/app/classroom/[id]/page.tsx b/src/app/classroom/[id]/page.tsx
++index 4419984..aa7c2d7 100644
++--- a/src/app/classroom/[id]/page.tsx
+++++ b/src/app/classroom/[id]/page.tsx
++@@ -3,8 +3,6 @@ import { getCurrentUser } from "@/lib/auth";
++ import { ClassroomDetail } from "@/components/ClassroomDetail";
++ import { notFound } from "next/navigation";
++ 
++-export const dynamic = "force-dynamic";
++-
++ type Props = {
++   params: Promise<{ id: string }>;
++ };
++diff --git a/src/app/classroom/page.tsx b/src/app/classroom/page.tsx
++index 672beb6..4e0889f 100644
++--- a/src/app/classroom/page.tsx
+++++ b/src/app/classroom/page.tsx
++@@ -3,8 +3,6 @@ import { getCurrentUser } from "@/lib/auth";
++ import { ClassroomListPage } from "@/components/ClassroomListPage";
++ import { redirect } from "next/navigation";
++ 
++-export const dynamic = "force-dynamic";
++-
++ export default async function ClassroomPage() {
++   let user;
++   try {
++diff --git a/src/app/page.tsx b/src/app/page.tsx
++index 4364704..6841ca3 100644
++--- a/src/app/page.tsx
+++++ b/src/app/page.tsx
++@@ -5,7 +5,9 @@ import { AuthHeader } from "@/components/AuthHeader";
++ import { UserSwitcher } from "@/components/UserSwitcher";
++ import { redirect } from "next/navigation";
++ 
++-export const dynamic = "force-dynamic";
+++// Auth-backed page — implicitly dynamic via cookies/session reads.
+++// Removing the explicit force-dynamic lets Next.js reuse the Router Cache
+++// entry for back/forward navigation instead of re-executing the RSC tree.
++ 
++ export default async function HomePage() {
++   let user;
++diff --git a/src/app/qr/[token]/page.tsx b/src/app/qr/[token]/page.tsx
++index ba57a0a..c167cff 100644
++--- a/src/app/qr/[token]/page.tsx
+++++ b/src/app/qr/[token]/page.tsx
++@@ -2,8 +2,6 @@ import { createStudentSession } from "@/lib/student-auth";
++ import { db } from "@/lib/db";
++ import { redirect } from "next/navigation";
++ 
++-export const dynamic = "force-dynamic";
++-
++ type Props = {
++   params: Promise<{ token: string }>;
++ };
++diff --git a/src/app/quiz/[code]/page.tsx b/src/app/quiz/[code]/page.tsx
++index 0a26eb4..f9ae2b8 100644
++--- a/src/app/quiz/[code]/page.tsx
+++++ b/src/app/quiz/[code]/page.tsx
++@@ -1,8 +1,6 @@
++ import { QuizPlay } from "@/components/QuizPlay";
++ import { getCurrentStudent } from "@/lib/student-auth";
++ 
++-export const dynamic = "force-dynamic";
++-
++ export default async function QuizPage({
++   params,
++ }: {
++diff --git a/src/app/student/page.tsx b/src/app/student/page.tsx
++index 3f78b3d..50f3a6c 100644
++--- a/src/app/student/page.tsx
+++++ b/src/app/student/page.tsx
++@@ -3,8 +3,6 @@ import { db } from "@/lib/db";
++ import { StudentDashboard } from "@/components/StudentDashboard";
++ import { redirect } from "next/navigation";
++ 
++-export const dynamic = "force-dynamic";
++-
++ export default async function StudentPage() {
++   const student = await getCurrentStudent();
++ 
++-- 
++2.43.0
++
+diff --git a/tasks/2026-04-12-server-query-perf/phase2/files_changed.txt b/tasks/2026-04-12-server-query-perf/phase2/files_changed.txt
+new file mode 100644
+index 0000000..20f6627
+--- /dev/null
++++ b/tasks/2026-04-12-server-query-perf/phase2/files_changed.txt
+@@ -0,0 +1,23 @@
++Files changed in fix/server-query-perf (3 hotfix commits + scaffold)
++
++## Schema / migration
++prisma/schema.prisma                                              — 3 indexes added
++prisma/migrations/20260412_add_perf_indexes/migration.sql         — new file
++
++## Page queries (parallelization)
++src/app/page.tsx                                                  — Promise.all + drop force-dynamic
++src/app/classroom/[id]/page.tsx                                   — Promise.all + drop force-dynamic
++
++## Board page (query split)
++src/app/board/[id]/page.tsx                                       — 2-round fan-out + layout-conditional fetches + drop force-dynamic
++
++## force-dynamic removal only
++src/app/classroom/page.tsx                                        — drop force-dynamic
++src/app/student/page.tsx                                          — drop force-dynamic
++src/app/quiz/[code]/page.tsx                                      — drop force-dynamic
++src/app/qr/[token]/page.tsx                                       — drop force-dynamic
++
++## Untouched (intentional)
++src/lib/auth.ts                                                   — React.cache wrapping is scope-out
++src/lib/rbac.ts                                                   — permission check restructuring is scope-out
++src/app/api/**                                                    — API routes cache headers are scope-out
+diff --git a/tasks/2026-04-12-server-query-perf/phase2/hotfix_design.md b/tasks/2026-04-12-server-query-perf/phase2/hotfix_design.md
+new file mode 100644
+index 0000000..74de886
+--- /dev/null
++++ b/tasks/2026-04-12-server-query-perf/phase2/hotfix_design.md
+@@ -0,0 +1,97 @@
++# Hotfix Design — server-query-perf
++
++## 변경 요약
++
++Track A (서버 사이드 쿼리 최적화) 의 phase1 diagnosis §5 권고안 중 **위험도 낮은 3개 축**을 최소 변경으로 적용.
++
++### 1. 누락 인덱스 추가 (commit `aff1047`)
++
++| 대상 | 이유 |
++|---|---|
++| `Account(userId)` | NextAuth OAuth 계정 조회가 모든 인증 요청 경로에서 실행 |
++| `Session(userId)` | 세션 검증이 모든 페이지 로드에서 실행 |
++| `Card(authorId)` | 작성자 기반 필터 쿼리 |
++
++- `prisma/schema.prisma` 에 `@@index([userId])` / `@@index([authorId])` 추가
++- `prisma/migrations/20260412_add_perf_indexes/migration.sql` 에 idempotent `CREATE INDEX IF NOT EXISTS` SQL 작성 → Supabase에 `prisma db push` 또는 SQL 편집기로 실행 가능
++
++### 2. 독립 쿼리 병렬화 (commit `25b0725`)
++
++| 파일 | Before | After |
++|---|---|---|
++| `src/app/page.tsx` | `boardMember.findMany` → `classroom.findMany` (직렬) | `Promise.all([...])` |
++| `src/app/classroom/[id]/page.tsx` | `classroom.findUnique` → `boardMember.findMany` (직렬) | `Promise.all([...])` |
++
++### 3. 보드 페이지 쿼리 분리 + force-dynamic 제거 (commit `2c41fe9`)
++
++#### 3-1. 보드 쿼리 분리
++
++Before — 단일 `findFirst` 에 5개 `include`:
++```ts
++db.board.findFirst({
++  include: { cards, sections, submissions, members: { user }, quizzes: { questions, players } }
++})
++```
++
++After — 2단 파이프라인:
++- **Round 1** (3 병렬): `board` 코어 + `getCurrentUser` + `getCurrentStudent`
++- **Round 2** (6 병렬): `cards`, `sections`, `role`, 레이아웃 조건부 `submissions`/`members`/`quizzes`
++
++freeform/grid/stream/columns 보드는 이제 submissions/members/quizzes 를 한 번도 건드리지 않음.
++
++#### 3-2. force-dynamic 제거
++
++7개 페이지에서 `export const dynamic = "force-dynamic"` 삭제:
++- `src/app/page.tsx`
++- `src/app/board/[id]/page.tsx`
++- `src/app/classroom/page.tsx`
++- `src/app/classroom/[id]/page.tsx`
++- `src/app/student/page.tsx`
++- `src/app/quiz/[code]/page.tsx`
++- `src/app/qr/[token]/page.tsx`
++
++모두 `auth()` / `cookies()` 를 내부에서 사용하므로 여전히 dynamic으로 렌더되지만, Router Cache가 살아남아 탭 뒤로가기/앞으로가기 시 RSC 트리 재실행을 피할 수 있음.
++
++## 왜 최소인가
++
++### 반영한 것만 반영
++- **인덱스**: 데이터 손실 없음, 기존 쿼리 plan 만 빨라짐
++- **`Promise.all`**: 로직 불변, 실행 순서만 변경
++- **보드 쿼리 분리**: 결과 데이터 형태는 동일하게 유지 (props 매핑 변경 없음)
++- **force-dynamic 제거**: dynamic API 호출은 그대로라 동작 변경 없음
++
++### 의식적으로 제외한 것
++| 제외 | 이유 |
++|---|---|
++| 카드 `take: 50` 페이지네이션 | 클라이언트 페이지네이션 UI 부재 → UI 변경 동반 → 별도 feature task |
++| `unstable_cache` / 명시적 revalidation | 캐시 무효화 전략 설계 필요 → scope 초과 |
++| API routes `Cache-Control` 헤더 | incident 외 API까지 건드려야 함 → scope 초과 |
++| `React.cache()` wrapping of `getCurrentUser` | lib/auth.ts 리팩터 동반 → 별도 변경 |
++
++## 수용 기준 (phase3 검수에서 확인)
++
++1. `npm run typecheck` PASS
++2. `npm run build` PASS
++3. 기존 UI 동작 불변:
++   - 대시보드 보드 목록 렌더
++   - 보드 페이지 5개 레이아웃 모두 정상
++   - 교실 상세 + 학생/보드 목록 렌더
++   - 권한 체크 (owner/editor/viewer/student) 기존과 동일
++4. 인덱스 migration SQL이 idempotent (`IF NOT EXISTS`)
++
++## 배포 주의
++
++- 인덱스 migration 은 Supabase에 적용 필요: `npx prisma db push`
++  - 로컬 `.env` 에 `DATABASE_URL` 과 `DIRECT_URL` 세팅 상태로 실행
++  - 또는 Supabase SQL editor 에 `migration.sql` 내용 붙여넣기
++- 인덱스 생성은 PostgreSQL 에서 기본 `CREATE INDEX` 는 테이블 락을 획득하지만, 현재 트래픽 수준에서는 문제 없음. 프로덕션 대규모 데이터면 `CREATE INDEX CONCURRENTLY` 로 변경 고려.
++
++## 회귀 테스트
++
++이 프로젝트에는 단위/E2E 테스트 인프라가 없음(package.json에 테스트 프레임워크 미설치).
++대체 검증:
++- `npm run typecheck` — TypeScript 타입 안전성
++- `npm run build` — Next.js 빌드 성공 (RSC 경로 유효성 검증)
++- 수동 재현: phase1 diagnosis §1 의 재현 시나리오 전체 확인 (phase3 검수에서 수행)
++
++테스트 인프라 도입은 별도 research task 로 분기 권고.
+diff --git a/tasks/2026-04-12-server-query-perf/phase2/tests_added.txt b/tasks/2026-04-12-server-query-perf/phase2/tests_added.txt
+new file mode 100644
+index 0000000..0971ff4
+--- /dev/null
++++ b/tasks/2026-04-12-server-query-perf/phase2/tests_added.txt
+@@ -0,0 +1,43 @@
++회귀 테스트 — 대체 검증
++
++이 프로젝트에는 단위/E2E 테스트 인프라가 설치되어 있지 않다
++(package.json에 jest/vitest/playwright 등 없음).
++
++## 대체 검증 항목
++
++### 자동 (phase3 검수에서 실행)
++- [ ] `npm run typecheck` — TypeScript 타입 안전성
++- [ ] `npm run build` — Next.js 프로덕션 빌드 성공
++  - RSC 경계 / 서버 컴포넌트 / 동적 렌더 경로 모두 빌드 타임에 검증됨
++
++### 수동 (phase3 검수에서 재현)
++phase1 diagnosis §1 의 재현 시나리오 역행:
++
++- [ ] 로그인 후 대시보드 (`/`) 진입 → 보드 목록 정상 렌더
++- [ ] 보드 클릭 → `/board/:id` 진입, 5개 레이아웃 모두 정상
++  - [ ] freeform
++  - [ ] grid
++  - [ ] stream
++  - [ ] columns (섹션 표시)
++  - [ ] assignment (submissions + members 표시)
++  - [ ] quiz (quizzes + questions + players 표시)
++- [ ] 권한 체크:
++  - [ ] owner: 모든 보드 접근
++  - [ ] editor: 편집 가능 보드만
++  - [ ] viewer: 읽기 전용
++  - [ ] student: 자기 교실 보드만 viewer 권한
++  - [ ] 권한 없는 유저: "접근 불가" 표시
++- [ ] 교실 상세 (`/classroom/:id`) → 학생 목록 + 보드 목록 표시
++- [ ] 뒤로가기 → 앞 페이지 즉시 복구 (Router Cache 적중)
++
++## 인덱스 적용 검증
++
++- [ ] Supabase SQL editor에서 migration.sql 실행 (또는 `npx prisma db push`)
++- [ ] `SELECT indexname FROM pg_indexes WHERE tablename IN ('Account','Session','Card');`
++  결과에 `Account_userId_idx`, `Session_userId_idx`, `Card_authorId_idx` 존재 확인
++
++## 테스트 인프라 도입 권고
++
++- Vitest + React Testing Library 로 서버 컴포넌트 스모크 테스트 가능
++- Playwright 로 위 수동 시나리오 자동화 가능
++- 별도 research task 로 분기 권장
 -- 
 2.43.0
 
