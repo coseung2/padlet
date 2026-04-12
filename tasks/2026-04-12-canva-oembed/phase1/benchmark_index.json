@@ -1,0 +1,61 @@
+{
+  "references": [
+    {
+      "id": "canva-oembed-official",
+      "name": "Canva oEmbed endpoint (official)",
+      "url": "https://www.canva.dev/blog/developers/new-canva-oembed-endpoint/",
+      "type": "docs",
+      "relevance": "Canonical endpoint announcement"
+    },
+    {
+      "id": "canva-embed-engineering",
+      "name": "How Canva makes content embeddable",
+      "url": "https://www.canva.dev/blog/engineering/how-canva-makes-content-embeddable-and-why-you-should-too/",
+      "type": "docs",
+      "relevance": "Auto-discovery + caching strategy"
+    },
+    {
+      "id": "canva-embed-help",
+      "name": "Embedding designs — Canva Help Center",
+      "url": "https://www.canva.com/help/embed-designs/",
+      "type": "docs",
+      "relevance": "User-side share flow + privacy behaviour"
+    },
+    {
+      "id": "canva-embed-landing",
+      "name": "Canva Embeds product page",
+      "url": "https://www.canva.com/embeds/",
+      "type": "product-page",
+      "relevance": "Marketing description of supported surfaces"
+    },
+    {
+      "id": "iframely-canva",
+      "name": "Iframely Canva domain profile",
+      "url": "https://iframely.com/domains/canva",
+      "type": "third-party-spec",
+      "relevance": "Concrete iframe src pattern and 16:9 wrapper"
+    },
+    {
+      "id": "embedly-canva",
+      "name": "Embed.ly Canva provider",
+      "url": "https://embed.ly/provider/canva",
+      "type": "third-party-spec",
+      "relevance": "Secondary validation of URL patterns"
+    },
+    {
+      "id": "notion-embed-ux",
+      "name": "Notion Padlet-like board benchmark (via G2)",
+      "url": "https://www.g2.com/products/padlet/competitors/alternatives",
+      "type": "benchmark",
+      "relevance": "Friction comparison — oEmbed paste vs. app install"
+    }
+  ],
+  "local_refs": [
+    "canva project/plans/implementation-roadmap.md#p0-①-oembed-라이브-canva-카드",
+    "canva project/research/canva-developer-aura-research.md",
+    "src/lib/canva.ts",
+    "src/components/CardAttachments.tsx",
+    "src/app/api/link-preview/route.ts"
+  ],
+  "note": "gstack /browse 미설치로 직접 스크린샷 미수집. Canva oEmbed 는 공개 docs + iframely/embedly 응답 구조로 사양 검증됨. 실제 iframe 동작은 phase9 QA 에서 브라우저 확인."
+}
