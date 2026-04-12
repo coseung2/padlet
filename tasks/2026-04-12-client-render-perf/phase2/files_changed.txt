@@ -1,0 +1,17 @@
+Files changed in fix/client-render-perf (5 hotfix commits + scaffold)
+
+## Components
+src/components/AddStudentsModal.tsx        — dynamic XLSX import, onAdded(students) callback
+src/components/ClassroomDetail.tsx         — optimistic student merge, router.refresh removed
+src/components/ColumnsBoard.tsx            — useMemo(cardsBySection), classList for drag state
+src/components/CardAttachments.tsx         — React.memo wrapping
+
+## Styles
+src/styles/boards.css                      — .column-card.is-dragging rule
+src/styles/modal.css                       — @keyframes attachIn → scaleY/opacity
+
+## Untouched (intentional)
+src/components/DraggableCard.tsx           — React.memo requires API change (scope-out)
+src/components/Dashboard.tsx               — inline-style refactor is scope-out
+src/components/QuizBoard.tsx               — belongs to quiz-sse-perf track
+src/components/QuizPlay.tsx                — belongs to quiz-sse-perf track

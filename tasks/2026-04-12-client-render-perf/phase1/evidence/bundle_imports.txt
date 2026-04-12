@@ -1,0 +1,22 @@
+번들 관련 import 분석
+
+═══════════════════════════════════════════════════════
+정적 import — 번들 포함됨 (문제)
+═══════════════════════════════════════════════════════
+src/components/AddStudentsModal.tsx:3
+  import * as XLSX from "xlsx";
+  → ~400KB minified, 모달 열지 않아도 포함
+
+═══════════════════════════════════════════════════════
+동적 import — 번들 분할됨 (OK 패턴)
+═══════════════════════════════════════════════════════
+src/components/StudentQRCard.tsx
+  import("jspdf")
+  import("qrcode")
+src/components/QRPrintSheet.tsx
+  import("jspdf")
+  import("qrcode")
+src/components/ClassroomDetail.tsx:380
+  import("qrcode")  — 단, 500회 실행으로 효과 상쇄
+
+→ AddStudentsModal의 XLSX도 동일 패턴으로 전환 권장.
