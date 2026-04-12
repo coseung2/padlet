@@ -19,11 +19,13 @@
           "position": "relative",
           "width": "100%",
           "padding-bottom": "56.25%",
+          "min-height": "90px",
           "background": "var(--color-bg)",
           "border-radius": "8px",
-          "overflow": "hidden"
+          "overflow": "hidden",
+          "margin-bottom": "8px"
         },
-        "rationale": "16:9 responsive wrapper matching existing .card-attach-video aspect-ratio pattern; reuses --color-bg and the same 8px radius as .card-attach-image for visual consistency."
+        "rationale": "16:9 responsive wrapper matching existing .card-attach-video aspect-ratio pattern; reuses --color-bg and the same 8px radius as .card-attach-image for visual consistency. margin-bottom: 8px aligns with sibling .card-attach-image / .card-attach-video wrappers so Canva cards have the same vertical rhythm as YouTube / image cards. min-height: 90px guards the freeform-board edge case (very narrow cards) where 56.25% padding could collapse the iframe below a usable height; on all normal grid/column layouts (card width >= 240px) the padding-bottom dominates and this floor is never hit."
       },
       {
         "selector": ".card-canva-embed > img, .card-canva-embed > iframe",
@@ -76,6 +78,7 @@
   "react_contract_notes": {
     "state_toggle": "Component sets wrapper attribute `data-loaded=\"true\"` via React prop in onLoad handler. Using the attribute rather than class avoids memo contract breakage and keeps styling declarative.",
     "dom_order": "img BEFORE iframe in JSX so paint order naturally stacks iframe below img without explicit z-index (keeps CSS minimal).",
+    "iframe_lazy": "iframe element MUST include `loading=\"lazy\"` so off-screen Canva embeds defer network until the card enters viewport. Matches phase3 big-board-performance compromise note and reduces concurrent iframe cost on boards with >10 Canva cards.",
     "no_new_tokens": "No new CSS custom properties are introduced. If future live-embed types (Figma, GeoGebra, etc.) land, promote .card-canva-embed to a generic .card-live-embed in a separate task.",
     "no_dangerously_set_inner_html": "Per phase3 §5-6, the oEmbed `html` field is never used; iframe is rendered as JSX so no XSS vector is introduced."
   },

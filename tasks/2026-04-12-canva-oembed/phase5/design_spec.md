@@ -46,11 +46,14 @@ phase: 5 (designer → handoff to phase6 검수)
         ├── <img.card-canva-thumb>        ← z-index:2, fade-to-0 on load
         └── <iframe>                      ← z-index:1 (inferred by paint order)
                                             src=".../view?embed&meta"
+                                            loading="lazy" (off-screen deferral)
 ```
 
 - 썸네일과 iframe 모두 `position: absolute; inset: 0` 으로 wrapper 를 가득 채움.
 - wrapper 는 `padding-bottom: 56.25%` 로 16:9 유지 (CSS-only, JS 레이아웃 계산 없음).
 - 썸네일 transition 은 `opacity` 만 — layout/composite 안전 (기존 `.modal-attach-section` 과 동일 전략).
+- **사이블링 간격 일치**: wrapper 는 `margin-bottom: 8px` 을 적용해 기존 `.card-attach-image` / `.card-attach-video` 와 동일한 수직 리듬을 유지. 카드 내 첨부 + 본문 간 여백이 YouTube/이미지 카드와 시각적으로 같아진다.
+- **최소 크기 가드**: freeform 보드의 매우 작은 카드(카드 width < 160px)에서도 iframe 이 사용 가능하도록 wrapper 에 `min-height: 90px` 을 둔다. 16:9 비율은 유지하되, 초소형 카드에서 세로가 0 에 가까워지는 엣지 케이스를 차단. 일반 grid/column 레이아웃(기본 카드 width ≥ 240px)에서는 `padding-bottom: 56.25%` 가 지배하므로 시각 변화 없음.
 
 ---
 
@@ -110,7 +113,10 @@ phase: 5 (designer → handoff to phase6 검수)
 | §4 키보드 focus: iframe `title` | ✓ phase3 §3-3 의사코드 `title={linkTitle}` |
 | §4 스크린리더: img `alt` | ✓ phase3 §3-3 의사코드 `alt={linkTitle ?? "Canva design"}` |
 | §4 `prefers-reduced-motion` | ✓ `tokens_patch.json` media query |
-| §5 토큰/컴포넌트 재사용, 신규 1개만 | ✓ `.card-canva-embed` 하나만 |
+| §5 토큰/컴포넌트 재사용, 신규 1개만 | ✓ `.card-canva-embed` 하나만 (스코프 내 descendants 포함) |
+| §3 iframe off-screen 로드 비용 완화 | ✓ `loading="lazy"` 속성 (대형 보드 performance 가드) |
+| 사이블링 간격 일관 | ✓ `margin-bottom: 8px` — `.card-attach-image/video` 와 동일 |
+| 초소형 카드 가드 | ✓ `min-height: 90px` — freeform 엣지 케이스 |
 
 ---
 
