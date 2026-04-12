@@ -228,6 +228,10 @@ model Card {
   linkDesc  String?
   linkImage String?
   videoUrl  String?
+  // External author label. When /api/external/cards is called with a student
+  // session cookie, Aura writes the student.name here so the board UI can
+  // show "작성: 가온" even though Card.authorId belongs to the teacher PAT owner.
+  externalAuthorName String?
   x         Float    @default(0)
   y         Float    @default(0)
   width     Float    @default(240)

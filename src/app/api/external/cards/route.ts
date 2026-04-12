@@ -147,6 +147,20 @@ export async function POST(req: Request) {
     }
   }
 
+  // Optional: read the Aura student session cookie (if the publisher is
+  // logged into Aura as a student in the same browser). This lets the card
+  // record "작성: 가온" via Card.externalAuthorName even though the token
+  // owner is the teacher. Gracefully falls back to null when cookie is
+  // absent, invalid, or belongs to a different classroom than the board.
+  let externalAuthorName: string | null = null;
+  try {
+    const { getCurrentStudent } = await import("@/lib/student-auth");
+    const student = await getCurrentStudent();
+    if (student) externalAuthorName = student.name;
+  } catch {
+    // ignore — student auth is an optional enrichment
+  }
+
   // [10+11] Atomically (best-effort): create the card first with null
   // imageUrl so we can key the blob path by cardId, then upload, then
   // update. On upload failure, we delete the empty card to avoid orphans.
@@ -157,6 +171,7 @@ export async function POST(req: Request) {
       title: input.title,
       content: "",
       imageUrl: null,
+      externalAuthorName,
       x: 0,
       y: 0,
       width: 240,
