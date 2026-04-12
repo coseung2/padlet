@@ -1,0 +1,30 @@
+{
+  "type": "feature",
+  "slug": "canva-publisher-receiver",
+  "task_id": "2026-04-12-canva-publisher-receiver",
+  "change_type": "hardening_extension",
+  "motivation": "aura-canva-app(Canva Content Publisher) client contract is frozen but Aura-board receiver side (padlet Next.js) lacks PAT-prefix auth, tier gating, 3-axis rate limit, streaming Blob upload, and teacher-managed token UI. v1 endpoint `/api/external/cards` + `ExternalAccessToken` exist (P0-② v1) but need hardening per Seed 8 (seed_26af361e92b7, ambiguity 0.121).",
+  "user_story": "교사로서 Aura-board 설정에서 PAT를 발급받아 Canva 앱에 등록하면, Canva에서 만든 디자인이 지정 보드의 카드로 자동 생성된다 — Pro tier 전용, rate-limited, 4MB 이하 스트리밍 업로드로.",
+  "success_metric": "Galaxy Tab S6 Lite PAT 생성 <10s, p95 upload <2000ms (3MB PNG), Free tier → 402 + upgrade CTA, 토큰 1회 노출 재표시 불가, 3-stage 마이그 Stage 1 applied (nullable tokenPrefix)",
+  "affected_surfaces": [
+    "POST /api/external/cards",
+    "GET/POST /api/tokens",
+    "DELETE /api/tokens/[id]",
+    "/(teacher)/settings/external-tokens (teacher UI)",
+    "src/lib/external-pat.ts",
+    "src/lib/rate-limit.ts",
+    "src/lib/blob.ts",
+    "src/lib/external-errors.ts",
+    "src/lib/tier.ts",
+    "prisma/schema.prisma (ExternalAccessToken.tokenPrefix nullable Stage 1)",
+    ".env.example (AURA_PAT_PEPPER, UPSTASH_*, BLOB_READ_WRITE_TOKEN, FREE_USER_IDS)"
+  ],
+  "context_refs": [
+    "INBOX/2026-04-12-canva-publisher-receiver/handoff_note.md",
+    "INBOX/2026-04-12-canva-publisher-receiver/decisions.md",
+    "canva project/plans/canva-publisher-receiver-roadmap.md"
+  ],
+  "acceptance_criteria_count": 15,
+  "cr_count": 10,
+  "created_at": "2026-04-12T13:20:00+09:00"
+}
