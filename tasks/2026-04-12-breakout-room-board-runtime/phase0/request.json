@@ -1,0 +1,20 @@
+{
+  "type": "feature",
+  "task_id": "2026-04-12-breakout-room-board-runtime",
+  "parent_task": "2026-04-12-breakout-room-board",
+  "seed_id": "seed_bb1d4eb1c442",
+  "scope": "BR-5 ~ BR-9 runtime + UX",
+  "blocks": [
+    "BR-5 deploy modes (link-fixed, self-select, teacher-assign)",
+    "BR-6 visibility WS gating (own-only, peek-others)",
+    "BR-7 teacher dashboard",
+    "BR-8 CSV roster import",
+    "BR-9 analytics + archive"
+  ],
+  "based_on": {
+    "branch_base": "main",
+    "foundation_commits": ["24cb887", "ce802a7", "41f34bb", "a967001", "d53e2e8"],
+    "foundation_entities": ["BreakoutTemplate", "BreakoutAssignment", "BreakoutMembership"],
+    "reuses": ["Section.accessToken", "sectionChannelKey", "viewSection", "cloneStructure"]
+  }
+}
