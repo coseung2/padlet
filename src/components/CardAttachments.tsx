@@ -27,6 +27,14 @@ export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl
 
   const ytId = videoUrl ? getYouTubeId(videoUrl) : null;
   const canvaDesignId = linkUrl ? extractCanvaDesignId(linkUrl) : null;
+  // Only render the live Canva iframe when the server's oEmbed resolver
+  // actually succeeded. A successful resolve always fills linkImage from
+  // oEmbed.thumbnail_url, so the absence of linkImage means the resolver
+  // returned null (timeout / private design / endpoint drift) and we
+  // should fall back to the generic card-link-preview instead of
+  // attempting an iframe that would leak a Canva login prompt or a
+  // blank area.
+  const canRenderCanvaEmbed = Boolean(canvaDesignId && linkImage);
 
   return (
     <div className="card-attachments">
@@ -50,7 +58,7 @@ export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl
           <video src={videoUrl} controls preload="metadata" />
         </div>
       )}
-      {linkUrl && canvaDesignId ? (
+      {linkUrl && canRenderCanvaEmbed && canvaDesignId ? (
         // key={designId} forces fresh iframeLoaded/iframeFailed state when
         // the card's linkUrl points to a different Canva design, so a
         // stale `failed` flag from the previous design doesn't stick.
