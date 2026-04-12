@@ -51,7 +51,11 @@ export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl
         </div>
       )}
       {linkUrl && canvaDesignId ? (
+        // key={designId} forces fresh iframeLoaded/iframeFailed state when
+        // the card's linkUrl points to a different Canva design, so a
+        // stale `failed` flag from the previous design doesn't stick.
         <CanvaEmbed
+          key={canvaDesignId}
           designId={canvaDesignId}
           linkUrl={linkUrl}
           linkTitle={linkTitle ?? null}

@@ -36,18 +36,22 @@ export async function POST(req: Request) {
     // Canva's oEmbed response so the render path can show a live iframe.
     // Any failure (non-Canva URL, private design, endpoint down) falls
     // through to the normal link-card flow.
+    //
+    // undefined = client did not send the field → fill from oEmbed.
+    // explicit null = client sent null on purpose → leave null.
     let linkUrl = input.linkUrl ?? null;
-    let linkTitle = input.linkTitle ?? null;
-    let linkImage = input.linkImage ?? null;
-    let linkDesc = input.linkDesc ?? null;
+    let linkTitle = input.linkTitle === undefined ? null : input.linkTitle;
+    let linkImage = input.linkImage === undefined ? null : input.linkImage;
+    let linkDesc = input.linkDesc === undefined ? null : input.linkDesc;
     if (linkUrl && isCanvaDesignUrl(linkUrl)) {
       const embed = await resolveCanvaEmbedUrl(linkUrl);
       if (embed) {
         linkUrl = `https://www.canva.com/design/${embed.designId}/view`;
-        linkTitle = linkTitle ?? embed.title;
-        linkImage = linkImage ?? embed.thumbnailUrl;
-        linkDesc =
-          linkDesc ?? (embed.authorName ? `by ${embed.authorName}` : null);
+        if (input.linkTitle === undefined) linkTitle = embed.title;
+        if (input.linkImage === undefined) linkImage = embed.thumbnailUrl;
+        if (input.linkDesc === undefined) {
+          linkDesc = embed.authorName ? `by ${embed.authorName}` : null;
+        }
       }
     }
 

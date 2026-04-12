@@ -318,7 +318,12 @@ export async function resolveCanvaDesignId(url: string): Promise<string | null> 
 
   if (url.includes("canva.link")) {
     try {
-      const res = await fetch(url, { redirect: "manual" });
+      // Short-link expansion — hard cap the redirect HEAD so a slow
+      // canva.link response cannot blow past the outer 3s oEmbed budget.
+      const res = await fetch(url, {
+        redirect: "manual",
+        signal: AbortSignal.timeout(2000),
+      });
       finalUrl = res.headers.get("location") ?? url;
     } catch {}
   }
@@ -390,28 +395,24 @@ export async function resolveCanvaEmbedUrl(
   // 2. Canonicalize to the /view URL so oEmbed responds consistently.
   const canonicalUrl = `https://www.canva.com/design/${designId}/view`;
 
-  // 3. Ask Canva's oEmbed endpoint. Short, hard timeout: the caller is on
-  //    the card-create hot path.
-  const endpoint = `https://www.canva.com/_oembed?url=${encodeURIComponent(
-    canonicalUrl
-  )}`;
+  // 3. Ask Canva's oEmbed endpoint. Canva is currently migrating from the
+  //    legacy www.canva.com path to api.canva.com — try the new endpoint
+  //    first and fall back to the legacy one. Each attempt has its own
+  //    short timeout so a stalled endpoint can't exhaust the budget twice.
+  const endpoints = [
+    `https://api.canva.com/_spi/presentation/_oembed?url=${encodeURIComponent(canonicalUrl)}`,
+    `https://www.canva.com/_oembed?url=${encodeURIComponent(canonicalUrl)}`,
+  ];
 
-  try {
-    const res = await fetch(endpoint, {
-      signal: AbortSignal.timeout(3000),
-      headers: {
-        "User-Agent": "Aura-board/1.0 (+https://aura-board-app.vercel.app)",
-      },
-    });
-    if (!res.ok) return null;
-
-    const body = (await res.json()) as Record<string, unknown>;
+  for (const endpoint of endpoints) {
+    const body = await fetchCanvaOEmbed(endpoint);
+    if (!body) continue;
 
     // 4. Validate — require a thumbnail and the "rich" type Canva actually
-    //    advertises. We intentionally ignore body.html to avoid any
-    //    dangerouslySetInnerHTML path.
-    if (body.type !== "rich") return null;
-    if (typeof body.thumbnail_url !== "string") return null;
+    //    advertises. Ignore body.html intentionally (no
+    //    dangerouslySetInnerHTML path — phase3 §5-6).
+    if (body.type !== "rich") continue;
+    if (typeof body.thumbnail_url !== "string") continue;
 
     return {
       iframeSrc: `https://www.canva.com/design/${designId}/view?embed&meta`,
@@ -422,6 +423,23 @@ export async function resolveCanvaEmbedUrl(
       height: Number(body.height ?? 900),
       designId,
     };
+  }
+
+  return null;
+}
+
+async function fetchCanvaOEmbed(
+  endpoint: string
+): Promise<Record<string, unknown> | null> {
+  try {
+    const res = await fetch(endpoint, {
+      signal: AbortSignal.timeout(3000),
+      headers: {
+        "User-Agent": "Aura-board/1.0 (+https://aura-board-app.vercel.app)",
+      },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as Record<string, unknown>;
   } catch {
     return null;
   }

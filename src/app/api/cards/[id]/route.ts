@@ -43,6 +43,10 @@ export async function PATCH(
 
     // URL-change guard: re-resolve Canva oEmbed only when linkUrl actually
     // changes. Drag / resize PATCHes skip the outbound fetch.
+    //
+    // Distinguish `undefined` (field not sent) from explicit `null` (user
+    // cleared the field) so a client that sends `{ linkTitle: null }` to
+    // blank the title is not silently overwritten with Canva metadata.
     const patch: typeof input = { ...input };
     if (
       typeof patch.linkUrl === "string" &&
@@ -52,10 +56,11 @@ export async function PATCH(
       const embed = await resolveCanvaEmbedUrl(patch.linkUrl);
       if (embed) {
         patch.linkUrl = `https://www.canva.com/design/${embed.designId}/view`;
-        patch.linkTitle = patch.linkTitle ?? embed.title;
-        patch.linkImage = patch.linkImage ?? embed.thumbnailUrl;
-        patch.linkDesc =
-          patch.linkDesc ?? (embed.authorName ? `by ${embed.authorName}` : null);
+        if (patch.linkTitle === undefined) patch.linkTitle = embed.title;
+        if (patch.linkImage === undefined) patch.linkImage = embed.thumbnailUrl;
+        if (patch.linkDesc === undefined) {
+          patch.linkDesc = embed.authorName ? `by ${embed.authorName}` : null;
+        }
       }
     }
 
