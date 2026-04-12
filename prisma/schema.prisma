@@ -30,6 +30,20 @@ model User {
   accounts     Account[]
   sessions     Session[]
   classrooms   Classroom[]
+  externalTokens ExternalAccessToken[]
+}
+
+model ExternalAccessToken {
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  tokenHash  String    @unique
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Account {

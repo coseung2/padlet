@@ -48,6 +48,22 @@ Live feature inventory. Update when merging feature tasks.
 - 신규 범용 프리미티브: `src/components/ui/SidePanel.tsx`
 - `plant/StageDetailSheet` 는 동일 `SidePanel` 을 사용하도록 리팩터 (props 시그니처 불변)
 
+## External API / Personal Access Tokens (2026-04-13, P0-②)
+- `POST /api/external/cards` — Canva 콘텐츠 퍼블리셔 등 외부 통합이 교사 토큰으로 카드 생성
+  - `Authorization: Bearer aura_pat_…` — 교사가 발급한 PAT
+  - zod 검증: `boardId`, `title` 필수 / `content`, `imageDataUrl`(PNG data URL ≤5MB), `linkUrl`, `canvaDesignId` 선택
+  - RBAC: board owner/editor만 허용, viewer → 403
+  - Rate limit: 토큰당 60/min (in-memory fixed window)
+  - 이미지: `BLOB_READ_WRITE_TOKEN` 있으면 Vercel Blob 업로드, 없으면 `public/uploads/` fallback
+  - Canva designId → 서버측 oEmbed 자동 보강(linkImage/linkTitle/linkDesc)
+- 교사 UI: `/account/tokens` — 발급 (라벨) / 리스트 (`lastUsedAt`) / 폐기
+  - 평문 토큰 1회 노출 (DB 는 SHA-256 해시만 저장, 키=`NEXTAUTH_SECRET`)
+  - 계정당 활성 토큰 최대 10개 → 초과 시 `token_limit_exceeded`
+- `POST /api/account/tokens` (발급), `DELETE /api/account/tokens/[id]` (폐기) — NextAuth 세션 필요
+- 신규 모델: `ExternalAccessToken { id, userId, name, tokenHash, lastUsedAt, revokedAt, createdAt }`
+- 문서: [docs/external-api.md](./external-api.md)
+- 블로커(외부 범위): Canva Apps SDK 프로젝트 + Developer Portal 등록은 사용자 외부 수행
+
 ## Board Settings Panel (2026-04-13)
 - 보드 헤더 `제목` 우측 **⚙ 버튼** — owner/editor 전용
 - 클릭 시 `BoardSettingsPanel` 우측 슬라이드 (`SidePanel` primitive 재사용)
