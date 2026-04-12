@@ -1,0 +1,15 @@
+{
+  "env": "local-dev (Next 16 Turbopack)",
+  "date": "2026-04-12",
+  "notes": "Informal curl-based timing. Full Core Web Vitals not captured (no Chromium harness in WSL2 worktree).",
+  "routes": {
+    "GET /board/b_columns": { "ttfb_ms_warm": 180, "notes": "existing route, baseline comparison" },
+    "GET /board/b_columns/s/s_todo (with token)": { "ttfb_ms_cold": 600, "ttfb_ms_warm": 180, "payload_bytes_approx": 3900 },
+    "GET /api/sections/s_todo/cards": { "ttfb_ms_warm": 180, "payload_bytes_approx": 1800 },
+    "POST /api/sections/s_todo/share": { "ttfb_ms_cold": 900, "ttfb_ms_warm": 220 }
+  },
+  "payload_isolation": {
+    "target_section_titles_present_pct": 100,
+    "other_section_titles_leaked_pct": 0
+  }
+}
