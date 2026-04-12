@@ -147,18 +147,44 @@ export async function POST(req: Request) {
     }
   }
 
-  // Optional: read the Aura student session cookie (if the publisher is
-  // logged into Aura as a student in the same browser). This lets the card
-  // record "작성: 가온" via Card.externalAuthorName even though the token
-  // owner is the teacher. Gracefully falls back to null when cookie is
-  // absent, invalid, or belongs to a different classroom than the board.
+  // [9.5] REQUIRED: student session. The Canva Content Publisher flow only
+  // makes sense when the card can be attributed to a real student — parent
+  // viewer filtering, per-child history, etc. all depend on it. If the
+  // student isn't logged into Aura in the same browser, fail loudly so the
+  // Canva app can prompt "Aura 로그인하기" instead of silently posting an
+  // anonymous card under the teacher's name.
+  // We ALSO require the student's classroom to match the board's classroom
+  // so a student from another class can't accidentally (or maliciously)
+  // post into a board they have no business writing in.
+  let studentAuthorId: string | null = null;
   let externalAuthorName: string | null = null;
   try {
     const { getCurrentStudent } = await import("@/lib/student-auth");
     const student = await getCurrentStudent();
-    if (student) externalAuthorName = student.name;
-  } catch {
-    // ignore — student auth is an optional enrichment
+    if (!student) {
+      return externalErrorResponse(
+        "student_session_required",
+        "Aura 학생 로그인이 필요해요. 학생 계정으로 로그인한 뒤 다시 시도하세요."
+      );
+    }
+    const boardForClassroom = await db.board.findUnique({
+      where: { id: board.id },
+      select: { classroomId: true },
+    });
+    if (
+      boardForClassroom?.classroomId &&
+      boardForClassroom.classroomId !== student.classroomId
+    ) {
+      return externalErrorResponse(
+        "forbidden",
+        "학생의 학급이 보드 학급과 달라요."
+      );
+    }
+    studentAuthorId = student.id;
+    externalAuthorName = student.name;
+  } catch (e) {
+    console.error("[POST /api/external/cards] student auth", e);
+    return externalErrorResponse("internal");
   }
 
   // [10+11] Atomically (best-effort): create the card first with null
@@ -168,6 +194,7 @@ export async function POST(req: Request) {
     data: {
       boardId: board.id,
       authorId: user.id,
+      studentAuthorId,
       title: input.title,
       content: "",
       imageUrl: null,

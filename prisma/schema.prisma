@@ -126,6 +126,7 @@ model Student {
   breakoutMemberships BreakoutMembership[]
   parents             ParentChildLink[]
   parentInvites       ParentInviteCode[]
+  cardsAuthored       Card[]               @relation("StudentCardAuthor")
 
   @@unique([classroomId, number])
   @@index([classroomId])
@@ -228,9 +229,13 @@ model Card {
   linkDesc  String?
   linkImage String?
   videoUrl  String?
-  // External author label. When /api/external/cards is called with a student
-  // session cookie, Aura writes the student.name here so the board UI can
-  // show "작성: 가온" even though Card.authorId belongs to the teacher PAT owner.
+  // Student author (when the card was published from the Canva Content
+  // Publisher app while the student was logged into Aura). Makes the card
+  // a first-class child artifact — parent viewer filters on this FK to show
+  // "내 자녀의 카드", and future reporting / ownership logic keys off here.
+  studentAuthorId    String?
+  // Denormalized display label (= student.name) captured at publish time so
+  // the board UI can render "작성: 가온" without joining Student.
   externalAuthorName String?
   x         Float    @default(0)
   y         Float    @default(0)
@@ -243,11 +248,13 @@ model Card {
   board            Board             @relation(fields: [boardId], references: [id], onDelete: Cascade)
   section          Section?          @relation("SectionCards", fields: [sectionId], references: [id], onDelete: SetNull)
   author           User              @relation(fields: [authorId], references: [id])
+  studentAuthor    Student?          @relation("StudentCardAuthor", fields: [studentAuthorId], references: [id], onDelete: SetNull)
   assetAttachments AssetAttachment[] @relation("CardAssetAttachments")
 
   @@index([boardId])
   @@index([sectionId])
   @@index([authorId])
+  @@index([studentAuthorId])
 }
 
 model Submission {

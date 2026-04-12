@@ -21,6 +21,7 @@ export type ExternalErrorCode =
   | "invalid_data_url" // 422 — zod strict validation fail or bad data URL
   | "payload_too_large" // 413 — Content-Length > 4MB
   | "rate_limited" // 429 — 3-axis rate limit breach
+  | "student_session_required" // 401 — Canva publish requires Aura student login
   | "blob_upload_failed" // 500 — streaming put error
   | "internal"; // 500 — unhandled
 
@@ -38,6 +39,7 @@ const STATUS: Record<ExternalErrorCode, number> = {
   invalid_data_url: 422,
   payload_too_large: 413,
   rate_limited: 429,
+  student_session_required: 401,
   blob_upload_failed: 500,
   internal: 500,
 };
@@ -57,6 +59,8 @@ const DEFAULT_MESSAGE: Record<ExternalErrorCode, string> = {
   invalid_data_url: "Request body failed strict validation",
   payload_too_large: "Request body exceeds 4.0MB hard limit",
   rate_limited: "Rate limit exceeded — retry after the Retry-After window",
+  student_session_required:
+    "Aura 학생 로그인이 필요해요. /student/login 에서 로그인한 뒤 다시 시도하세요.",
   blob_upload_failed: "Image upload to storage failed",
   internal: "Internal server error",
 };
