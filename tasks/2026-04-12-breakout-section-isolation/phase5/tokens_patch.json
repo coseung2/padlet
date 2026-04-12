@@ -1,0 +1,7 @@
+{
+  "patch_version": "2026-04-12",
+  "slug": "breakout-section-isolation",
+  "tokens_added": [],
+  "tokens_modified": [],
+  "note": "신규 토큰 없음. 기존 --color-*, --radius-card, 시맨틱 색상으로 전부 커버."
+}
