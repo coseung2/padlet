@@ -424,7 +424,10 @@ function StudentRow({
       <td className="classroom-td classroom-td-name">{student.name}</td>
       <td className="classroom-td classroom-td-qr">
         {qrSrc ? (
-          <img src={qrSrc} alt="QR" className="classroom-qr-thumb" />
+          // QR is a data: URL generated client-side — next/image can't optimize it
+          // and the origin is our own page, so a raw <img> is intentional here.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={qrSrc} alt="QR" className="classroom-qr-thumb" loading="lazy" />
         ) : (
           <span className="classroom-qr-placeholder" />
         )}

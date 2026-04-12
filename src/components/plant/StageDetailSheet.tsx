@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ObservationDTO, StageDTO } from "@/types/plant";
 import { SidePanel } from "../ui/SidePanel";
+import { OptimizedImage } from "../ui/OptimizedImage";
 
 interface Props {
   open: boolean;
@@ -96,12 +97,25 @@ export function StageDetailSheet({
               {o.images.length > 0 && (
                 <div className="plant-obs-imgs">
                   {o.images.map((img) => (
-                    <img
+                    <div
                       key={img.id}
-                      src={img.thumbnailUrl ?? img.url}
-                      alt="관찰 사진"
+                      className="plant-obs-img optimized-img-wrap"
                       onClick={() => onOpenLightbox(img.url)}
-                    />
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onOpenLightbox(img.url);
+                        }
+                      }}
+                    >
+                      <OptimizedImage
+                        src={img.thumbnailUrl ?? img.url}
+                        alt="관찰 사진"
+                        sizes="(max-width: 768px) 33vw, 160px"
+                      />
+                    </div>
                   ))}
                 </div>
               )}

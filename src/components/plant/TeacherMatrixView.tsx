@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { OptimizedImage } from "../ui/OptimizedImage";
 
 interface Stage {
   id: string;
@@ -191,7 +192,15 @@ export function TeacherMatrixView({ classroomId }: Props) {
 
       {lightbox && (
         <div className="plant-lightbox" onClick={() => setLightbox(null)} role="dialog" aria-label="사진 원본">
-          <img src={lightbox} alt="관찰 사진" />
+          <div className="plant-lightbox-frame optimized-img-wrap">
+            <OptimizedImage
+              src={lightbox}
+              alt="관찰 사진"
+              sizes="90vw"
+              priority
+              fit="contain"
+            />
+          </div>
         </div>
       )}
     </div>

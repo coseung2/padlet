@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ObservationDTO } from "@/types/plant";
+import { OptimizedImage } from "../ui/OptimizedImage";
 
 interface Image {
   url: string;
@@ -131,8 +132,12 @@ export function ObservationEditor({ open, title, initial, onCancel, onSubmit }: 
           {images.length > 0 && (
             <div className="plant-thumb-grid">
               {images.map((img, i) => (
-                <div key={`${img.url}-${i}`} className="plant-thumb">
-                  <img src={img.thumbnailUrl ?? img.url} alt={`사진 ${i + 1}`} />
+                <div key={`${img.url}-${i}`} className="plant-thumb optimized-img-wrap">
+                  <OptimizedImage
+                    src={img.thumbnailUrl ?? img.url}
+                    alt={`사진 ${i + 1}`}
+                    sizes="96px"
+                  />
                   <button
                     type="button"
                     aria-label={`사진 ${i + 1} 삭제`}

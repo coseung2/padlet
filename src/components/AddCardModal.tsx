@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useLinkPreview } from "./useLinkPreview";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 export type AddCardData = {
   title: string;
@@ -162,8 +163,14 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
           {showImage && (
             <div className="modal-attach-section">
               {imageUrl ? (
-                <div className="modal-file-preview">
-                  <img src={imageUrl} alt="" className="modal-preview-img" />
+                <div className="modal-file-preview optimized-img-wrap">
+                  <OptimizedImage
+                    src={imageUrl}
+                    alt=""
+                    className="modal-preview-img"
+                    sizes="320px"
+                    fit="contain"
+                  />
                   <button type="button" className="modal-file-remove" onClick={() => setImageUrl("")}>제거</button>
                 </div>
               ) : (
@@ -213,8 +220,8 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
               {preview && (preview.title || preview.image) && (
                 <div className="link-preview-card">
                   {preview.image && (
-                    <div className="link-preview-card-image">
-                      <img src={preview.image} alt="" />
+                    <div className="link-preview-card-image optimized-img-wrap">
+                      <OptimizedImage src={preview.image} alt="" sizes="160px" />
                     </div>
                   )}
                   <div className="link-preview-card-body">

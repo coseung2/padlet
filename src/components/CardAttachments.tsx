@@ -2,6 +2,7 @@
 
 import { memo, useState } from "react";
 import { extractCanvaDesignId } from "@/lib/canva";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 function getYouTubeId(url: string): string | null {
   const m =
@@ -39,8 +40,12 @@ export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl
   return (
     <div className="card-attachments">
       {imageUrl && (
-        <div className="card-attach-image">
-          <img src={imageUrl} alt="" loading="lazy" />
+        <div className="card-attach-image optimized-img-wrap">
+          <OptimizedImage
+            src={imageUrl}
+            alt=""
+            sizes="(max-width: 768px) 100vw, 480px"
+          />
         </div>
       )}
       {videoUrl && ytId && (
@@ -79,8 +84,12 @@ export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl
           onClick={(e) => e.stopPropagation()}
         >
           {linkImage && (
-            <div className="card-link-preview-image">
-              <img src={linkImage} alt="" loading="lazy" />
+            <div className="card-link-preview-image optimized-img-wrap">
+              <OptimizedImage
+                src={linkImage}
+                alt=""
+                sizes="(max-width: 768px) 40vw, 120px"
+              />
             </div>
           )}
           <div className="card-link-preview-body">
@@ -140,8 +149,12 @@ const CanvaEmbed = memo(function CanvaEmbed({
         onClick={(e) => e.stopPropagation()}
       >
         {linkImage && (
-          <div className="card-link-preview-image">
-            <img src={linkImage} alt="" loading="lazy" />
+          <div className="card-link-preview-image optimized-img-wrap">
+            <OptimizedImage
+              src={linkImage}
+              alt=""
+              sizes="(max-width: 768px) 40vw, 120px"
+            />
           </div>
         )}
         <div className="card-link-preview-body">
@@ -163,7 +176,11 @@ const CanvaEmbed = memo(function CanvaEmbed({
   return (
     <div className="card-canva-embed" data-loaded={loaded ? "true" : "false"}>
       {linkImage && (
-        <img src={linkImage} alt={`${title} preview`} loading="lazy" />
+        <OptimizedImage
+          src={linkImage}
+          alt={`${title} preview`}
+          sizes="(max-width: 768px) 100vw, 480px"
+        />
       )}
       <iframe
         src={embedSrc}
