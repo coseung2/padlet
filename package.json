@@ -10,6 +10,7 @@
     "db:push": "prisma db push",
     "db:reset": "prisma db push --force-reset --accept-data-loss",
     "seed": "tsx prisma/seed.ts",
+    "seed:plant": "tsx prisma/seed-plant-journal.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

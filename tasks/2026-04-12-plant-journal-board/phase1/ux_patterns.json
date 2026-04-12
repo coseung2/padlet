@@ -1,0 +1,40 @@
+{
+  "patterns": [
+    {
+      "pattern_id": "subway_line_progress",
+      "description": "선형 노드 시퀀스 + 현재 노드 하이라이트. 각 노드 tap → 상세 패널. 이전 완료 노드 visited 표시.",
+      "source_url": "https://citymapper.com",
+      "fit": "학생 메인 뷰 — 10단계 선형 성장을 한 번에 보여줌"
+    },
+    {
+      "pattern_id": "station_node_tap",
+      "description": "노드 선택 시 하단/우측에 상세 시트 펼침. 관찰 포인트(질문 리스트) + 내 사진/메모 + 다음 단계 버튼.",
+      "source_url": "https://citymapper.com",
+      "fit": "단계 상세를 페이지 전환 없이 보여줘 학생 컨텍스트 유지"
+    },
+    {
+      "pattern_id": "card_move_declaration",
+      "description": "사용자가 '다음 단계로' 버튼을 눌러 단계 이동을 명시적으로 선언. 사진 미첨부 시 사유 프롬프트.",
+      "source_url": "https://trello.com",
+      "fit": "자기 관찰 유도 — 단계 이동을 자동이 아닌 학생 스스로 결정하게 함"
+    },
+    {
+      "pattern_id": "thumbnail_matrix",
+      "description": "rows × cols 격자, 셀=썸네일 단일 이미지. 클릭 시 모달로 원본. desktop 대상 밀집형 뷰.",
+      "source_url": "https://www.notion.so",
+      "fit": "교사 매트릭스 뷰 — 반 전체 단계 × 학생 scan"
+    },
+    {
+      "pattern_id": "teacher_grid_summary",
+      "description": "학생 list에 상태 뱃지(단계명, 최근 관찰일, 정체 경고)를 인라인 표시.",
+      "source_url": "https://web.seesaw.me",
+      "fit": "교사 요약 뷰 — list + 분포 badge 조합"
+    },
+    {
+      "pattern_id": "no_photo_reason_modal",
+      "description": "사진 없이 다음 단계 선언 시 '왜 사진이 없나요?' 이유 선택 + 자유 입력. 취소/진행 2-choice.",
+      "source_url": "unique_to_this_product",
+      "fit": "교육적 자기 성찰 유도 — 단순 skip 방지"
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+(no unit-test files added — repo has no unit-test runner wired; manual/smoke verification only. phase9 covers browser e2e)

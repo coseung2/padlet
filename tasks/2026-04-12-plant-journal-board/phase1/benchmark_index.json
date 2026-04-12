@@ -1,0 +1,33 @@
+{
+  "benchmarks": [
+    {
+      "id": "seesaw",
+      "name": "Seesaw Journals",
+      "url": "https://web.seesaw.me/students",
+      "capture_path": null,
+      "capture_reason": "운영 콘솔 접근 불가, 공개 스크린샷 기반 관찰",
+      "pattern_ids": ["journal_feed", "teacher_grid"]
+    },
+    {
+      "id": "trello",
+      "name": "Trello Kanban",
+      "url": "https://trello.com",
+      "capture_path": null,
+      "pattern_ids": ["stage_columns", "card_move_declaration"]
+    },
+    {
+      "id": "citymapper-line",
+      "name": "Citymapper Line view",
+      "url": "https://citymapper.com",
+      "capture_path": null,
+      "pattern_ids": ["subway_line_progress", "station_node_tap"]
+    },
+    {
+      "id": "notion-gallery",
+      "name": "Notion Gallery & Timeline",
+      "url": "https://www.notion.so",
+      "capture_path": null,
+      "pattern_ids": ["thumbnail_matrix", "property_summary"]
+    }
+  ]
+}

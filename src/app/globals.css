@@ -12,5 +12,9 @@
 @import "../styles/quiz.css";
 @import "../styles/classroom.css";
 @import "../styles/student.css";
+
 @import "../styles/breakout.css";
+
+@import "../styles/plant.css";
+
 @import "../styles/responsive.css";
