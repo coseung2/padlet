@@ -36,16 +36,28 @@ model User {
 }
 
 model ExternalAccessToken {
-  id         String    @id @default(cuid())
-  userId     String
-  name       String
-  tokenHash  String    @unique
-  lastUsedAt DateTime?
-  revokedAt  DateTime?
-  createdAt  DateTime  @default(now())
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String    @id @default(cuid())
+  userId         String
+  name           String
+  // Stage 1 migration (2026-04-12): nullable 8-char base62 prefix for O(1)
+  // lookup of new-format tokens `aurapat_{prefix}_{secret}`. Legacy rows keep
+  // tokenPrefix=null and are handled on the slow path (iterate + dummy
+  // compare) until Stage 2 mass revoke + Stage 3 NOT NULL flip.
+  tokenPrefix    String?   @unique
+  // New format: SHA-256(secret ‖ AURA_PAT_PEPPER) hex. Legacy format (kept
+  // until Stage 2 revoke) is SHA-256(NEXTAUTH_SECRET:plaintext).
+  tokenHash      String    @unique
+  scopes         String    @default("cards:write") // csv, v1 fixed to "cards:write"
+  scopeBoardIds  String    @default("") // csv of boardIds, empty = all teacher-owned boards
+  expiresAt      DateTime?
+  lastUsedAt     DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([tokenPrefix])
 }
 
 model Account {
