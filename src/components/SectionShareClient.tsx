@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 type Props = {
   boardId: string;
@@ -16,6 +16,10 @@ export function SectionShareClient({ boardId, sectionId, initialToken }: Props) 
   const [token, setToken] = useState<string | null>(initialToken);
   const [status, setStatus] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const reactId = useId();
+  const urlInputId = `share-url-input-${reactId}`;
+  const helpId = `share-help-${reactId}`;
+  const regenWarnId = `share-regen-warning-${reactId}`;
   // `origin` stays empty during SSR and first hydration so the server-rendered
   // HTML matches the initial client render (no hydration mismatch). We fill it
   // in after mount.
@@ -80,16 +84,16 @@ export function SectionShareClient({ boardId, sectionId, initialToken }: Props) 
 
   return (
     <section className="share-panel" aria-labelledby="share-heading">
-      <label className="share-label" htmlFor="share-url-input">공유 URL</label>
+      <label className="share-label" htmlFor={urlInputId}>공유 URL</label>
       <div className="share-actions">
         <input
-          id="share-url-input"
+          id={urlInputId}
           className="share-url-input"
           type="text"
           readOnly
           value={absolute}
           onFocus={(e) => e.currentTarget.select()}
-          aria-describedby="share-help"
+          aria-describedby={helpId}
         />
         <button
           type="button"
@@ -106,16 +110,16 @@ export function SectionShareClient({ boardId, sectionId, initialToken }: Props) 
           onClick={() =>
             handleGenerateOrRotate("새 링크를 만들면 이전 링크는 즉시 무효화됩니다. 진행할까요?")
           }
-          aria-describedby="share-regen-warning"
+          aria-describedby={regenWarnId}
           disabled={busy}
         >
           새로 생성
         </button>
       </div>
-      <p id="share-help" className="share-help">
+      <p id={helpId} className="share-help">
         이 URL을 학생에게 공유하면 해당 섹션만 볼 수 있어요.
       </p>
-      <p id="share-regen-warning" className="share-help share-help-warn">
+      <p id={regenWarnId} className="share-help share-help-warn">
         새 링크 생성 시 이전 링크는 즉시 무효화됩니다.
       </p>
       <p className="share-status" aria-live="polite">{status}</p>

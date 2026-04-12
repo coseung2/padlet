@@ -244,7 +244,8 @@ animation: modalIn 200ms ease;
 필수 a11y: `role=dialog` + `aria-modal=true` + `aria-labelledby` + ESC 닫기 + focus trap(Tab/Shift+Tab) + body scroll lock + opener 포커스 복귀. `@media (prefers-reduced-motion: reduce)` 에서 transition 제거.
 
 소비처:
-- `SectionActionsPanel` (columns 보드 섹션 관리)
+- `SectionActionsPanel` (columns 보드 섹션 관리 — 이름 변경 / 삭제 2탭)
+- `BoardSettingsPanel` (보드 헤더 ⚙ — 브레이크아웃 + 준비 중 3탭, 2026-04-13)
 - `plant/StageDetailSheet` (관찰 기록 상세)
 
 ### 인풋/텍스트에어리어
