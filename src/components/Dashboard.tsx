@@ -97,7 +97,7 @@ export function Dashboard({ boards, classrooms }: Props) {
         </button>
 
         {boards.map((b) => (
-          <div key={b.id} className="board-grid-card" style={{ position: "relative", padding: 0 }}>
+          <div key={b.id} className={`board-grid-card${menuOpen === b.id ? " board-grid-card--menu-open" : ""}`} style={{ position: "relative", padding: 0 }}>
             <Link
               href={`/board/${b.slug}`}
               style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "20px 12px 12px", textDecoration: "none", color: "inherit", flex: 1 }}
