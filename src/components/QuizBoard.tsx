@@ -40,6 +40,14 @@ export function QuizBoard({ boardId, quizzes: initial }: Props) {
 
   const quiz = quizzes[0] ?? null;
 
+  // Hoisted above the no-quiz early return below so this hook is called
+  // unconditionally on every render (Rules of Hooks). When there is no
+  // quiz the memo just returns an empty array.
+  const sorted = useMemo(
+    () => [...(quiz?.players ?? [])].sort((a, b) => b.score - a.score),
+    [quiz?.players]
+  );
+
   useEffect(() => {
     const pm = document.cookie.match(/llm_provider=([^;]+)/);
     const km = document.cookie.match(/llm_api_key=([^;]+)/);
@@ -157,12 +165,8 @@ export function QuizBoard({ boardId, quizzes: initial }: Props) {
   }
 
   // ---- Quiz exists ----
-  // Memoize the sorted player list so PlayerList's referential equality check
-  // actually has a stable array when only `dist` (distribution ticks) changes.
-  const sorted = useMemo(
-    () => [...(quiz.players ?? [])].sort((a, b) => b.score - a.score),
-    [quiz.players]
-  );
+  // `sorted` is already memoized above the no-quiz early return so that the
+  // hook order stays stable across renders (Rules of Hooks).
   const curQ = quiz.questions[quiz.currentQuestionIndex] ?? null;
   const isActive = quiz.status === "active";
   const isFinished = quiz.status === "finished";
