@@ -5,7 +5,9 @@ import { AuthHeader } from "@/components/AuthHeader";
 import { UserSwitcher } from "@/components/UserSwitcher";
 import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
+// Auth-backed page — implicitly dynamic via cookies/session reads.
+// Removing the explicit force-dynamic lets Next.js reuse the Router Cache
+// entry for back/forward navigation instead of re-executing the RSC tree.
 
 export default async function HomePage() {
   let user;
@@ -15,23 +17,25 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  // Only show boards where the current user is a member
-  const memberships = await db.boardMember.findMany({
-    where: { userId: user.id },
-    include: {
-      board: {
-        include: { _count: { select: { cards: true, members: true } } },
+  // Independent queries → run in parallel.
+  const [memberships, classrooms] = await Promise.all([
+    // Only show boards where the current user is a member
+    db.boardMember.findMany({
+      where: { userId: user.id },
+      include: {
+        board: {
+          include: { _count: { select: { cards: true, members: true } } },
+        },
       },
-    },
-    orderBy: { board: { createdAt: "desc" } },
-  });
-
-  // Fetch classrooms for board creation modal
-  const classrooms = await db.classroom.findMany({
-    where: { teacherId: user.id },
-    include: { _count: { select: { students: true } } },
-    orderBy: { createdAt: "desc" },
-  });
+      orderBy: { board: { createdAt: "desc" } },
+    }),
+    // Fetch classrooms for board creation modal
+    db.classroom.findMany({
+      where: { teacherId: user.id },
+      include: { _count: { select: { students: true } } },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
 
   const classroomItems = classrooms.map((c) => ({
     id: c.id,

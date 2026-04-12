@@ -1,0 +1,10 @@
+{
+  "type": "incident",
+  "slug": "server-query-perf",
+  "task_id": "2026-04-12-server-query-perf",
+  "severity": "high",
+  "symptom": "탭 전환 및 보드 열기 시 페이지 로드가 눈에 띄게 느림 (전체적인 서버 응답 지연)",
+  "first_observed": "2026-04-12",
+  "affected_surfaces": ["/", "/board/:id", "/classroom/:id", "/student"],
+  "created_at": "2026-04-12T00:00:00+09:00"
+}
