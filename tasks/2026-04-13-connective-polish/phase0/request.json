@@ -1,0 +1,38 @@
+{
+  "type": "feature",
+  "slug": "connective-polish",
+  "task_id": "2026-04-13-connective-polish",
+  "change_type": "enhancement",
+  "motivation": "14개 feature가 배포됐지만 진입점 연결·보안 검증·디자인 일관성이 부족해 신기능을 실제로 쓰기 어려움. Canva 앱 팝업도 iframe sandbox 제약으로 Aura 로그인 불가. 단절된 부품들을 하나의 제품으로 봉합.",
+  "user_story": "교사/학생/학부모로서 메인 페이지에서 역할별 로그인 허브를 통해 각자 플로우로 진입하고, 배포된 모든 기능을 대시보드 네비게이션만으로 도달할 수 있으며, 외부 API는 내 학급 데이터만 노출하고, Canva 앱에서 Aura 계정으로 로그인 팝업이 실제로 열린다.",
+  "success_metric": "1) /api/external/boards·sections 비로그인 호출 시 401 student_session_required 반환 2) /api/external/boards 응답이 현재 학생 classroomId 보드만 포함 (teacher 전체 X) 3) 메인 / 또는 /login에 3-way CTA 버튼(교사·학생·학부모) 존재, 각 버튼 클릭 → 해당 로그인 페이지 네비게이션 4) 교사 대시보드 헤더에서 /account/tokens, Canva 연결 안내 1-클릭 도달 5) Classroom 상세에 parent-invites·roster·breakout 탭 가시화 6) Canva 앱 setting_ui.tsx의 openAuraLogin이 Canva SDK requestOpenExternalUrl() 호출로 교체, 실기기 팝업 열림 확인 7) 지정 6개 화면(/account/tokens, BreakoutBoard, CreateBreakoutBoardModal, BreakoutAssignmentManager, /board/:id/archive, 학부모 관리 탭)이 design-system.md 토큰(--color-*, --radius-*, --shadow-*) 100% 준수",
+  "affected_surfaces": [
+    "/",
+    "/login",
+    "/student/login",
+    "/parent/join",
+    "/account/tokens",
+    "/dashboard",
+    "/classroom/[id]",
+    "/board/[id]",
+    "/board/[id]/archive",
+    "/api/external/boards",
+    "/api/external/boards/[id]/sections",
+    "src/components/breakout/BreakoutBoard.tsx",
+    "src/components/breakout/CreateBreakoutBoardModal.tsx",
+    "src/components/breakout/BreakoutAssignmentManager.tsx",
+    "src/intents/content_publisher/setting_ui.tsx"
+  ],
+  "subscopes": [
+    { "id": "A", "title": "외부 API 보안 패치", "track": "security", "priority": "P0" },
+    { "id": "B", "title": "Canva 앱 팝업 로그인 (requestOpenExternalUrl)", "track": "canva", "priority": "P0" },
+    { "id": "C", "title": "메인 로그인 허브 3-way CTA", "track": "navigation", "priority": "P1" },
+    { "id": "D", "title": "네비게이션 연결 완비", "track": "navigation", "priority": "P1" },
+    { "id": "E", "title": "디자인 시스템 재적용", "track": "design", "priority": "P2" }
+  ],
+  "parallel_tracks": [
+    { "name": "functional", "subscopes": ["A", "B", "C", "D"], "rationale": "보안·진입점·로직 변경" },
+    { "name": "design", "subscopes": ["E"], "rationale": "style_only — phase3 스킵 가능, 병렬 진행" }
+  ],
+  "created_at": "2026-04-13T00:00:00+09:00"
+}

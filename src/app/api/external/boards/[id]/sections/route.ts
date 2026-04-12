@@ -68,12 +68,31 @@ export async function GET(
     return externalErrorResponse("forbidden_board");
   }
 
+  // [5.5] Student session required — sections belong to a classroom context,
+  // so we refuse to enumerate them without knowing which student is asking.
+  // Matches POST /api/external/cards dual-gate pattern.
+  const { getCurrentStudent } = await import("@/lib/student-auth");
+  const student = await getCurrentStudent();
+  if (!student) {
+    return externalErrorResponse(
+      "student_session_required",
+      "Aura 학생 로그인이 필요해요."
+    );
+  }
+
   // [6] Board existence + RBAC.
   const board = await db.board.findUnique({
     where: { id: boardId },
-    select: { id: true, slug: true, layout: true, title: true },
+    select: { id: true, slug: true, layout: true, title: true, classroomId: true },
   });
   if (!board) return externalErrorResponse("not_found");
+
+  // Student classroom must match the board's classroom; otherwise a student
+  // could enumerate sections of a sibling class's board owned by the same
+  // teacher.
+  if (board.classroomId && board.classroomId !== student.classroomId) {
+    return externalErrorResponse("forbidden", "학생의 학급이 보드 학급과 달라요.");
+  }
 
   try {
     await requirePermission(boardId, user.id, "edit");

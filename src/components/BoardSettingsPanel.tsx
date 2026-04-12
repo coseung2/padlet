@@ -177,6 +177,21 @@ function BreakoutTab({
           />
         ))}
       </div>
+      <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid var(--color-border)" }}>
+        <a
+          href={`/board/${boardId}/archive`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 13,
+            color: "var(--color-accent)",
+            textDecoration: "none",
+          }}
+        >
+          🗄 지난 세션 아카이브 보기 →
+        </a>
+      </div>
     </>
   );
 }
