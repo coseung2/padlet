@@ -23,15 +23,16 @@ model User {
   emailVerified DateTime?
   createdAt     DateTime  @default(now())
 
-  memberships    BoardMember[]
-  cards          Card[]
-  submissions    Submission[]
-  reviews        SubmissionReview[]
-  accounts       Account[]
-  sessions       Session[]
-  classrooms     Classroom[]
-  externalTokens ExternalAccessToken[]
-  templatesOwned BreakoutTemplate[]    @relation("TemplateOwner")
+  memberships           BoardMember[]
+  cards                 Card[]
+  submissions           Submission[]
+  reviews               SubmissionReview[]
+  accounts              Account[]
+  sessions              Session[]
+  classrooms            Classroom[]
+  externalTokens        ExternalAccessToken[]
+  templatesOwned        BreakoutTemplate[]    @relation("TemplateOwner")
+  issuedParentInvites   ParentInviteCode[]    @relation("TeacherInvite")
 }
 
 model ExternalAccessToken {
@@ -111,6 +112,8 @@ model Student {
   studentPlants       StudentPlant[]
   assets              StudentAsset[]
   breakoutMemberships BreakoutMembership[]
+  parents             ParentChildLink[]
+  parentInvites       ParentInviteCode[]
 
   @@unique([classroomId, number])
   @@index([classroomId])
@@ -586,4 +589,88 @@ model BreakoutMembership {
   @@unique([sectionId, studentId])
   @@index([assignmentId])
   @@index([studentId])
+}
+
+// ──── Parent Viewer Access (PV-1 ~ PV-5) ────
+// Seed 7 (2026-04-12-parent-viewer-access). Read-only viewer for guardians.
+// Crockford Base32 6-char invite codes + magic-link auth + 7-day sessions.
+// All queries in /parent/* must route through parentScopeMiddleware
+// (src/lib/parent-scope.ts). See canva project/plans/parent-viewer-roadmap.md
+// for the single-source-of-truth child-scope matrix.
+
+model Parent {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  name             String
+  tier             String    @default("free") // "free" | "pro"
+  parentDeletedAt  DateTime? // soft delete; 90d anonymization Cron (PV-11)
+  anonymizedAt     DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  children ParentChildLink[]
+  sessions ParentSession[]
+  invites  ParentInviteCode[] @relation("IssuedToEmail")
+
+  @@index([email])
+  @@index([parentDeletedAt])
+}
+
+model ParentChildLink {
+  id         String    @id @default(cuid())
+  parentId   String
+  studentId  String
+  createdAt  DateTime  @default(now())
+  deletedAt  DateTime? // soft delete
+
+  parent  Parent  @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, studentId])
+  @@index([studentId])
+  @@index([parentId])
+  @@index([deletedAt])
+}
+
+model ParentInviteCode {
+  id             String    @id @default(cuid())
+  studentId      String
+  issuedByUserId String // teacher
+  code           String    @unique // Crockford Base32 6 chars, normalized upper
+  codeHash       String    @unique // sha256 — timing-safe verify + revoke safety
+  maxUses        Int       @default(3)
+  usesCount      Int       @default(0)
+  failedAttempts Int       @default(0) // auto-revoke at 10
+  expiresAt      DateTime // +48h from issue
+  revokedAt      DateTime?
+  boundToEmail   String? // optional binding (teacher knows parent email)
+  createdAt      DateTime  @default(now())
+
+  student  Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  issuedBy User    @relation("TeacherInvite", fields: [issuedByUserId], references: [id])
+  parent   Parent? @relation("IssuedToEmail", fields: [boundToEmail], references: [email])
+
+  @@index([studentId])
+  @@index([expiresAt])
+  @@index([boundToEmail])
+}
+
+model ParentSession {
+  id               String    @id @default(cuid())
+  parentId         String
+  sessionToken     String    @unique // plaintext cookie value (32-byte base64url)
+  tokenHash        String    @unique // sha256 of sessionToken
+  userAgent        String?
+  ipHash           String?
+  expiresAt        DateTime // +7d
+  sessionRevokedAt DateTime?
+  createdAt        DateTime  @default(now())
+  lastSeenAt       DateTime?
+
+  parent Parent @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@index([parentId])
+  @@index([sessionToken])
+  @@index([tokenHash])
+  @@index([expiresAt])
 }
