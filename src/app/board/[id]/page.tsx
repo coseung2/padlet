@@ -13,6 +13,8 @@ import { QuizBoard, type QuizData } from "@/components/QuizBoard";
 import { PlantRoadmapBoard } from "@/components/PlantRoadmapBoard";
 import { EventSignupBoard } from "@/components/event/EventSignupBoard";
 import { DrawingBoard } from "@/components/DrawingBoard";
+import { BreakoutBoard } from "@/components/BreakoutBoard";
+import { cloneStructure } from "@/lib/breakout";
 import { parseObservationPoints, STALL_THRESHOLD_DAYS } from "@/lib/plant-schemas";
 import type { PlantJournalResponse } from "@/types/plant";
 import { UserSwitcher } from "@/components/UserSwitcher";
@@ -34,6 +36,7 @@ const LAYOUT_LABEL: Record<string, string> = {
   "plant-roadmap": "식물 관찰",
   "event-signup": "행사 신청",
   drawing: "그림보드",
+  breakout: "모둠 학습",
 };
 
 export default async function BoardPage({
@@ -63,13 +66,16 @@ export default async function BoardPage({
   const needsPlantData = board.layout === "plant-roadmap";
   const needsEventData = board.layout === "event-signup";
   const needsDrawingData = board.layout === "drawing";
+  const needsBreakoutData = board.layout === "breakout";
   const needsCards =
     !needsAssignmentData &&
     !needsQuizData &&
     !needsPlantData &&
     !needsEventData &&
     !needsDrawingData;
-  const needsSections = board.layout === "columns";
+  // Breakout reuses cards + sections both.
+  const needsSections = board.layout === "columns" || needsBreakoutData;
+  const needsBreakoutAssignment = needsBreakoutData;
 
   const cardsPromise = needsCards
     ? db.card.findMany({
@@ -102,14 +108,29 @@ export default async function BoardPage({
   const rolePromise: Promise<Role | null> = user
     ? getBoardRole(board.id, user.id)
     : Promise.resolve(null);
+  const breakoutAssignmentPromise = needsBreakoutAssignment
+    ? db.breakoutAssignment.findUnique({
+        where: { boardId: board.id },
+        include: { template: true },
+      })
+    : null;
 
-  const [cardsRaw, sectionsRaw, submissionsRaw, membersRaw, quizzesRaw, role] = await Promise.all([
+  const [
+    cardsRaw,
+    sectionsRaw,
+    submissionsRaw,
+    membersRaw,
+    quizzesRaw,
+    role,
+    breakoutAssignmentRaw,
+  ] = await Promise.all([
     cardsPromise,
     sectionsPromise,
     submissionsPromise,
     membersPromise,
     quizzesPromise,
     rolePromise,
+    breakoutAssignmentPromise,
   ]);
 
   const cards = cardsRaw ?? [];
@@ -372,6 +393,41 @@ export default async function BoardPage({
         return <StreamBoard {...common} />;
       case "columns":
         return <ColumnsBoard {...common} initialSections={sectionProps} />;
+      case "breakout": {
+        if (!breakoutAssignmentRaw) {
+          return (
+            <div className="forbidden-card">
+              <h2>모둠 학습 구성 정보 없음</h2>
+              <p>이 보드에 BreakoutAssignment 레코드가 없어요. 관리자에게 문의하세요.</p>
+            </div>
+          );
+        }
+        const structure = cloneStructure(breakoutAssignmentRaw.template.structure);
+        const sharedSectionTitles = (structure.sharedSections ?? []).map((s) => s.title);
+        const visibility =
+          (breakoutAssignmentRaw.visibilityOverride as "own-only" | "peek-others" | null) ??
+          (breakoutAssignmentRaw.template.recommendedVisibility as "own-only" | "peek-others");
+        return (
+          <BreakoutBoard
+            boardId={board!.id}
+            boardTitle={board!.title}
+            assignment={{
+              id: breakoutAssignmentRaw.id,
+              templateId: breakoutAssignmentRaw.templateId,
+              templateName: breakoutAssignmentRaw.template.name,
+              templateKey: breakoutAssignmentRaw.template.key,
+              groupCount: breakoutAssignmentRaw.groupCount,
+              groupCapacity: breakoutAssignmentRaw.groupCapacity,
+              visibility,
+              sharedSectionTitles,
+            }}
+            initialCards={cardProps}
+            initialSections={sectionProps}
+            currentUserId={effectiveUserId}
+            currentRole={effectiveRole!}
+          />
+        );
+      }
       case "assignment":
         return (
           <AssignmentBoard
