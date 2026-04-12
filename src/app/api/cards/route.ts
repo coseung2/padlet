@@ -31,11 +31,12 @@ export async function POST(req: Request) {
     const input = CreateCardSchema.parse(body);
     await requirePermission(input.boardId, user.id, "edit");
 
-    // Canva oEmbed enrichment — if the user pasted a Canva design URL we
-    // canonicalize it and auto-fill linkTitle/linkImage/linkDesc from
-    // Canva's oEmbed response so the render path can show a live iframe.
-    // Any failure (non-Canva URL, private design, endpoint down) falls
-    // through to the normal link-card flow.
+    // Canva oEmbed enrichment. For a Canva design URL the SERVER owns
+    // linkImage completely so the client-side iframe gate
+    // (canvaDesignId && linkImage) is a reliable "oEmbed succeeded"
+    // signal. linkTitle / linkDesc respect a client-provided value when
+    // present (user naming convenience), but a missing / unsendable
+    // field is filled from oEmbed.
     //
     // undefined = client did not send the field → fill from oEmbed.
     // explicit null = client sent null on purpose → leave null.
@@ -47,11 +48,18 @@ export async function POST(req: Request) {
       const embed = await resolveCanvaEmbedUrl(linkUrl);
       if (embed) {
         linkUrl = `https://www.canva.com/design/${embed.designId}/view`;
+        // Force-set linkImage from the oEmbed thumbnail so a client
+        // cannot satisfy the iframe gate with a stale / unrelated image.
+        linkImage = embed.thumbnailUrl;
         if (input.linkTitle === undefined) linkTitle = embed.title;
-        if (input.linkImage === undefined) linkImage = embed.thumbnailUrl;
         if (input.linkDesc === undefined) {
           linkDesc = embed.authorName ? `by ${embed.authorName}` : null;
         }
+      } else {
+        // oEmbed failed → null linkImage so the client falls back to
+        // the plain link-preview rather than attempting a likely-broken
+        // iframe.
+        linkImage = null;
       }
     }
 
