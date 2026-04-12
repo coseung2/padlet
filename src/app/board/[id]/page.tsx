@@ -14,7 +14,8 @@ import { UserSwitcher } from "@/components/UserSwitcher";
 import { AuthHeader } from "@/components/AuthHeader";
 import { EditableTitle } from "@/components/EditableTitle";
 
-export const dynamic = "force-dynamic";
+// Auth + cookie reads already flag this route as dynamic.
+// Dropping the explicit flag keeps the Router Cache warm for navigations.
 
 const LAYOUT_LABEL: Record<string, string> = {
   freeform: "자유 배치",
@@ -31,49 +32,80 @@ export default async function BoardPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const board = await db.board.findFirst({
-    where: { OR: [{ id }, { slug: id }] },
-    include: {
-      cards: { orderBy: { order: "asc" } },
-      sections: { orderBy: { order: "asc" } },
-      submissions: true,
-      members: { include: { user: true } },
-      quizzes: {
-        include: { questions: { orderBy: { order: "asc" } }, players: true },
-        orderBy: { createdAt: "desc" },
-      },
-    },
-  });
+
+  // Round 1 — resolve the board itself plus auth subjects concurrently.
+  const [board, user, student] = await Promise.all([
+    db.board.findFirst({
+      where: { OR: [{ id }, { slug: id }] },
+    }),
+    getCurrentUser().catch(() => null),
+    getCurrentStudent(),
+  ]);
   if (!board) notFound();
 
-  // --- Auth: try teacher (NextAuth / mock) first, then student session ---
-  let user: Awaited<ReturnType<typeof getCurrentUser>> | null = null;
-  let role: Role | null = null;
+  // Round 2 — fan out every dependent query.
+  // Layout-specific relations are skipped when they would not be rendered,
+  // so a freeform/grid/stream board no longer pays for submissions, members,
+  // or quiz hydration.
+  const needsAssignmentData = board.layout === "assignment";
+  const needsQuizData = board.layout === "quiz";
+
+  const cardsPromise = db.card.findMany({
+    where: { boardId: board.id },
+    orderBy: { order: "asc" },
+  });
+  const sectionsPromise = db.section.findMany({
+    where: { boardId: board.id },
+    orderBy: { order: "asc" },
+  });
+  const submissionsPromise = needsAssignmentData
+    ? db.submission.findMany({ where: { boardId: board.id } })
+    : null;
+  const membersPromise = needsAssignmentData
+    ? db.boardMember.findMany({
+        where: { boardId: board.id },
+        include: { user: true },
+      })
+    : null;
+  const quizzesPromise = needsQuizData
+    ? db.quiz.findMany({
+        where: { boardId: board.id },
+        include: { questions: { orderBy: { order: "asc" } }, players: true },
+        orderBy: { createdAt: "desc" },
+      })
+    : null;
+  const rolePromise: Promise<Role | null> = user
+    ? getBoardRole(board.id, user.id)
+    : Promise.resolve(null);
+
+  const [cards, sections, submissionsRaw, membersRaw, quizzesRaw, role] = await Promise.all([
+    cardsPromise,
+    sectionsPromise,
+    submissionsPromise,
+    membersPromise,
+    quizzesPromise,
+    rolePromise,
+  ]);
+
+  const submissions = submissionsRaw ?? [];
+  const members = membersRaw ?? [];
+  const quizzes = quizzesRaw ?? [];
+
+  // Student viewer fallback when the teacher/NextAuth path didn't grant a role.
   let studentViewer: { id: string; name: string; classroomId: string } | null = null;
-
-  try {
-    user = await getCurrentUser();
-    role = await getBoardRole(board.id, user.id);
-  } catch {
-    // getCurrentUser() may throw if mock seed is missing — ignore and try student path
-    user = null;
-  }
-
-  // If teacher path didn't yield a role, check for student session
-  if (!role) {
-    const student = await getCurrentStudent();
-    if (
-      student &&
-      board.classroomId &&
-      student.classroomId === board.classroomId
-    ) {
-      studentViewer = {
-        id: student.id,
-        name: student.name,
-        classroomId: student.classroomId,
-      };
-      role = "viewer";
-    }
+  let effectiveRole: Role | null = role;
+  if (
+    !effectiveRole &&
+    student &&
+    board.classroomId &&
+    student.classroomId === board.classroomId
+  ) {
+    studentViewer = {
+      id: student.id,
+      name: student.name,
+      classroomId: student.classroomId,
+    };
+    effectiveRole = "viewer";
   }
 
   // Determine the effective user id and display name
@@ -81,7 +113,7 @@ export default async function BoardPage({
   const effectiveUserName = studentViewer?.name ?? user?.name ?? "";
   const mockRole = user?.mockRole ?? null;
 
-  const cardProps = board.cards.map((c) => ({
+  const cardProps = cards.map((c) => ({
     id: c.id,
     title: c.title,
     content: c.content,
@@ -102,13 +134,13 @@ export default async function BoardPage({
     createdAt: c.createdAt.toISOString(),
   }));
 
-  const sectionProps = board.sections.map((s) => ({
+  const sectionProps = sections.map((s) => ({
     id: s.id,
     title: s.title,
     order: s.order,
   }));
 
-  if (!role) {
+  if (!effectiveRole) {
     return (
       <main className="board-page">
         <BoardHeader title={board.title} layout={board.layout} mockRole={mockRole} canEdit={false} />
@@ -125,7 +157,7 @@ export default async function BoardPage({
       boardId: board!.id,
       initialCards: cardProps,
       currentUserId: effectiveUserId,
-      currentRole: role!,
+      currentRole: effectiveRole!,
     };
 
     switch (board!.layout) {
@@ -140,7 +172,7 @@ export default async function BoardPage({
           <AssignmentBoard
             boardId={board!.id}
             description={board!.description}
-            initialSubmissions={board!.submissions.map((sub) => ({
+            initialSubmissions={submissions.map((sub) => ({
               id: sub.id,
               boardId: sub.boardId,
               userId: sub.userId,
@@ -152,13 +184,13 @@ export default async function BoardPage({
               grade: sub.grade,
               createdAt: sub.createdAt.toISOString(),
             }))}
-            members={board!.members.map((m) => ({
+            members={members.map((m) => ({
               userId: m.userId,
               userName: m.user.name,
               role: m.role,
             }))}
             currentUserId={effectiveUserId}
-            currentRole={role!}
+            currentRole={effectiveRole!}
           />
         );
       case "quiz": {
@@ -166,7 +198,7 @@ export default async function BoardPage({
         return (
           <QuizBoard
             boardId={board!.id}
-            quizzes={board!.quizzes.map((q) => ({
+            quizzes={quizzes.map((q) => ({
               id: q.id,
               title: q.title,
               roomCode: q.roomCode,
@@ -201,9 +233,9 @@ export default async function BoardPage({
         title={board.title}
         layout={board.layout}
         userName={effectiveUserName}
-        userRole={role}
+        userRole={effectiveRole}
         mockRole={mockRole}
-        canEdit={role === "owner" || role === "editor"}
+        canEdit={effectiveRole === "owner" || effectiveRole === "editor"}
       />
       {renderBoard()}
     </main>

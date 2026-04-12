@@ -3,8 +3,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { ClassroomDetail } from "@/components/ClassroomDetail";
 import { notFound } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
 type Props = {
   params: Promise<{ id: string }>;
 };

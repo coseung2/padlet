@@ -5,7 +5,9 @@ import { AuthHeader } from "@/components/AuthHeader";
 import { UserSwitcher } from "@/components/UserSwitcher";
 import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
+// Auth-backed page — implicitly dynamic via cookies/session reads.
+// Removing the explicit force-dynamic lets Next.js reuse the Router Cache
+// entry for back/forward navigation instead of re-executing the RSC tree.
 
 export default async function HomePage() {
   let user;
