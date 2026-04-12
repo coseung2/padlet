@@ -1,0 +1,20 @@
+{
+  "type": "feature",
+  "slug": "canva-oembed",
+  "task_id": "2026-04-12-canva-oembed",
+  "change_type": "new_feature",
+  "motivation": "교사/학생이 Canva 디자인을 Aura-board에 붙이면 링크 프리뷰가 아닌 라이브 iframe 임베드로 표시되어, 원본 수정이 카드에 자동 반영되는 체험 제공 (Notion 방식).",
+  "user_story": "사용자로서 카드에 Canva 디자인 URL을 붙이면 라이브 Canva 임베드를 보드 위에서 바로 볼 수 있다.",
+  "success_metric": "canva.com/design/... 또는 canva.link/... URL 입력 시 3초 내 embed iframe 렌더, 원본 변경이 30초 내 자동 반영, viewer 역할 열람 가능·편집 불가, 비공개 디자인은 에러 상태 카드로 폴백.",
+  "affected_surfaces": [
+    "src/lib/canva.ts",
+    "src/components/CardAttachments.tsx",
+    "src/app/api/cards/route.ts",
+    "src/app/api/cards/[id]/route.ts",
+    "src/app/api/link-preview/route.ts",
+    "next.config.ts"
+  ],
+  "context_ref": "canva project/plans/implementation-roadmap.md#p0-①-oembed-라이브-canva-카드",
+  "research_ref": "canva project/research/canva-developer-aura-research.md",
+  "created_at": "2026-04-12T12:30:00+09:00"
+}
