@@ -1,0 +1,23 @@
+{
+  "type": "feature",
+  "slug": "plant-journal-board",
+  "task_id": "2026-04-12-plant-journal-board",
+  "change_type": "new_feature",
+  "motivation": "교과 연계 식물 관찰 학습을 보드화: 교사가 학급 허용 식물 리스트를 설정하면 학생이 1종을 선택해 지하철 노선도형 UI로 단계별 관찰 기록을 남기고, 교사는 매트릭스 뷰로 반 전체 진행을 한눈에 스캔한다.",
+  "user_story": "학생으로서 교사가 허용한 식물 중 한 종을 별명과 함께 선택하고, 각 성장 단계에 사진과 메모를 남겨 나만의 관찰일지를 만들 수 있다.",
+  "success_metric": "학생이 식물 선택→별명 입력→노선도 생성 성공; 단계당 사진 ≤10장 업로드+메모 작성; 단계 자기 선언 시 사진 미첨부면 사유 프롬프트; 본인 이전 단계만 수정/삭제; 교사 매트릭스 뷰는 editor/viewer/태블릿에서 403; 학생 뷰 TTI < 3s (iPad 9th)",
+  "affected_surfaces": [
+    "/board/[id] (layout=plant-roadmap 렌더 분기)",
+    "/api/species",
+    "/api/classrooms/[id]/species",
+    "/api/student-plants",
+    "/api/student-plants/[id]/observations",
+    "/api/classrooms/[id]/matrix",
+    "prisma/schema.prisma (PlantSpecies/Stage/StudentPlant/Observation/Image)"
+  ],
+  "roadmap_ref": "canva project/plans/plant-journal-roadmap.md",
+  "catalog_ref": "canva project/plans/plant-catalog.md",
+  "performance_budget_ref": "canva project/plans/tablet-performance-roadmap.md#2-성능-예산",
+  "scope_first_release": "PJ-1(schema+seed) → PJ-2(선택/별명) → PJ-3(학생 노선도) → PJ-4(관찰 추가/수정) → PJ-5(교사 요약) → PJ-6(매트릭스 뷰)",
+  "created_at": "2026-04-12T10:00:00+09:00"
+}
