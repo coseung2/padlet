@@ -1,0 +1,34 @@
+{
+  "type": "research",
+  "slug": "realtime-engine-bench",
+  "task_id": "2026-04-13-realtime-engine-research",
+  "question": "Aura-board 보드/섹션 실시간 동기화 엔진으로 Liveblocks(SaaS), Yjs(CRDT self-host), 자체 WS(Node ws/socket.io) 중 무엇이 갤럭시 탭 S6 Lite 교실 환경과 T0-① 채널 격리 요건에 가장 적합한가?",
+  "decision_deadline": "2026-04-20",
+  "evaluation_axes": [
+    "tablet_performance_galaxy_tab_s6_lite",
+    "channel_isolation_difficulty",
+    "classroom_30_scalability",
+    "external_dependency_lockin",
+    "cost_at_30_classrooms_900_students",
+    "dev_effort_and_type_safety"
+  ],
+  "success_criteria": {
+    "adopt_if": [
+      "cold-start prototype boots with 1 room + 2 tabs echoing card-move events",
+      "payload per card-move event ≤ 2KB on wire",
+      "JS heap on boot ≤ 40MB in prototype (tablet performance budget proxy)",
+      "channel isolation (board vs section) implementable with ≤ 1 day of engine-specific glue",
+      "estimated monthly cost at 30 classrooms × 30 students ≤ USD 50 OR fully self-host with no per-seat fee",
+      "T0-③ WebSocket protocol task can proceed immediately with chosen engine docs"
+    ],
+    "reject_if": [
+      "any adopt_if condition unmet",
+      "prototype fails to run within 10 min on WSL2 localhost",
+      "license or pricing model forces vendor lock-in with no exit path"
+    ]
+  },
+  "scope_boundary": "1 board + 3~5 cards + 2~3 browser tabs echo server. Production persistence/auth/presence UI are out of scope. WSL2 does not allow real 30-tablet tests — Playwright headless + literature data replaces it.",
+  "candidates": ["Liveblocks", "Yjs", "자체 WS (ws/socket.io)"],
+  "perf_baseline_device": "Samsung Galaxy Tab S6 Lite, Chrome Android",
+  "created_at": "2026-04-13T10:00:00+09:00"
+}
