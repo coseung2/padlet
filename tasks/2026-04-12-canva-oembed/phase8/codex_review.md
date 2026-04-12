@@ -1,35 +1,39 @@
-This is a re-review of commit `7dd0b7e` after the prior FAIL. It supersedes the previous review at this same path.
+# Canva oEmbed — Phase 8 Codex Review (Round 4)
 
-## Inputs consumed
-- Branch check: `git rev-parse --abbrev-ref HEAD` → `feat/canva-oembed`
-- Commit metadata: `git show --stat --oneline --decorate=short 7dd0b7e`
-- Commit message and targeted diff: `git show --format=medium --no-patch 7dd0b7e` and `git show --unified=80 7dd0b7e -- src/lib/canva.ts src/app/api/cards/route.ts src/app/api/cards/[id]/route.ts src/components/CardAttachments.tsx tasks/2026-04-12-canva-oembed/phase8/codex_review.md`
-- `src/lib/canva.ts`
-- `src/app/api/cards/route.ts`
-- `src/app/api/cards/[id]/route.ts`
-- `src/components/CardAttachments.tsx`
-- `src/components/AddCardModal.tsx`
-- `src/components/useLinkPreview.ts`
-- `src/app/api/link-preview/route.ts`
-- `src/lib/__tests__/canva-embed.test.ts`
-- `npm run typecheck` → passed
-- `npx tsx src/lib/__tests__/canva-embed.test.ts` → could not run in this sandbox (`listen EPERM` on `/tmp/tsx-1000/15.pipe`)
+## Revision history
+- Round 1: PASS on the initial phase7 implementation, with non-blocking follow-ups around timeout/watchdog behavior.
+- Round 2: FAIL because Canva-looking URLs could still reach the iframe path without a server-confirmed successful resolve.
+- Round 3: FAIL because `linkImage` was still client-spoofable alongside Canva URLs, so the iframe gate could be satisfied without server-owned oEmbed.
+- Round 4: POST now enforces server ownership of `linkImage`, but PATCH still leaves a bypass when `linkUrl` is omitted or unchanged on an already-Canva card.
 
-## Independent findings
-### Resolved
-- Prior FAIL item 2 is resolved. `resolveCanvaDesignId()` now wraps the `canva.link` redirect probe in `signal: AbortSignal.timeout(2000)` and contains it in `try/catch`, so short-link expansion no longer has an unbounded wait: `fetch(url, { redirect: "manual", signal: AbortSignal.timeout(2000) })` in `src/lib/canva.ts:319-328`. The code uses the default `GET` rather than an explicit `HEAD`, but the missing-timeout bug is fixed.
-- Prior FAIL item 3 is resolved. `POST /api/cards` now distinguishes omitted fields from explicit clears: `let linkTitle = input.linkTitle === undefined ? null : input.linkTitle;` and only back-fills when `input.linkTitle === undefined` (same pattern for `linkImage` and `linkDesc`) in `src/app/api/cards/route.ts:42-55`. `PATCH /api/cards/[id]` uses the same `=== undefined` checks on `patch.linkTitle`, `patch.linkImage`, and `patch.linkDesc` in `src/app/api/cards/[id]/route.ts:50-63`. Explicit `null` survives instead of being overwritten.
-- Prior FAIL item 4 is resolved. `CardAttachments` now passes `key={canvaDesignId}` into `<CanvaEmbed>` in `src/components/CardAttachments.tsx:53-64`, so a design-id change remounts the child and clears `loaded` / `failed`. The new key does not create a Hooks or `React.memo` problem: `CardAttachments` still has no hooks before its early return (`src/components/CardAttachments.tsx:25-31`), and `CanvaEmbed` still calls both `useState` hooks unconditionally at the top (`src/components/CardAttachments.tsx:122-123`).
-- The endpoint-fallback mechanics introduced for prior FAIL item 1 are themselves correct. `resolveCanvaEmbedUrl()` now tries `https://api.canva.com/_spi/presentation/_oembed` first and `https://www.canva.com/_oembed` second via a sequential `for (const endpoint of endpoints)` loop in `src/lib/canva.ts:402-426`. `fetchCanvaOEmbed()` wraps each fetch in `try/catch` with `AbortSignal.timeout(3000)` and returns `null` on any failure in `src/lib/canva.ts:431-445`, so an `AbortError` on one endpoint falls through to the next instead of escaping `resolveCanvaEmbedUrl()`. The loop returns on the first valid body, so there is no double-emit path and no unhandled rejection from a "losing" request.
+## Scope of this pass
+Reviewed HEAD `804208170b93d3001dd77f151bd130f93d0ed38f` on `feat/canva-oembed`, not the commit message. I read the requested files plus the create/edit call sites needed to answer whether any path can still make `canvaDesignId && linkImage` truthy without a successful server oEmbed resolve.
 
-### Deferred-and-acceptable
-- The provider-contract dependency remains, but I treated it as acceptable per the task's explicit defer-to-docs rule. The code now prefers the documented `api.canva.com/_spi/presentation/_oembed` endpoint and keeps `https://www.canva.com/_oembed` as fallback in `src/lib/canva.ts:402-405`; both `resolveCanvaEmbedUrl()` and `CanvaEmbed` still hardcode `/view?embed&meta` in `src/lib/canva.ts:417-424` and `src/components/CardAttachments.tsx:152`. The `7dd0b7e` commit message documents the endpoint-fallback rationale: `Canva is currently migrating from the legacy www.canva.com path to api.canva.com — try the new endpoint first and fall back to the legacy one.`
-- The create-time metadata race also remains by design, but I treated it as acceptable because the commit explicitly documents that rationale. `AddCardModal` still submits `linkTitle: preview?.title || undefined`, `linkDesc: preview?.description || undefined`, and `linkImage: preview?.image || undefined` in `src/components/AddCardModal.tsx:84-91`, and `useLinkPreview()` still sources those fields from `/api/link-preview` in `src/components/useLinkPreview.ts:18-56` and `src/app/api/link-preview/route.ts:5-110`. The `7dd0b7e` commit message explicitly says: `Remaining codex point "create-time metadata race between /api/link-preview and server oEmbed" is documented as acceptable: client-provided explicit values win by design, and the race window is bounded by the same POST request.`
+## Verification
+### src/app/api/cards/route.ts (POST)
+- Lines 47-63: In the Canva branch, `const embed = await resolveCanvaEmbedUrl(linkUrl);` then success force-sets `linkImage = embed.thumbnailUrl;` (line 53) and failure force-sets `linkImage = null;` (line 62). There is no `??` fallback to the client value and no `input.linkImage === undefined` gate inside this branch. `linkTitle` / `linkDesc` still respect explicit client values because they are only back-filled when `input.linkTitle === undefined` / `input.linkDesc === undefined` (lines 54-56).
+- Verdict: OK
 
-### Still-broken
-- Prior FAIL item 1 is still open. If server-side Canva resolution fails for a `canva.com/design/...` URL, both API routes leave the original `linkUrl` in place because canonicalization and metadata updates only happen inside `if (embed)` in `src/app/api/cards/route.ts:46-55` and `src/app/api/cards/[id]/route.ts:56-64`. `CardAttachments` still chooses the Canva iframe branch solely from `extractCanvaDesignId(linkUrl)` via `const canvaDesignId = linkUrl ? extractCanvaDesignId(linkUrl) : null;` and `{linkUrl && canvaDesignId ? <CanvaEmbed ... /> : linkUrl && (...)}` in `src/components/CardAttachments.tsx:29,53-65`. That means private/down/unresolved `https://www.canva.com/design/...` URLs still enter `<CanvaEmbed>` and rely on later iframe failure instead of staying on the normal link-preview path. The commit message itself acknowledges this remaining gap: `Resolver still returns null if both endpoints fail — iframe still attempts and falls back via onError; a richer "oEmbed resolved" marker requires a schema field and is deferred.` This item was not one of the task's acceptable doc-only deferrals, so the previous FAIL does not flip to PASS.
+### src/app/api/cards/[id]/route.ts (PATCH)
+- Lines 52-67: The overwrite/null logic exists only inside `if (typeof patch.linkUrl === "string" && patch.linkUrl !== card.linkUrl && isCanvaDesignUrl(patch.linkUrl))`. Inside that guard, success force-sets `patch.linkImage = embed.thumbnailUrl;` (line 60) and failure force-sets `patch.linkImage = null;` (line 66). `patch.linkTitle` / `patch.linkDesc` still respect explicit client values because they are only back-filled when `patch.linkTitle === undefined` / `patch.linkDesc === undefined` (lines 61-63).
+- Verdict: BYPASS
+- Edge case — PATCH that only changes linkImage while stored URL is Canva: The PATCH path does not re-derive `linkImage` from the stored URL. If `patch.linkUrl` is omitted or unchanged, `const patch: typeof input = { ...input };` preserves the client `linkImage`, and `db.card.update({ where: { id }, data: patch })` writes it as-is (lines 51-52, 70).
 
-## Verdict
-Three of the four prior FAIL items are fixed in code, and the two separately deferred provider-contract / create-time-race issues are documented well enough to treat as acceptable for this re-review. The remaining blocker is still the first prior FAIL item: unresolved Canva design URLs can still take the iframe branch because rendering is keyed off `extractCanvaDesignId(linkUrl)` rather than a server-confirmed successful resolution.
+### src/components/CardAttachments.tsx
+- Lines 29-37, 61-73: `canvaDesignId` is still derived as `linkUrl ? extractCanvaDesignId(linkUrl) : null`, `canRenderCanvaEmbed` is still `Boolean(canvaDesignId && linkImage)`, and the live branch is still `linkUrl && canRenderCanvaEmbed && canvaDesignId ? <CanvaEmbed ... /> : linkUrl && (...)`.
+- Verdict: OK
 
-Verdict: FAIL
+### src/lib/canva.ts
+- Lines 402-405, 435-436, 411-415, 323-326: Endpoint fallback is present (`api.canva.com/_spi/presentation/_oembed` then `www.canva.com/_oembed`), the oEmbed fetch has a 3s timeout, and the resolver still validates `body.type === "rich"` plus a string `thumbnail_url`. `resolveCanvaDesignId()` also has a 2s timeout for `canva.link` expansion, but the code at lines 323-326 does not explicitly use `HEAD`; it relies on default `fetch` semantics.
+
+### canvaDesignId provenance
+- Where it is derived and whether client input can spoof it: In the opened render path it is re-derived client-side from `linkUrl` via `extractCanvaDesignId(linkUrl)` in `src/components/CardAttachments.tsx:29`. I found no separate `canvaDesignId` input in the opened POST schema (`src/app/api/cards/route.ts:8-25`), PATCH schema (`src/app/api/cards/[id]/route.ts:8-24`), or server-to-client card prop mapping (`src/app/board/[id]/page.tsx:125-144`). Client input can influence it only indirectly by changing `linkUrl`; I did not open the Prisma schema, so this statement is limited to the request/render path I verified.
+
+## Residual bypass analysis
+- `POST /api/cards` with a Canva URL plus attacker-supplied `linkImage` is not exploitable now, because the Canva branch always overwrites `linkImage` with `embed.thumbnailUrl` on success or `null` on failure (`src/app/api/cards/route.ts:47-63`).
+- `PATCH /api/cards/[id]` that changes `linkUrl` to a different Canva URL plus attacker-supplied `linkImage` is also not exploitable now, because the changed-URL Canva guard always overwrites `patch.linkImage` with `embed.thumbnailUrl` or `null` (`src/app/api/cards/[id]/route.ts:52-67`).
+- A remaining exploit exists for an already-Canva card whose stored `linkUrl` is a `canva.com/design/...` URL that `extractCanvaDesignId()` can parse. Request shape: `PATCH /api/cards/<id>` with body `{"linkImage":"https://attacker.example/anything.jpg"}`. This skips the Canva guard because `patch.linkUrl` is omitted (`src/app/api/cards/[id]/route.ts:52-56`), persists the attacker value via `db.card.update(... data: patch)` (`src/app/api/cards/[id]/route.ts:70`), and then satisfies the iframe gate because render still checks only `extractCanvaDesignId(linkUrl)` plus truthy `linkImage` (`src/components/CardAttachments.tsx:29,37,61-73`).
+- I found no built-in client-side path that locally renders the iframe before a server round-trip. `AddCardModal` does send preview-derived `linkImage` (`src/components/AddCardModal.tsx:84-91`), but the create flows append cards only from the POST response in `src/components/BoardCanvas.tsx:80-99`, `src/components/GridBoard.tsx:33-54`, `src/components/StreamBoard.tsx:33-54`, and `src/components/ColumnsBoard.tsx:208-228`; the local modal preview is just an image/title card, not `CardAttachments` (`src/components/AddCardModal.tsx:213-224`). `ColumnsBoard` does have an optimistic PATCH merge (`src/components/ColumnsBoard.tsx:250-255`), but the opened `EditCardModal` payload does not include `linkImage` (`src/components/EditCardModal.tsx:66-73`).
+
+## Final verdict
+**FAIL** — POST now gives the server full ownership of `linkImage` for Canva URLs, but PATCH still allows `linkImage` to be updated independently when the card already has a Canva `linkUrl`, so the iframe branch can still be reached without a successful oEmbed resolve in that PATCH path.

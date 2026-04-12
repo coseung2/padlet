@@ -49,12 +49,26 @@ export async function PATCH(
     // (so `{ linkTitle: null }` blanks the title), and are filled from
     // oEmbed only when `undefined`.
     const patch: typeof input = { ...input };
-    if (
-      typeof patch.linkUrl === "string" &&
-      patch.linkUrl !== card.linkUrl &&
-      isCanvaDesignUrl(patch.linkUrl)
-    ) {
-      const embed = await resolveCanvaEmbedUrl(patch.linkUrl);
+
+    const urlChanged =
+      typeof patch.linkUrl === "string" && patch.linkUrl !== card.linkUrl;
+
+    // Resulting linkUrl after this PATCH (client value if sent, otherwise
+    // the stored one). This drives whether the card still counts as a
+    // Canva card for the server-owned-linkImage invariant.
+    const effectiveLinkUrl: string | null =
+      typeof patch.linkUrl === "string"
+        ? patch.linkUrl
+        : patch.linkUrl === null
+          ? null
+          : card.linkUrl;
+
+    const effectiveIsCanva = Boolean(
+      effectiveLinkUrl && isCanvaDesignUrl(effectiveLinkUrl)
+    );
+
+    if (urlChanged && isCanvaDesignUrl(patch.linkUrl as string)) {
+      const embed = await resolveCanvaEmbedUrl(patch.linkUrl as string);
       if (embed) {
         patch.linkUrl = `https://www.canva.com/design/${embed.designId}/view`;
         patch.linkImage = embed.thumbnailUrl;
@@ -65,6 +79,11 @@ export async function PATCH(
       } else {
         patch.linkImage = null;
       }
+    } else if (effectiveIsCanva && patch.linkImage !== undefined) {
+      // linkUrl unchanged (still Canva) — client cannot seed linkImage
+      // because it gates the iframe render. Drop the field so the stored
+      // server-owned value stays in place.
+      delete patch.linkImage;
     }
 
     const updated = await db.card.update({ where: { id }, data: patch });
