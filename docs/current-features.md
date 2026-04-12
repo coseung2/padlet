@@ -13,6 +13,7 @@ Live feature inventory. Update when merging feature tasks.
 | `quiz` | 실시간 퀴즈 |
 | `plant-roadmap` | 식물 관찰일지 세로 타임라인 (2026-04-12 PJ-1~6, 2026-04-13 v2) |
 | `drawing` | Drawpile 공동 그림판 + 학생 라이브러리 (2026-04-13, **schema + UI stub only** — 서버 배포 대기, `BLOCKERS.md`) |
+| `breakout` | 모둠 학습 보드 (2026-04-12, foundation BR-1~BR-4) — 8종 템플릿(Free 3 + Pro 5), N모둠 × S섹션 자동 복사, teacher-pool 공용 섹션, "모든 모둠에 복제" 일괄 액션 |
 
 ## Classroom & Student
 - 교사 `Classroom` 생성/수정 + 6-char classroom code
@@ -72,3 +73,17 @@ Live feature inventory. Update when merging feature tasks.
   - **브레이크아웃** — 보드 섹션 리스트 + 각 행 링크 **생성/재발급/복사** (`POST /api/sections/:id/share` 재사용, 낙관적 UI + `router.refresh()`). layout != columns 또는 섹션 0개 시 빈 상태 노출
   - **접근 권한 (준비 중)**, **Canva 연동 (준비 중)**, **테마 (준비 중)** — 플레이스홀더
 - `/board/[id]/s/[sectionId]/share` 라우트는 하위 호환 fallback 으로 유지 — 배너가 "⚙ 보드 설정 → 브레이크아웃" 경로로 안내
+
+## 모둠 학습 보드 — Foundation (2026-04-12, BR-1 ~ BR-4)
+- 신규 엔티티 3종: `BreakoutTemplate`, `BreakoutAssignment`, `BreakoutMembership`
+- 시스템 템플릿 8종 (`prisma/seed-breakout-templates.ts` · `npm run seed:breakout` 멱등):
+  - Free: KWL 차트 · 브레인스토밍 · 아이스브레이커
+  - Pro: 찬반 토론 · Jigsaw · 모둠 발표 준비(peek) · 갤러리 워크(peek) · 6색 모자
+- `POST /api/boards` 확장: `layout="breakout"` + `breakoutConfig` → 단일 트랜잭션으로 Board + Assignment + N*S group sections + 1 teacher-pool section + defaultCards 생성
+- 독립 복사 원칙: 템플릿 `structure`는 개설 시점에 `JSON.parse(JSON.stringify())`로 deep clone → 템플릿 원본 수정이 기존 Board로 역전파되지 않음
+- `GET /api/breakout/templates` — 시스템 + 교사 커스텀 템플릿 리스트
+- `POST /api/breakout/assignments/[id]/copy-card` — 교사(owner) 전용 일괄 복제, teacher-pool + origin section 제외
+- Tier gating stub: `src/lib/tier.ts` (`process.env.TIER_MODE`) — BR-5~9에서 `User.tier` 필드로 swap
+- UI: `CreateBreakoutBoardModal` (3-step: 템플릿/구성/확인) + `BreakoutBoard` 교사 풀뷰 (모둠 N개 grid + 카드 컨텍스트 메뉴)
+- 학생 격리 뷰: T0-① `/board/[id]/s/[sectionId]` 재사용
+- **out of scope (BR-5~9)**: deployMode 런타임 (link-fixed/self-select/teacher-assign), WS visibility 게이팅 (own-only/peek-others), 학생 명단 CSV import, 분석 대시보드, 실제 Tier 결제 모델
