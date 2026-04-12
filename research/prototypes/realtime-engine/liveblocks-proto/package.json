@@ -1,0 +1,12 @@
+{
+  "name": "realtime-liveblocks-proto",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "shape-check": "node shape-check.mjs"
+  },
+  "dependencies": {
+    "@liveblocks/client": "^3.18.0"
+  }
+}
