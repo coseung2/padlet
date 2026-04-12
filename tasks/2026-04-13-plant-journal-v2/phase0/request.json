@@ -1,0 +1,35 @@
+{
+  "type": "feature",
+  "slug": "plant-journal-v2",
+  "task_id": "2026-04-13-plant-journal-v2",
+  "change_type": "enhancement",
+  "motivation": "Plant-journal v1 ran with real students; feedback landed in two areas. (A) Student view: horizontal subway roadmap + slide-in detail sheet hides observations behind a tap; students want a vertical timeline with observations inlined next to each stage so they can scan the whole journal at a glance. (B) Teacher view: matrix view is primary navigation but doesn't let teachers open individual student boards; teachers want to drill into a student's plant and make corrections on their behalf.",
+  "user_story": "학생으로서 단계별 관찰 기록이 좌측 세로 타임라인 옆에 펼쳐진 채로 보이기를 원한다. 그리고 교사로서 요약 뷰 학생 행을 눌러 해당 학생의 로드맵에 진입해 관찰을 추가/수정/삭제하고 단계를 이동시킬 수 있기를 원한다.",
+  "success_metric": "Part A — RoadmapView는 세로 타임라인(left rail)과 각 단계 우측 inline 기록 카드로 렌더된다. StageDetailSheet는 학생 플로우에서 제거된다. 관찰 추가/수정은 모달(경량) 또는 inline form이며 편집 경로(사진 업로드, 다음 단계 이동, 사유 모달)는 모두 사용 가능하다. 기존 썸네일 + 원본 라이트박스 동작은 유지된다. Part B — `/board/[id]/student/[studentId]` 라우트가 owner일 때만 렌더되며(403 otherwise), RoadmapView를 `canEdit={true}`로 재사용한다. 관찰 POST/PATCH/DELETE 및 `advance-stage`, plant `PATCH`(nickname)이 owner 계정으로도 201/200으로 통과한다. 교사 요약 뷰 학생 리스트의 각 행은 이 라우트로 연결되는 Link가 된다. 매트릭스 뷰는 보조 링크로 격하한다. 빌드/타입체크/기존 v1 회귀 없음.",
+  "affected_surfaces": [
+    "src/components/plant/RoadmapView.tsx",
+    "src/components/plant/StageDetailSheet.tsx",
+    "src/components/plant/TeacherSummaryView.tsx",
+    "src/components/PlantRoadmapBoard.tsx",
+    "src/app/board/[id]/student/[studentId]/page.tsx",
+    "src/app/api/student-plants/[id]/route.ts",
+    "src/app/api/student-plants/[id]/observations/route.ts",
+    "src/app/api/student-plants/[id]/observations/[oid]/route.ts",
+    "src/app/api/student-plants/[id]/advance-stage/route.ts",
+    "src/styles/plant.css",
+    "canva project/plans/plant-journal-roadmap.md"
+  ],
+  "created_at": "2026-04-13T09:00:00+09:00",
+  "inputs": {
+    "feedback_source": "tasks/2026-04-12-plant-journal-board/FEEDBACK_pending.md",
+    "v1_scope_decision": "tasks/2026-04-12-plant-journal-board/phase2/scope_decision.md"
+  },
+  "constraints": [
+    "No prisma schema changes",
+    "Preserve v1 functionality (PJ-1~6) not targeted by feedback",
+    "Breakout v1 untouched",
+    "Port 3000 for dev, never touch 3000/4000",
+    "No prisma db reset or --force-reset",
+    "Design tokens via docs/design-system.md, no raw hex/px where tokens exist"
+  ]
+}

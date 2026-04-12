@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { SpeciesDTO, TeacherSummaryDTO } from "@/types/plant";
 import { PlantAllowListModal } from "./PlantAllowListModal";
@@ -10,6 +11,8 @@ interface Props {
   allSpecies: SpeciesDTO[]; // full catalog, not just allowed
   allowedSpecies: SpeciesDTO[]; // classroom allow-list
   classroomId: string;
+  /** Board id, used to build drill-down links /board/{boardId}/student/{studentId} (v2). */
+  boardId: string;
   onAllowListSaved: () => void;
 }
 
@@ -27,11 +30,16 @@ export function TeacherSummaryView({
   allSpecies,
   allowedSpecies,
   classroomId,
+  boardId,
   onAllowListSaved,
 }: Props) {
   const [showAllow, setShowAllow] = useState(false);
+  const router = useRouter();
 
   const stages = Array.from({ length: 10 }, (_, i) => i + 1);
+
+  const studentHref = (studentId: string) =>
+    `/board/${boardId}/student/${studentId}`;
 
   return (
     <div className="plant-teacher">
@@ -48,10 +56,9 @@ export function TeacherSummaryView({
           </button>
           <Link
             href={`/classroom/${classroomId}/plant-matrix`}
-            className="plant-species-badge"
-            style={{ fontSize: 13, padding: "6px 12px", background: "var(--color-accent)", color: "#fff", borderRadius: "var(--radius-btn)", textDecoration: "none" }}
+            className="plant-matrix-secondary-link"
           >
-            📊 매트릭스 뷰
+            📊 매트릭스 뷰 (전체 스캔)
           </Link>
         </div>
       </div>
@@ -80,9 +87,30 @@ export function TeacherSummaryView({
         </thead>
         <tbody>
           {summary.students.map((s) => (
-            <tr key={s.id}>
+            <tr
+              key={s.id}
+              className="plant-student-row-link"
+              tabIndex={0}
+              role="link"
+              aria-label={`${s.name} 관찰일지 열기`}
+              onClick={() => router.push(studentHref(s.id))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  router.push(studentHref(s.id));
+                }
+              }}
+            >
               <td>{s.number ?? "—"}</td>
-              <td>{s.name}</td>
+              <td>
+                <Link
+                  href={studentHref(s.id)}
+                  className="plant-student-row-name"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {s.name}
+                </Link>
+              </td>
               <td>
                 {s.speciesEmoji ? `${s.speciesEmoji} ${s.speciesName} (${s.nickname})` : "— 미선택 —"}
               </td>

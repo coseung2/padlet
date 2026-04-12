@@ -1,6 +1,8 @@
 /**
- * PATCH  /api/student-plants/[id]/observations/[oid] — edit memo/images. Owner only.
- * DELETE /api/student-plants/[id]/observations/[oid] — delete. Owner only.
+ * PATCH  /api/student-plants/[id]/observations/[oid] — edit memo/images.
+ *                                                      Student owner OR classroom teacher (v2).
+ * DELETE /api/student-plants/[id]/observations/[oid] — delete.
+ *                                                      Student owner OR classroom teacher (v2).
  */
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -13,7 +15,10 @@ async function gateOwnership(plantId: string, oid: string) {
   if (!actor) return { ok: false as const, status: 401 as const };
   const gate = await canAccessStudentPlant(plantId, actor);
   if (!gate.ok) return { ok: false as const, status: gate.status };
-  if (!gate.ownedByActor) return { ok: false as const, status: 403 as const };
+  // v2: student owner OR classroom teacher may edit/delete observations.
+  if (!gate.ownedByActor && actor.kind !== "teacher") {
+    return { ok: false as const, status: 403 as const };
+  }
   const obs = await db.plantObservation.findUnique({ where: { id: oid } });
   if (!obs || obs.studentPlantId !== plantId) return { ok: false as const, status: 404 as const };
   return { ok: true as const, observation: obs };

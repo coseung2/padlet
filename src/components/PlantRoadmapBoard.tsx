@@ -36,6 +36,7 @@ export function PlantRoadmapBoard({ initial }: Props) {
         allSpecies={state.species}
         allowedSpecies={state.species}
         classroomId={state.teacherSummary.classroomId}
+        boardId={state.board.id}
         onAllowListSaved={refetch}
       />
     );

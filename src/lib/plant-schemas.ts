@@ -41,6 +41,10 @@ export const AllowListSchema = z.object({
   speciesIds: z.array(z.string().min(1)),
 });
 
+export const PatchStudentPlantSchema = z.object({
+  nickname: NicknameSchema,
+});
+
 export const STALL_THRESHOLD_DAYS = 7;
 
 export type ParsedStage = {
