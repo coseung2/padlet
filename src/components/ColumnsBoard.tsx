@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AddCardButton } from "./AddCardButton";
 import { AddCardModal, type AddCardData } from "./AddCardModal";
 import { CardAttachments } from "./CardAttachments";
@@ -126,10 +126,23 @@ export function ColumnsBoard({
     setFolderSectionId(null);
   }
 
-  function getCardsForSection(sectionId: string) {
-    return cards
-      .filter((c) => c.sectionId === sectionId)
-      .sort((a, b) => a.order - b.order);
+  // Group cards by section once per cards change, then O(1) lookup per section.
+  // Render path previously filtered + sorted the whole card list 8×, turning
+  // a 100-card board into 800 filter/sort ops per render.
+  const cardsBySection = useMemo(() => {
+    const map = new Map<string, CardData[]>();
+    const sorted = [...cards].sort((a, b) => a.order - b.order);
+    for (const card of sorted) {
+      const key = card.sectionId ?? "";
+      const bucket = map.get(key);
+      if (bucket) bucket.push(card);
+      else map.set(key, [card]);
+    }
+    return map;
+  }, [cards]);
+
+  function getCardsForSection(sectionId: string): CardData[] {
+    return cardsBySection.get(sectionId) ?? [];
   }
 
   /* ── Card drag/drop ── */
@@ -164,13 +177,13 @@ export function ColumnsBoard({
     e.dataTransfer.setData("application/card-id", cardId);
     e.dataTransfer.effectAllowed = "move";
     if (e.currentTarget instanceof HTMLElement) {
-      e.currentTarget.style.opacity = "0.5";
+      e.currentTarget.classList.add("is-dragging");
     }
   }
 
   function handleDragEnd(e: React.DragEvent) {
     if (e.currentTarget instanceof HTMLElement) {
-      e.currentTarget.style.opacity = "1";
+      e.currentTarget.classList.remove("is-dragging");
     }
     setOverSectionId(null);
   }

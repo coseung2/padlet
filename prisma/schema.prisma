@@ -1,4 +1,4 @@
-// Padlet clone — Prisma schema
+// Aura-board — Prisma schema
 // DB: SQLite for local dev. To switch to Postgres:
 //   1) change provider to "postgresql"
 //   2) change DATABASE_URL to postgres://…
@@ -48,6 +48,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Session {
@@ -57,6 +58,8 @@ model Session {
   expires      DateTime
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // ──── Classroom system ────
@@ -170,6 +173,7 @@ model Card {
 
   @@index([boardId])
   @@index([sectionId])
+  @@index([authorId])
 }
 
 model Submission {

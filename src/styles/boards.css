@@ -191,6 +191,13 @@
   opacity: 0.85;
 }
 
+/* Drag-source marker — toggled from classList in ColumnsBoard
+   handleDragStart/End. Using a class rather than inline styles
+   avoids forcing style recalculation on every drag event. */
+.column-card.is-dragging {
+  opacity: 0.5;
+}
+
 .column-card .padlet-card-title {
   font-size: 14px;
   font-weight: 600;

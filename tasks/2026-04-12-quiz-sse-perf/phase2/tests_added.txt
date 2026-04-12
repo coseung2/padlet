@@ -1,0 +1,46 @@
+회귀 테스트 — 대체 검증
+
+이 프로젝트에는 단위/E2E 테스트 인프라가 설치되어 있지 않다.
+
+## 자동 검증 (phase3 검수에서 실행)
+- [x] `npm run typecheck` PASS
+- [x] `npm run build` PASS
+
+## 수동 검증 체크리스트 (phase3 검수에서 재현)
+
+### SSE 스트림 델타 동작
+- [ ] 호스트가 퀴즈 생성 → 참가 코드 표시
+- [ ] 학생 2명이 동일 코드로 참가 → 호스트 뷰에 플레이어 목록 즉시 업데이트
+- [ ] 호스트가 "시작" → 학생에게 첫 문제 도착
+- [ ] 학생 1이 답변 → 호스트 뷰 분포 차트 업데이트 (count 변화)
+- [ ] 학생 2가 답변 → 분포 차트 재업데이트
+- [ ] 호스트가 "다음 문제" → 분포 리셋 + 새 문제 표시
+- [ ] 호스트가 "종료" → 리더보드 표시
+
+### 점수 업데이트 버그 수정 검증 (새 동작)
+- [ ] 두 플레이어가 동시에 정답 제출 → 둘 다 점수 +N
+- [ ] **플레이어 수 변화 없이** 점수만 증가해도 호스트 뷰 플레이어 목록에 점수 업데이트 반영 확인
+  (Before: count 기반 비교라 score-only 업데이트 무시됐음)
+
+### 스트림 취소 (cancel) 누수 방지
+- [ ] 호스트 브라우저 탭 닫기 → 서버 로그에서 해당 quiz의 [SSE poll] 이 다음 tick에서 중단됨 확인
+- [ ] 호스트 페이지 새로고침 → 기존 SSE 종료 + 새 SSE 시작 (중복 구독 없음)
+
+### 컴포넌트 메모이제이션
+- [ ] React DevTools Profiler 녹화 중:
+  - [ ] "answers" SSE tick → Distribution 만 리렌더 (PlayerList 리렌더 없음)
+  - [ ] "players" SSE tick (점수 변화) → PlayerList 만 리렌더 (Distribution 리렌더 없음)
+  - [ ] "quiz-status" SSE tick → QuizBoard root 만 재렌더, 자식 컴포넌트는 props 불변이면 skip
+
+### 쿼리 부하
+- [ ] Supabase 대시보드 Query 모니터링:
+  - [ ] 동작 중 대부분 tick 은 `quiz.findUnique(players)` + `quizAnswer.count` 2개
+  - [ ] `quizQuestion.findMany` 는 첫 tick 한번만 나타남
+  - [ ] `quizAnswer.findMany(select: selected)` 는 count 변화 시점에만
+  - [ ] **이전처럼 questions+answers+players 대형 join 은 사라짐**
+
+## 환경별 주의사항
+
+- Vercel 프로덕션 환경에서 Functions 실행 시간 제한 (300s 기본) 있음. 장기 퀴즈는 SSE가 300s 후 끊어질 수 있음.
+  → 클라이언트의 EventSource 자동 재연결 로직이 이를 처리하지만, phase2 hotfix 스코프는 아님.
+  → 후속 research task: Vercel Workflow 로 전환하면 durable execution + 크래시 복구 가능.

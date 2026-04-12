@@ -1,0 +1,22 @@
+퀴즈 SSE 스트림 라우트 구조
+
+src/app/api/quiz/[id]/stream/route.ts:20-104
+
+구조:
+  - GET 핸들러가 SSE 스트림 반환
+  - poll() 함수 내부에서 db.quiz.findUnique 호출
+  - include: questions(+answers), players
+  - setTimeout(poll, 1000) 으로 재귀 호출
+
+문제 부하 계산:
+  - 연결 1개당: 60 쿼리/분
+  - questions 50 + answers 평균 4 + players 100 = 응답 페이로드 ~수백 KB
+  - 동시 구독자 N명 → N배 부하 (각자 독립 poller)
+
+헤더:
+  - Cache-Control: no-cache (정상)
+
+누락:
+  - 델타 추적
+  - 마지막 변경 timestamp 기반 조건부 전송
+  - DB 레벨 pub/sub (Supabase Realtime 미사용)

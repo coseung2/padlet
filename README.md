@@ -1,6 +1,6 @@
-# Padlet Clone
+# Aura-board
 
-나만의 패들렛(Padlet) 웹앱. 실시간 협업 보드 + 카드 기반 콘텐츠 + 드래그앤드롭 레이아웃. 솔로 프로젝트.
+나만의 Aura-board 웹앱. 실시간 협업 보드 + 카드 기반 콘텐츠 + 드래그앤드롭 레이아웃. 솔로 프로젝트.
 
 > **MVP 상태**: Notion 테마 확정 (2026-04-10). 탈락한 Figma/Miro 변형은 `tasks/2026-04-09-initial-padlet-app/phase5/rejected/` 에 아카이브.
 

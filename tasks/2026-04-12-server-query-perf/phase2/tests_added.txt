@@ -1,0 +1,43 @@
+회귀 테스트 — 대체 검증
+
+이 프로젝트에는 단위/E2E 테스트 인프라가 설치되어 있지 않다
+(package.json에 jest/vitest/playwright 등 없음).
+
+## 대체 검증 항목
+
+### 자동 (phase3 검수에서 실행)
+- [ ] `npm run typecheck` — TypeScript 타입 안전성
+- [ ] `npm run build` — Next.js 프로덕션 빌드 성공
+  - RSC 경계 / 서버 컴포넌트 / 동적 렌더 경로 모두 빌드 타임에 검증됨
+
+### 수동 (phase3 검수에서 재현)
+phase1 diagnosis §1 의 재현 시나리오 역행:
+
+- [ ] 로그인 후 대시보드 (`/`) 진입 → 보드 목록 정상 렌더
+- [ ] 보드 클릭 → `/board/:id` 진입, 5개 레이아웃 모두 정상
+  - [ ] freeform
+  - [ ] grid
+  - [ ] stream
+  - [ ] columns (섹션 표시)
+  - [ ] assignment (submissions + members 표시)
+  - [ ] quiz (quizzes + questions + players 표시)
+- [ ] 권한 체크:
+  - [ ] owner: 모든 보드 접근
+  - [ ] editor: 편집 가능 보드만
+  - [ ] viewer: 읽기 전용
+  - [ ] student: 자기 교실 보드만 viewer 권한
+  - [ ] 권한 없는 유저: "접근 불가" 표시
+- [ ] 교실 상세 (`/classroom/:id`) → 학생 목록 + 보드 목록 표시
+- [ ] 뒤로가기 → 앞 페이지 즉시 복구 (Router Cache 적중)
+
+## 인덱스 적용 검증
+
+- [ ] Supabase SQL editor에서 migration.sql 실행 (또는 `npx prisma db push`)
+- [ ] `SELECT indexname FROM pg_indexes WHERE tablename IN ('Account','Session','Card');`
+  결과에 `Account_userId_idx`, `Session_userId_idx`, `Card_authorId_idx` 존재 확인
+
+## 테스트 인프라 도입 권고
+
+- Vitest + React Testing Library 로 서버 컴포넌트 스모크 테스트 가능
+- Playwright 로 위 수동 시나리오 자동화 가능
+- 별도 research task 로 분기 권장

@@ -2,8 +2,6 @@ import { createStudentSession } from "@/lib/student-auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
 type Props = {
   params: Promise<{ token: string }>;
 };

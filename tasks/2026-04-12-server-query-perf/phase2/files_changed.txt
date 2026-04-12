@@ -1,0 +1,23 @@
+Files changed in fix/server-query-perf (3 hotfix commits + scaffold)
+
+## Schema / migration
+prisma/schema.prisma                                              — 3 indexes added
+prisma/migrations/20260412_add_perf_indexes/migration.sql         — new file
+
+## Page queries (parallelization)
+src/app/page.tsx                                                  — Promise.all + drop force-dynamic
+src/app/classroom/[id]/page.tsx                                   — Promise.all + drop force-dynamic
+
+## Board page (query split)
+src/app/board/[id]/page.tsx                                       — 2-round fan-out + layout-conditional fetches + drop force-dynamic
+
+## force-dynamic removal only
+src/app/classroom/page.tsx                                        — drop force-dynamic
+src/app/student/page.tsx                                          — drop force-dynamic
+src/app/quiz/[code]/page.tsx                                      — drop force-dynamic
+src/app/qr/[token]/page.tsx                                       — drop force-dynamic
+
+## Untouched (intentional)
+src/lib/auth.ts                                                   — React.cache wrapping is scope-out
+src/lib/rbac.ts                                                   — permission check restructuring is scope-out
+src/app/api/**                                                    — API routes cache headers are scope-out

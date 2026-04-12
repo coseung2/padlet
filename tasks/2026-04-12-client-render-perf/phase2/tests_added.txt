@@ -1,0 +1,46 @@
+회귀 테스트 — 대체 검증
+
+이 프로젝트에는 단위/E2E 테스트 인프라가 설치되어 있지 않다.
+
+## 자동 검증 (phase3 검수에서 실행)
+- [x] `npm run typecheck` PASS
+- [x] `npm run build` PASS
+
+## 수동 검증 체크리스트 (phase3 검수에서 재현)
+
+### XLSX 동적 import
+- [ ] 교실 페이지 최초 로드 시 Network 탭 → 초기 JS 번들에 xlsx 없음 확인
+- [ ] AddStudentsModal 열기 → 파일 선택 버튼 클릭 → 이때 xlsx 청크 다운로드 확인
+- [ ] 엑셀(.xlsx) 파일 업로드 → 학생 목록 파싱 정상
+- [ ] CSV 파일 업로드 → 학생 목록 파싱 정상
+
+### ColumnsBoard 메모이제이션
+- [ ] columns 레이아웃 보드 열기 → 카드 정상 렌더
+- [ ] 카드 섹션 간 드래그 → 이동 정상 + 애니메이션 자연스러움
+- [ ] 드래그 중 원본 카드 opacity 0.5 적용 확인
+- [ ] 드래그 완료 후 opacity 원복
+
+### CardAttachments memo
+- [ ] 이미지 카드: 이미지 표시
+- [ ] YouTube 링크 카드: 임베드 표시
+- [ ] 일반 링크 카드: 프리뷰 표시
+- [ ] 비디오 파일 카드: 컨트롤 표시
+- [ ] 무첨부 카드: null 반환 (attachments div 없음)
+
+### 낙관적 학생 추가
+- [ ] 교실 페이지에서 학생 일괄 추가 (엑셀 또는 직접 입력)
+- [ ] 추가 후 모달 즉시 닫힘 + 테이블에 새 학생 번호순 표시
+- [ ] 네트워크 탭에서 /api/classroom/.../students 요청 1회만 보임 (RSC 재실행 없음)
+- [ ] 새로고침(F5) → 서버 상태와 일치 (실제로 저장되었는지 확인)
+
+### max-height → transform
+- [ ] AddCardModal 열기 → 이미지/링크/비디오 탭 토글
+- [ ] 각 토글마다 attach 섹션이 위에서 확장되며 자연스러움
+- [ ] DevTools Performance → 애니메이션 중 layout 이벤트 없음 확인 가능
+
+## 번들 크기 검증
+
+빌드 후 `.next/static/chunks/` 에서 xlsx 청크가 main 번들이 아닌 별도 청크로 분리되었는지 확인:
+```
+find .next/static/chunks -name "*xlsx*" -o -name "*.js" | xargs -I {} sh -c 'echo {}; wc -c {}' | grep -i xlsx
+```

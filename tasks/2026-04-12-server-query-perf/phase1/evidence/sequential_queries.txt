@@ -1,0 +1,29 @@
+직렬 DB 호출 (병렬화 누락)
+
+═══════════════════════════════════════════════════════
+1. src/app/board/[id]/page.tsx:34-64
+═══════════════════════════════════════════════════════
+const board = await db.board.findFirst({ ... });       // 쿼리 1
+const user = await getCurrentUser();                    // 쿼리 2
+const role = await getBoardRole(user.id, board.id);     // 쿼리 3
+const student = await getCurrentStudent();              // 쿼리 4
+
+→ 4개 독립 쿼리 직렬. Promise.all로 병렬화 가능.
+   (board 조회 결과가 role 체크에 필요하지만, user + student는 선행 가능)
+
+═══════════════════════════════════════════════════════
+2. src/app/page.tsx:19-34
+═══════════════════════════════════════════════════════
+const boardMembers = await db.boardMember.findMany({ ... });  // 쿼리 1
+const classrooms = await db.classroom.findMany({ ... });       // 쿼리 2
+
+→ 완전 독립. Promise.all 즉시 적용 가능.
+
+═══════════════════════════════════════════════════════
+3. src/app/classroom/[id]/page.tsx:16-32
+═══════════════════════════════════════════════════════
+const classroom = await db.classroom.findUnique({ ... });     // 쿼리 1
+// 권한 체크
+const boardMembers = await db.boardMember.findMany({ ... });  // 쿼리 2
+
+→ 권한 체크 후에도 병렬 가능 (classroom 결과 필요 없음).
