@@ -84,3 +84,42 @@ See `docs/design-system.md`. T0-① Breakout surfaces introduce these utility cl
 2026-04-13 section-actions-panel adds: `--color-danger`, `--color-danger-active`, and the `.side-panel-*`, `.section-actions-trigger`, `.section-rename-form`, `.section-delete-*` utility classes in `src/styles/side-panel.css`.
 
 2026-04-13 board-settings-panel adds: `.board-settings-trigger`, `.board-settings-tab-meta`, `.board-settings-list`, `.board-settings-row`, `.board-settings-row-title`, `.board-settings-row-name`, `.board-settings-row-badge` (`.on`/`.off`), `.board-settings-empty`, `.board-settings-placeholder` — all in `src/styles/side-panel.css`, reusing existing tokens (no new design tokens). Note: `.section-actions-trigger` is now unused (section ⋯ uses the generic `.ctx-menu-trigger`); the class remains for backward compat until next cleanup.
+
+
+## 2026-04-13 Drawpile 그림보드 (schema + UI stub, partial scope)
+
+Status: schema + route + UI placeholder only. Drawpile 서버/포크/COOP-COEP/postMessage bridge 는 `BLOCKERS.md` 참조.
+
+### Data model additions
+- `StudentAsset` — 학생 소유 이미지(업로드 or Drawpile 생성). `studentId`, 비정규화 `classroomId`, `fileUrl`, `thumbnailUrl`, `format`, `sizeBytes`, `isSharedToClass`, `source` (`upload`|`drawpile`), `drawpileFileId?`. FK: Student cascade.
+- `AssetAttachment` — StudentAsset ↔ Card / PlantObservation 조인. 둘 중 하나만 채움. Card/Observation cascade.
+- 관계 추가: `Student.assets`, `Card.assetAttachments`(rel `"CardAssetAttachments"`), `PlantObservation.assetAttachments`(rel `"PlantObservationAssetAttachments"`).
+
+### Routes
+- `POST /api/student-assets` — 학생 세션 필수. multipart/form-data `file` (image/*, ≤50MB). `public/uploads/` 저장 (기존 `/api/upload` 와 동일 FS 패턴 — 영속성 업그레이드는 BLOCKERS.md #6).
+- `GET /api/student-assets?scope=mine|shared[&classroomId=…]` — `mine`: 로그인 학생 본인. `shared`: 교사 owner or 해당 교실 학생.
+- `POST /api/student-assets/[id]/attach` — body `{ cardId?, observationId? }`. 자산 owner 또는 board owner 에게만 허용. `cardId` 지정 + `Card.imageUrl === null` 일 때만 imageUrl 채움 (기존 업로드 이미지 보호).
+
+### Layout wiring
+- `Board.layout` app-level zod enum 에 `"drawing"` 추가 (`src/app/api/boards/route.ts`).
+- `src/app/board/[id]/page.tsx` `LAYOUT_LABEL.drawing = "그림보드"` + `case "drawing"` → `<DrawingBoard />`.
+- `CreateBoardModal` LAYOUTS 에 entry 추가.
+
+### Components
+- `src/components/DrawingBoard.tsx` — 작업실/갤러리 탭 토글. `NEXT_PUBLIC_DRAWPILE_URL` 있음 → `<iframe sandbox="allow-scripts allow-same-origin allow-forms allow-modals">`. 미설정 → placeholder card (`BLOCKERS.md` 가이드). 갤러리 탭: GET shared + `gallery-empty` 빈 상태.
+- `src/components/StudentLibrary.tsx` — 학생 로그인 시에만 사이드바. GET mine + 업로드 버튼 + 썸네일 list.
+- `AddCardModal` — `🎨 내 라이브러리` 버튼 + picker overlay. 선택 시 `imageUrl` set + `attachAssetId` 를 `AddCardData` 로 반출. `BoardCanvas.handleAdd` 가 카드 생성 후 fire-and-forget attach 호출.
+
+### Styles
+- `src/styles/drawing.css` (globals.css import) — `.drawing-board`, `.drawing-tabs`, `.drawing-panel`, `.drawing-iframe`, `.drawing-placeholder`, `.drawing-gallery`, `.gallery-thumb`, `.drawing-sidebar`, `.library-list`, `.library-picker*`. 768px breakpoint 에서 세로 스택.
+
+### Migrations
+- `prisma/migrations/20260413_add_drawpile_student_assets/migration.sql` (non-destructive). Supabase 수동 적용 필요 (`BLOCKERS.md` #5).
+
+### Deferred (BLOCKERS.md)
+1. Drawpile fork repo (GPL 격리)
+2. Drawpile 서버 호스팅 + `drawpile.aura-board.app`
+3. COOP/COEP 헤더 (drawing-only 라우트 전략)
+4. postMessage bridge (`docs/drawpile-protocol.md`)
+5. Supabase migration 적용
+6. 프로덕션 스토리지 업그레이드 (`@vercel/blob` 등)

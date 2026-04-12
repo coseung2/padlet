@@ -12,6 +12,7 @@ Live feature inventory. Update when merging feature tasks.
 | `assignment` | 과제 배부 + 제출 |
 | `quiz` | 실시간 퀴즈 |
 | `plant-roadmap` | 식물 관찰일지 세로 타임라인 (2026-04-12 PJ-1~6, 2026-04-13 v2) |
+| `drawing` | Drawpile 공동 그림판 + 학생 라이브러리 (2026-04-13, **schema + UI stub only** — 서버 배포 대기, `BLOCKERS.md`) |
 
 ## Classroom & Student
 - 교사 `Classroom` 생성/수정 + 6-char classroom code

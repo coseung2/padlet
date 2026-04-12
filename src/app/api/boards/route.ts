@@ -5,7 +5,15 @@ import { getCurrentUser } from "@/lib/auth";
 
 const CreateBoardSchema = z.object({
   title: z.string().max(200).default(""),
-  layout: z.enum(["freeform", "grid", "stream", "columns", "assignment", "quiz"]),
+  layout: z.enum([
+    "freeform",
+    "grid",
+    "stream",
+    "columns",
+    "assignment",
+    "quiz",
+    "drawing",
+  ]),
   description: z.string().max(2000).default(""),
   classroomId: z.string().optional(),
 });

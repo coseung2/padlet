@@ -23,13 +23,13 @@ model User {
   emailVerified DateTime?
   createdAt     DateTime  @default(now())
 
-  memberships  BoardMember[]
-  cards        Card[]
-  submissions  Submission[]
-  reviews      SubmissionReview[]
-  accounts     Account[]
-  sessions     Session[]
-  classrooms   Classroom[]
+  memberships    BoardMember[]
+  cards          Card[]
+  submissions    Submission[]
+  reviews        SubmissionReview[]
+  accounts       Account[]
+  sessions       Session[]
+  classrooms     Classroom[]
   externalTokens ExternalAccessToken[]
 }
 
@@ -82,13 +82,13 @@ model Session {
 model Classroom {
   id        String   @id @default(cuid())
   name      String
-  code      String   @unique   // 6-char alphanumeric, teacher shares this
+  code      String   @unique // 6-char alphanumeric, teacher shares this
   teacherId String
   createdAt DateTime @default(now())
 
-  teacher     User                   @relation(fields: [teacherId], references: [id])
+  teacher     User                  @relation(fields: [teacherId], references: [id])
   students    Student[]
-  boards      Board[]                @relation("ClassroomBoards")
+  boards      Board[]               @relation("ClassroomBoards")
   plantAllows ClassroomPlantAllow[]
 
   @@index([teacherId])
@@ -96,18 +96,19 @@ model Classroom {
 }
 
 model Student {
-  id          String   @id @default(cuid())
-  classroomId String
-  number      Int?              // 출석번호
-  name        String
-  qrToken     String   @unique   // UUID — encoded in QR
-  textCode    String   @unique   // 6-char alphanumeric — manual entry fallback
-  sessionVersion Int   @default(1)
-  createdAt   DateTime @default(now())
+  id             String   @id @default(cuid())
+  classroomId    String
+  number         Int? // 출석번호
+  name           String
+  qrToken        String   @unique // UUID — encoded in QR
+  textCode       String   @unique // 6-char alphanumeric — manual entry fallback
+  sessionVersion Int      @default(1)
+  createdAt      DateTime @default(now())
 
   classroom     Classroom      @relation(fields: [classroomId], references: [id], onDelete: Cascade)
   quizPlayers   QuizPlayer[]
   studentPlants StudentPlant[]
+  assets        StudentAsset[]
 
   @@unique([classroomId, number])
   @@index([classroomId])
@@ -115,7 +116,7 @@ model Student {
   @@index([textCode])
 }
 
-// layout: "freeform" | "grid" | "stream" | "columns" | "assignment" | "quiz" | "plant-roadmap" | "event-signup"
+// layout: "freeform" | "grid" | "stream" | "columns" | "assignment" | "quiz" | "plant-roadmap" | "event-signup" | "drawing"
 // (validated in app via zod)
 model Board {
   id          String   @id @default(cuid())
@@ -129,28 +130,28 @@ model Board {
   // ── Event-signup (ES-1) ────────────────────────────────────────────
   // Public link access. "classroom" = NextAuth or classroom-scoped only.
   // "public-link" = anyone with accessToken in URL can view the signup form.
-  accessMode           String   @default("classroom")
-  accessToken          String?  @unique
-  eventPosterUrl       String?
-  applicationStart     DateTime?
-  applicationEnd       DateTime?
-  eventStart           DateTime?
-  eventEnd             DateTime?
-  venue                String?
-  maxSelections        Int?
-  videoPolicy          String   @default("optional")  // "none" | "optional" | "required"
-  videoProviders       String   @default("youtube")   // csv
-  maxVideoDurationSec  Int?
-  maxVideoSizeMb       Int?
-  allowTeam            Boolean  @default(false)
-  maxTeamSize          Int?
-  customQuestions      String   @default("[]")        // JSON-encoded question[]
-  announceMode         String   @default("private")   // "public-list" | "private-search" | "private"
-  requireApproval      Boolean  @default(false)
-  askName              Boolean  @default(true)
-  askGradeClass        Boolean  @default(true)
-  askStudentNumber     Boolean  @default(true)
-  askContact           Boolean  @default(false)
+  accessMode          String    @default("classroom")
+  accessToken         String?   @unique
+  eventPosterUrl      String?
+  applicationStart    DateTime?
+  applicationEnd      DateTime?
+  eventStart          DateTime?
+  eventEnd            DateTime?
+  venue               String?
+  maxSelections       Int?
+  videoPolicy         String    @default("optional") // "none" | "optional" | "required"
+  videoProviders      String    @default("youtube") // csv
+  maxVideoDurationSec Int?
+  maxVideoSizeMb      Int?
+  allowTeam           Boolean   @default(false)
+  maxTeamSize         Int?
+  customQuestions     String    @default("[]") // JSON-encoded question[]
+  announceMode        String    @default("private") // "public-list" | "private-search" | "private"
+  requireApproval     Boolean   @default(false)
+  askName             Boolean   @default(true)
+  askGradeClass       Boolean   @default(true)
+  askStudentNumber    Boolean   @default(true)
+  askContact          Boolean   @default(false)
 
   classroom     Classroom?     @relation("ClassroomBoards", fields: [classroomId], references: [id], onDelete: SetNull)
   members       BoardMember[]
@@ -216,9 +217,10 @@ model Card {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  board   Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  section Section? @relation("SectionCards", fields: [sectionId], references: [id], onDelete: SetNull)
-  author  User     @relation(fields: [authorId], references: [id])
+  board            Board             @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  section          Section?          @relation("SectionCards", fields: [sectionId], references: [id], onDelete: SetNull)
+  author           User              @relation(fields: [authorId], references: [id])
+  assetAttachments AssetAttachment[] @relation("CardAssetAttachments")
 
   @@index([boardId])
   @@index([sectionId])
@@ -228,7 +230,7 @@ model Card {
 model Submission {
   id        String   @id @default(cuid())
   boardId   String
-  userId    String?  // nullable for public event-signup submissions (ES-1)
+  userId    String? // nullable for public event-signup submissions (ES-1)
   content   String   @default("")
   linkUrl   String?
   fileUrl   String?
@@ -241,21 +243,21 @@ model Submission {
   updatedAt DateTime @updatedAt
 
   // ── Event-signup applicant fields (ES-1) ─────────────────────────
-  submitToken       String?  @unique       // public self-auth for /my page
-  applicantName     String?
-  applicantGrade    Int?
-  applicantClass    Int?
-  applicantNumber   Int?
-  applicantContact  String?
-  ipHash            String?
-  teamName          String?
-  teamMembers       String   @default("[]")  // JSON — {name,grade,class,number}[]
-  answers           String   @default("{}")  // JSON — {questionId: value}
-  videoUrl          String?
-  videoProvider     String?   // "youtube" | "cfstream"
-  videoId           String?
-  videoThumbnail    String?
-  scoreAvg          Float?
+  submitToken      String? @unique // public self-auth for /my page
+  applicantName    String?
+  applicantGrade   Int?
+  applicantClass   Int?
+  applicantNumber  Int?
+  applicantContact String?
+  ipHash           String?
+  teamName         String?
+  teamMembers      String  @default("[]") // JSON — {name,grade,class,number}[]
+  answers          String  @default("{}") // JSON — {questionId: value}
+  videoUrl         String?
+  videoProvider    String? // "youtube" | "cfstream"
+  videoId          String?
+  videoThumbnail   String?
+  scoreAvg         Float?
 
   board   Board              @relation(fields: [boardId], references: [id], onDelete: Cascade)
   user    User?              @relation(fields: [userId], references: [id])
@@ -288,15 +290,15 @@ model SubmissionReview {
 // ──── Quiz system ────
 
 model Quiz {
-  id          String   @id @default(cuid())
-  boardId     String
-  title       String   @default("")
-  sourceFile  String?  // uploaded PDF/PPT filename
-  sourceText  String?  // extracted text (for reference)
-  roomCode    String   @unique // 6-digit code for students to join
-  status      String   @default("waiting") // "waiting" | "active" | "finished"
-  currentQ    Int      @default(-1) // index of current question (-1 = not started)
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  boardId    String
+  title      String   @default("")
+  sourceFile String? // uploaded PDF/PPT filename
+  sourceText String? // extracted text (for reference)
+  roomCode   String   @unique // 6-digit code for students to join
+  status     String   @default("waiting") // "waiting" | "active" | "finished"
+  currentQ   Int      @default(-1) // index of current question (-1 = not started)
+  createdAt  DateTime @default(now())
 
   board     Board          @relation(fields: [boardId], references: [id], onDelete: Cascade)
   questions QuizQuestion[]
@@ -307,16 +309,16 @@ model Quiz {
 }
 
 model QuizQuestion {
-  id       String @id @default(cuid())
-  quizId   String
-  order    Int    @default(0)
-  question String
-  optionA  String
-  optionB  String
-  optionC  String
-  optionD  String
-  answer   String // "A" | "B" | "C" | "D"
-  timeLimit Int   @default(20) // seconds
+  id        String @id @default(cuid())
+  quizId    String
+  order     Int    @default(0)
+  question  String
+  optionA   String
+  optionB   String
+  optionC   String
+  optionD   String
+  answer    String // "A" | "B" | "C" | "D"
+  timeLimit Int    @default(20) // seconds
 
   quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
   answers QuizAnswer[]
@@ -345,7 +347,7 @@ model QuizAnswer {
   id         String   @id @default(cuid())
   questionId String
   playerId   String
-  selected   String   // "A" | "B" | "C" | "D"
+  selected   String // "A" | "B" | "C" | "D"
   correct    Boolean
   timeMs     Int      @default(0) // answer time in ms
   createdAt  DateTime @default(now())
@@ -362,10 +364,10 @@ model QuizAnswer {
 
 model PlantSpecies {
   id         String   @id @default(cuid())
-  key        String   @unique   // "tomato", "strawberry" — program identifier
+  key        String   @unique // "tomato", "strawberry" — program identifier
   nameKo     String
   emoji      String
-  difficulty String   @default("easy")   // "easy" | "medium" | "hard"
+  difficulty String   @default("easy") // "easy" | "medium" | "hard"
   season     String   @default("spring") // "spring" | "summer" | "fall" | "winter" | "all"
   notes      String   @default("")
   createdAt  DateTime @default(now())
@@ -440,9 +442,10 @@ model PlantObservation {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  studentPlant StudentPlant            @relation(fields: [studentPlantId], references: [id], onDelete: Cascade)
-  stage        PlantStage              @relation(fields: [stageId], references: [id])
-  images       PlantObservationImage[]
+  studentPlant     StudentPlant            @relation(fields: [studentPlantId], references: [id], onDelete: Cascade)
+  stage            PlantStage              @relation(fields: [stageId], references: [id])
+  images           PlantObservationImage[]
+  assetAttachments AssetAttachment[]       @relation("PlantObservationAssetAttachments")
 
   @@index([studentPlantId])
   @@index([stageId])
@@ -459,5 +462,54 @@ model PlantObservationImage {
 
   observation PlantObservation @relation(fields: [observationId], references: [id], onDelete: Cascade)
 
+  @@index([observationId])
+}
+
+// ──── Drawpile student-asset library (partial scope — schema + stub) ────
+// StudentAsset = a student-owned image (uploaded or produced by Drawpile).
+// classroomId is denormalized for fast classroom-scoped gallery scans.
+// source: "upload" (current path) | "drawpile" (set later when Drawpile fork
+// posts back via postMessage bridge — see docs/drawpile-protocol.md).
+model StudentAsset {
+  id              String   @id @default(cuid())
+  studentId       String
+  classroomId     String
+  title           String   @default("")
+  fileUrl         String
+  thumbnailUrl    String?
+  width           Int?
+  height          Int?
+  format          String   @default("image/png")
+  sizeBytes       Int      @default(0)
+  isSharedToClass Boolean  @default(false)
+  source          String   @default("upload")
+  drawpileFileId  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  student     Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  attachments AssetAttachment[]
+
+  @@index([studentId])
+  @@index([classroomId])
+  @@index([classroomId, isSharedToClass])
+}
+
+// AssetAttachment = join row linking a StudentAsset to a Card or
+// PlantObservation. Exactly one of (cardId, observationId) is expected to be
+// set at attach time. Both nullable to keep Prisma relation checks simple.
+model AssetAttachment {
+  id            String   @id @default(cuid())
+  assetId       String
+  cardId        String?
+  observationId String?
+  createdAt     DateTime @default(now())
+
+  asset       StudentAsset      @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  card        Card?             @relation("CardAssetAttachments", fields: [cardId], references: [id], onDelete: Cascade)
+  observation PlantObservation? @relation("PlantObservationAssetAttachments", fields: [observationId], references: [id], onDelete: Cascade)
+
+  @@index([assetId])
+  @@index([cardId])
   @@index([observationId])
 }

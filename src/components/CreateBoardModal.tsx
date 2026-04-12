@@ -10,6 +10,7 @@ const LAYOUTS = [
   { id: "columns", emoji: "📊", label: "칼럼", desc: "Kanban 스타일 섹션별 관리" },
   { id: "assignment", emoji: "📋", label: "과제 배부", desc: "학생별 과제 제출 및 확인" },
   { id: "quiz", emoji: "🎮", label: "퀴즈", desc: "카훗 스타일 실시간 퀴즈 게임" },
+  { id: "drawing", emoji: "🎨", label: "그림보드", desc: "Drawpile 기반 공동 그림판 + 라이브러리" },
 ] as const;
 
 type ClassroomItem = {
