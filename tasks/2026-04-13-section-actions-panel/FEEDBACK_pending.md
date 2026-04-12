@@ -1,5 +1,7 @@
 # Section Actions Panel v2 — Pending Feedback (2026-04-12)
 
+> **RESOLVED (2026-04-13)** — 후속 task `tasks/2026-04-13-board-settings-panel/` 에서 요청 전 항목 구현. PR 머지 후 본 파일은 `FEEDBACK_resolved.md` 로 이름 변경 예정.
+>
 > v2 배포 직후 피드백. 브레이크아웃은 보드 레벨 설정으로 재배치 필요.
 
 ## 핵심 재프레이밍

@@ -42,9 +42,16 @@ Live feature inventory. Update when merging feature tasks.
 - OAuth + iframe oEmbed + PDF export
 
 ## Section Actions Panel (2026-04-13)
-- columns 보드 섹션 헤더 `⋯` 버튼 → 우측 슬라이드 패널 (owner/editor 노출)
-- 탭: **공유** (토큰 발급/회전/복사, `SectionShareClient` 재사용, owner-only API) / **이름 변경** (PATCH) / **삭제** (체크박스 2단 확인 → DELETE)
-- a11y: `role=dialog` + `aria-modal` + ESC/backdrop 닫기 + focus trap + body scroll lock
+- columns 보드 섹션 헤더 `⋯` 버튼 → ContextMenu 드롭다운 (owner/editor 노출)
+  - 메뉴: **이름 변경**, **섹션 삭제**(danger), **Canva에서 가져오기**, (Canva 링크 존재 시) **PDF 내보내기** / **Canva 폴더로 정리**
+  - rename/delete 선택 시 `SectionActionsPanel`(이름 변경 / 삭제 2탭) 오픈
 - 신규 범용 프리미티브: `src/components/ui/SidePanel.tsx`
-- `/board/[id]/s/[sectionId]/share` 라우트는 북마크 호환용 fallback 으로 유지 (안내 배너 포함)
 - `plant/StageDetailSheet` 는 동일 `SidePanel` 을 사용하도록 리팩터 (props 시그니처 불변)
+
+## Board Settings Panel (2026-04-13)
+- 보드 헤더 `제목` 우측 **⚙ 버튼** — owner/editor 전용
+- 클릭 시 `BoardSettingsPanel` 우측 슬라이드 (`SidePanel` primitive 재사용)
+- 탭:
+  - **브레이크아웃** — 보드 섹션 리스트 + 각 행 링크 **생성/재발급/복사** (`POST /api/sections/:id/share` 재사용, 낙관적 UI + `router.refresh()`). layout != columns 또는 섹션 0개 시 빈 상태 노출
+  - **접근 권한 (준비 중)**, **Canva 연동 (준비 중)**, **테마 (준비 중)** — 플레이스홀더
+- `/board/[id]/s/[sectionId]/share` 라우트는 하위 호환 fallback 으로 유지 — 배너가 "⚙ 보드 설정 → 브레이크아웃" 경로로 안내
