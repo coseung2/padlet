@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { requirePermission, ForbiddenError } from "@/lib/rbac";
+import { isCanvaDesignUrl, resolveCanvaEmbedUrl } from "@/lib/canva";
 
 const CreateCardSchema = z.object({
   boardId: z.string().min(1),
@@ -30,6 +31,38 @@ export async function POST(req: Request) {
     const input = CreateCardSchema.parse(body);
     await requirePermission(input.boardId, user.id, "edit");
 
+    // Canva oEmbed enrichment. For a Canva design URL the SERVER owns
+    // linkImage completely so the client-side iframe gate
+    // (canvaDesignId && linkImage) is a reliable "oEmbed succeeded"
+    // signal. linkTitle / linkDesc respect a client-provided value when
+    // present (user naming convenience), but a missing / unsendable
+    // field is filled from oEmbed.
+    //
+    // undefined = client did not send the field → fill from oEmbed.
+    // explicit null = client sent null on purpose → leave null.
+    let linkUrl = input.linkUrl ?? null;
+    let linkTitle = input.linkTitle === undefined ? null : input.linkTitle;
+    let linkImage = input.linkImage === undefined ? null : input.linkImage;
+    let linkDesc = input.linkDesc === undefined ? null : input.linkDesc;
+    if (linkUrl && isCanvaDesignUrl(linkUrl)) {
+      const embed = await resolveCanvaEmbedUrl(linkUrl);
+      if (embed) {
+        linkUrl = `https://www.canva.com/design/${embed.designId}/view`;
+        // Force-set linkImage from the oEmbed thumbnail so a client
+        // cannot satisfy the iframe gate with a stale / unrelated image.
+        linkImage = embed.thumbnailUrl;
+        if (input.linkTitle === undefined) linkTitle = embed.title;
+        if (input.linkDesc === undefined) {
+          linkDesc = embed.authorName ? `by ${embed.authorName}` : null;
+        }
+      } else {
+        // oEmbed failed → null linkImage so the client falls back to
+        // the plain link-preview rather than attempting a likely-broken
+        // iframe.
+        linkImage = null;
+      }
+    }
+
     const card = await db.card.create({
       data: {
         boardId: input.boardId,
@@ -38,10 +71,10 @@ export async function POST(req: Request) {
         content: input.content,
         color: input.color ?? null,
         imageUrl: input.imageUrl ?? null,
-        linkUrl: input.linkUrl ?? null,
-        linkTitle: input.linkTitle ?? null,
-        linkDesc: input.linkDesc ?? null,
-        linkImage: input.linkImage ?? null,
+        linkUrl,
+        linkTitle,
+        linkDesc,
+        linkImage,
         videoUrl: input.videoUrl ?? null,
         x: input.x,
         y: input.y,

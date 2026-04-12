@@ -1,0 +1,46 @@
+{
+  "patterns": [
+    {
+      "pattern_id": "oembed-paste-detect",
+      "description": "사용자가 지원 도메인 URL을 붙여넣으면 자동 감지 → oEmbed 호출 → iframe embed 로 변환. Notion/Medium/WordPress 공통 패턴.",
+      "source_url": "https://www.canva.dev/blog/engineering/how-canva-makes-content-embeddable-and-why-you-should-too/",
+      "tradeoff": "초기 로드 시 외부 API 호출 1회 지연 ↔ 사용자 설정 0",
+      "decision_for_aura": "ADOPT — 카드 생성 API(POST /api/cards) 에서 linkUrl 이 canva 패턴이면 oEmbed 호출 후 결과 캐시"
+    },
+    {
+      "pattern_id": "thumbnail-first-iframe-swap",
+      "description": "썸네일 이미지를 먼저 렌더 → iframe 로드 완료 시 스왑. 체감 지연 마스킹.",
+      "source_url": "iframely lazy-embed",
+      "tradeoff": "코드 복잡도 + ↔ Largest Contentful Paint 개선",
+      "decision_for_aura": "ADOPT — oEmbed 응답의 thumbnail_url 을 linkImage 로 저장해 활용. YouTube 분기와 일관."
+    },
+    {
+      "pattern_id": "responsive-aspect-wrapper",
+      "description": "padding-bottom 백분율로 비율 유지 + 절대 위치 iframe. 카드 크기 변해도 깨짐 없음.",
+      "source_url": "https://iframely.com/domains/canva",
+      "tradeoff": "CSS 복잡도 ↔ 다양한 카드 폭에서 안정",
+      "decision_for_aura": "ADOPT — `.card-canva-embed { position: relative; padding-bottom: 56.25%; }` + `iframe { position: absolute; inset: 0; }`"
+    },
+    {
+      "pattern_id": "graceful-degradation-to-link-card",
+      "description": "iframe 로드 실패 / oEmbed 응답 없음 / 비공개 디자인 감지 시 기존 OG 프리뷰 카드로 자동 degrade.",
+      "source_url": "Notion embed fallback behavior",
+      "tradeoff": "별도 에러 UI 없음 ↔ 사용자에게 이유 숨김",
+      "decision_for_aura": "ADOPT — 카드에 'Canva 비공개 디자인' 배지 추가하되 OG 프리뷰 자체는 유지"
+    },
+    {
+      "pattern_id": "csp-frame-src-allowlist",
+      "description": "iframe 허용 도메인을 CSP `frame-src` 디렉티브로 화이트리스트 관리.",
+      "source_url": "MDN CSP",
+      "tradeoff": "정책 관리 비용 ↔ clickjacking / 임베드 악용 차단",
+      "decision_for_aura": "ADOPT — `next.config.ts` headers 에 `frame-src 'self' https://www.canva.com https://www.youtube.com` 확장. 향후 Google/Figma/Notion 도메인 합류 예정."
+    },
+    {
+      "pattern_id": "oembed-response-cache",
+      "description": "oEmbed 응답을 (url, variant) → response 로 서버 사이드 캐시. 재조회시 외부 호출 스킵.",
+      "source_url": "Canva engineering blog — 15min Cloudflare cache",
+      "tradeoff": "캐시 무효화 전략 필요 ↔ 외부 API 트래픽 절감 + 레이턴시 단축",
+      "decision_for_aura": "ADOPT — Card 생성 시 1회 호출 후 `linkImage` / `linkTitle` / `linkDesc` 로 DB 저장. 웹훅(P2-⑤) 도입 전엔 수동 새로고침 액션 제공 고려."
+    }
+  ]
+}

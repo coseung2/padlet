@@ -318,11 +318,129 @@ export async function resolveCanvaDesignId(url: string): Promise<string | null> 
 
   if (url.includes("canva.link")) {
     try {
-      const res = await fetch(url, { redirect: "manual" });
+      // Short-link expansion — hard cap the redirect HEAD so a slow
+      // canva.link response cannot blow past the outer 3s oEmbed budget.
+      const res = await fetch(url, {
+        redirect: "manual",
+        signal: AbortSignal.timeout(2000),
+      });
       finalUrl = res.headers.get("location") ?? url;
     } catch {}
   }
 
   const match = finalUrl.match(/\/design\/([A-Za-z0-9_-]+)\//);
   return match?.[1] ?? null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// oEmbed live-embed support (task 2026-04-12-canva-oembed)
+// ─────────────────────────────────────────────────────────────────────────
+
+export type CanvaEmbed = {
+  iframeSrc: string;
+  thumbnailUrl: string;
+  title: string;
+  authorName: string;
+  width: number;
+  height: number;
+  designId: string;
+};
+
+// Pure sync predicate — no network. Accepts www-prefixed and bare variants.
+export function isCanvaDesignUrl(rawUrl: string): boolean {
+  if (!rawUrl) return false;
+  let host: string;
+  let pathname: string;
+  try {
+    const u = new URL(rawUrl);
+    host = u.hostname.toLowerCase();
+    pathname = u.pathname;
+  } catch {
+    return false;
+  }
+  const canonicalHost =
+    host === "canva.com" || host === "www.canva.com" || host === "canva.link";
+  if (!canonicalHost) return false;
+  if (host === "canva.link") return true;
+  return /\/design\/[A-Za-z0-9_-]+/.test(pathname);
+}
+
+// Pure sync extractor — returns null when the URL is not a canva.com design
+// page we can name a designId for. Does NOT resolve canva.link short-links.
+export function extractCanvaDesignId(rawUrl: string): string | null {
+  if (!rawUrl) return null;
+  try {
+    const u = new URL(rawUrl);
+    const host = u.hostname.toLowerCase();
+    if (host !== "canva.com" && host !== "www.canva.com") return null;
+    const m = u.pathname.match(/\/design\/([A-Za-z0-9_-]+)/);
+    return m?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Async resolver — may do 1 short-link HEAD plus 1 oEmbed fetch.
+// Returns null on any failure so callers can fall back to the link-preview
+// path without a throw.
+export async function resolveCanvaEmbedUrl(
+  rawUrl: string
+): Promise<CanvaEmbed | null> {
+  if (!isCanvaDesignUrl(rawUrl)) return null;
+
+  // 1. Resolve short-link to its canva.com location when needed.
+  const designId = await resolveCanvaDesignId(rawUrl);
+  if (!designId) return null;
+
+  // 2. Canonicalize to the /view URL so oEmbed responds consistently.
+  const canonicalUrl = `https://www.canva.com/design/${designId}/view`;
+
+  // 3. Ask Canva's oEmbed endpoint. Canva is currently migrating from the
+  //    legacy www.canva.com path to api.canva.com — try the new endpoint
+  //    first and fall back to the legacy one. Each attempt has its own
+  //    short timeout so a stalled endpoint can't exhaust the budget twice.
+  const endpoints = [
+    `https://api.canva.com/_spi/presentation/_oembed?url=${encodeURIComponent(canonicalUrl)}`,
+    `https://www.canva.com/_oembed?url=${encodeURIComponent(canonicalUrl)}`,
+  ];
+
+  for (const endpoint of endpoints) {
+    const body = await fetchCanvaOEmbed(endpoint);
+    if (!body) continue;
+
+    // 4. Validate — require a thumbnail and the "rich" type Canva actually
+    //    advertises. Ignore body.html intentionally (no
+    //    dangerouslySetInnerHTML path — phase3 §5-6).
+    if (body.type !== "rich") continue;
+    if (typeof body.thumbnail_url !== "string") continue;
+
+    return {
+      iframeSrc: `https://www.canva.com/design/${designId}/view?embed&meta`,
+      thumbnailUrl: String(body.thumbnail_url),
+      title: String(body.title ?? "Canva design"),
+      authorName: String(body.author_name ?? ""),
+      width: Number(body.width ?? 1600),
+      height: Number(body.height ?? 900),
+      designId,
+    };
+  }
+
+  return null;
+}
+
+async function fetchCanvaOEmbed(
+  endpoint: string
+): Promise<Record<string, unknown> | null> {
+  try {
+    const res = await fetch(endpoint, {
+      signal: AbortSignal.timeout(3000),
+      headers: {
+        "User-Agent": "Aura-board/1.0 (+https://aura-board-app.vercel.app)",
+      },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
 }
