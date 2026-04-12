@@ -220,6 +220,38 @@ background: var(--color-bg);
 border-color: var(--color-accent);
 ```
 
+### 라이브 임베드 wrapper (`.card-canva-embed`)
+
+카드 안에서 외부 도구의 iframe 을 라이브로 렌더할 때 쓰는 반응형 16:9 박스.
+썸네일이 iframe 로드 전 LCP 를 선점하고, 로드 완료 시 opacity 페이드로 교체된다.
+
+```css
+.card-canva-embed {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%;   /* 16:9 */
+  min-height: 90px;         /* tiny-card floor */
+  background: var(--color-bg);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.card-canva-embed > img,
+.card-canva-embed > iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.card-canva-embed > img { object-fit: cover; transition: opacity 150ms ease; }
+.card-canva-embed[data-loaded="true"] > img { opacity: 0; pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .card-canva-embed > img { transition: none; }
+}
+```
+
+적용 규칙:
+- React가 iframe `onLoad` 에서 wrapper 에 `data-loaded="true"` 를 부여 → CSS 가 썸네일을 페이드 아웃.
+- iframe 은 `sandbox="allow-scripts allow-same-origin allow-popups"` + `loading="lazy"` 고정.
+- `frame-src` 를 허용하지 않은 출처는 브라우저가 차단 — 허용 출처는 `next.config.ts` 의 CSP allowlist 로 관리 (현재: `'self' https://www.canva.com https://www.youtube.com`).
+- 향후 Figma / Notion / GeoGebra 등이 합류하면 이 규칙을 `.card-live-embed` 로 일반화하는 리팩터가 예정됨.
+
 ### 뱃지/필
 
 ```css

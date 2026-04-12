@@ -17,6 +17,15 @@ npm run dev           # http://localhost:3000
 
 첫 방문 시 `/board/demo`로 리디렉트됩니다.
 
+## 카드에 붙일 수 있는 콘텐츠
+
+- 이미지 (업로드 또는 URL)
+- 일반 링크 (OG 메타 프리뷰)
+- YouTube URL → iframe 임베드
+- **Canva 디자인 URL → 라이브 iframe 임베드** (공개 디자인. 비공개는 일반 링크 프리뷰로 폴백)
+
+향후 Google Slides / Docs / Sheets, Figma, Notion, Desmos, GeoGebra 등 임베드는 `tasks/2026-04-12-embed-research/findings.md` 에 후보로 보관.
+
 ### 역할 전환 (mock RBAC)
 
 실제 인증이 없으므로 `?as=` 쿼리로 mock 사용자를 선택:
