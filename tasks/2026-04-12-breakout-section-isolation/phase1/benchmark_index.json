@@ -1,0 +1,32 @@
+{
+  "benchmarks": [
+    {
+      "id": "padlet_upstream_sections",
+      "product": "Padlet",
+      "url": "https://help.padlet.com/hc/en-us/articles/5067625005335-Sections",
+      "evidence": "docs; public help center",
+      "relevance": "본 제품의 상류 — 섹션 공유 URL 부재 확인"
+    },
+    {
+      "id": "miro_frame_share",
+      "product": "Miro",
+      "url": "https://help.miro.com/hc/en-us/articles/360017572334",
+      "evidence": "docs",
+      "relevance": "frame focus URL 패턴 참조 (격리는 되지 않음)"
+    },
+    {
+      "id": "figjam_share",
+      "product": "FigJam",
+      "url": "https://help.figma.com/hc/en-us/articles/1500006471901",
+      "evidence": "docs",
+      "relevance": "섹션 격리 미지원 — 차별 포인트 증거"
+    },
+    {
+      "id": "zoom_breakout",
+      "product": "Zoom",
+      "url": "https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0063867",
+      "evidence": "docs",
+      "relevance": "UX 메타포 — 룸(=섹션)당 고유 조인 링크"
+    }
+  ]
+}

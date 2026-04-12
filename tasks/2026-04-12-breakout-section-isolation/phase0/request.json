@@ -1,0 +1,18 @@
+{
+  "type": "feature",
+  "slug": "breakout-section-isolation",
+  "task_id": "2026-04-12-breakout-section-isolation",
+  "change_type": "new_feature",
+  "motivation": "태블릿 수업에서 섹션이 많은 보드를 열면 전체 카드 페이로드를 내려받느라 tablet 성능이 저하되고, 학생이 본인 모둠 외 콘텐츠에 불필요하게 노출된다. roadmap T0-① (tablet-performance-roadmap §5) 요구사항에 따라 섹션 단위로 격리된 Breakout 뷰와 share 토큰 기반 접근을 제공한다.",
+  "user_story": "교사로서 특정 섹션의 고유 공유 링크를 생성해 학생에게 전달하면, 학생은 자신이 속한 섹션 카드만 보이는 Breakout 뷰에 접근할 수 있다.",
+  "success_metric": "/board/[id]/s/[sectionId]?token=… 접근 시 해당 섹션 카드만 서버→클라이언트로 전송되며 (다른 섹션 payload 0개), 비회원·토큰 불일치는 HTTP 403을 반환한다. 기존 /board/[id] 교사 통합 뷰는 회귀 없이 동작한다.",
+  "affected_surfaces": [
+    "/board/[id]/s/[sectionId]",
+    "/api/sections/[id]/cards",
+    "/api/sections/[id]/share",
+    "src/lib/rbac.ts",
+    "src/lib/realtime.ts",
+    "prisma/schema.prisma"
+  ],
+  "created_at": "2026-04-12T10:00:00+09:00"
+}

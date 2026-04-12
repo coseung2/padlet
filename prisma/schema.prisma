@@ -119,10 +119,15 @@ model Board {
 
 // Columns/Kanban용 섹션 (grid/stream에선 사용 안 함)
 model Section {
-  id      String @id @default(cuid())
-  boardId String
-  title   String
-  order   Int    @default(0)
+  id          String  @id @default(cuid())
+  boardId     String
+  title       String
+  order       Int     @default(0)
+  // Breakout view (T0-①): teacher-rotatable access token.
+  // null = no public share link. When set, anyone with the token can view the
+  // section-isolated Breakout route. Rotating replaces the value, invalidating
+  // previously distributed links. See src/lib/rbac.ts#viewSection.
+  accessToken String? @unique
 
   board Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
   cards Card[] @relation("SectionCards")

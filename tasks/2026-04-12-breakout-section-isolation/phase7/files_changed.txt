@@ -1,0 +1,13 @@
+prisma/schema.prisma
+prisma/migrations/20260412_add_section_access_token/migration.sql
+src/lib/realtime.ts
+src/lib/rbac.ts
+src/lib/__tests__/realtime.test.ts
+src/app/api/sections/[id]/cards/route.ts
+src/app/api/sections/[id]/share/route.ts
+src/app/board/[id]/s/[sectionId]/page.tsx
+src/app/board/[id]/s/[sectionId]/share/page.tsx
+src/components/SectionBreakoutView.tsx
+src/components/SectionShareClient.tsx
+src/styles/breakout.css
+src/app/globals.css
