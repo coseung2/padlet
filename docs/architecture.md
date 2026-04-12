@@ -179,9 +179,46 @@ model BreakoutMembership {
 - BR-5에서 deployMode 별 진입 URL(token 포함) 배포 예정.
 
 ### Deferred → BR-5 ~ BR-9
-- Deploy runtime (link-fixed/self-select/teacher-assign)
-- Visibility WS gating (own-only/peek-others)
-- Teacher assignment UI (drag-assign)
-- Student 명단 CSV import
-- 분석/통계
+- ~Deploy runtime~ — BR-5 완료
+- ~Visibility WS gating~ — BR-6 완료
+- ~Teacher assignment UI~ — BR-7 완료
+- ~Student 명단 CSV import~ — BR-8 완료
+- ~분석/통계~ — BR-9 완료
+
+## Breakout Room Runtime (2026-04-12, BR-5 ~ BR-9)
+
+### APIs
+- `PATCH /api/breakout/assignments/[id]` — owner, body `{deployMode?, visibilityOverride?, groupCapacity?, status?}` (zod 검증)
+- `POST /api/breakout/assignments/[id]/membership` — 학생 self-insert 또는 교사 대리. 정원 check + @@unique → 400/409. self-select 모드는 2회차 시도 시 409 `already_selected`.
+- `PATCH /api/breakout/assignments/[id]/membership/[mid]` — owner, 섹션 이동 + 정원 check
+- `DELETE /api/breakout/assignments/[id]/membership/[mid]` — owner
+- `GET /api/breakout/assignments/[id]/my-access` — 호출자(teacher/student) 기준 허용 섹션 id + realtime 채널 key 리스트 반환 (`boardChannelKey` / `sectionChannelKey`)
+- `POST /api/breakout/assignments/[id]/roster-import` — owner, multipart `file=<csv>` (name/number 헤더), Student upsert, 반환 `{created, existing, failed}`
+
+### RBAC
+- `src/lib/rbac.ts#assertBreakoutVisibility({sectionId, boardId, userId?, studentId?, token?})` — breakout 보드일 경우 추가 가드. 교사/매치 토큰은 통과, 학생은 own-only(자기 멤버십 sectionId) / peek-others(모든 group section) / teacher-pool(상시 허용).
+- `src/lib/rbac.ts#maybeAutoJoinLinkFixed({assignmentId, sectionId, studentId})` — link-fixed 모드 한정 멱등 upsert. 정원 초과 시 `capacity_reached`.
+- 섹션 진입점 (`/board/[id]/s/[sectionId]`, `/api/sections/[id]/cards`) 모두 viewSection → assertBreakoutVisibility 순서 호출.
+
+### Pages / Components
+- `src/app/b/[slug]/select/page.tsx` — 학생 self-select 그리드 + 정원 표시
+- `src/app/board/[id]/archive/page.tsx` — 교사 전용 읽기 전용 모둠별 요약 테이블 + 최종 카드 스냅샷
+- `src/components/BreakoutSelectClient.tsx` — 선택 버튼 + 409/정원초과 에러 메시지
+- `src/components/BreakoutAssignmentManager.tsx` — 교사 대시보드 모달: 미배정 학생 리스트, 모둠별 배정/이동/제거, link-fixed 링크 복사, CSV 업로드
+- `src/components/BreakoutBoard.tsx` — "배정 관리" / "세션 종료" / "아카이브" 툴바 + 모둠별 멤버 리스트 + 정체 경고 + deploy-mode/visibility 배지
+- `src/components/SectionBreakoutView.tsx` — `autoJoinWarning` prop (link-fixed capacity_reached 경고)
+
+### 배포 모드 동작 요약
+| 모드 | 진입 경로 | 멤버십 생성 시점 |
+|---|---|---|
+| link-fixed | 교사가 배포한 `/board/[id]/s/[sectionId]?t=<token>` | 섹션 방문 시 auto-upsert |
+| self-select | 교사가 공유한 `/b/[slug]/select` | 학생 클릭 1회 |
+| teacher-assign | 교사가 드래그/버튼 배정 | 교사 액션 즉시 |
+
+### 가시성 모드 요약
+| 모드 | 학생 접근 |
+|---|---|
+| own-only | 본인 membership.sectionId + teacher-pool 섹션만 |
+| peek-others | 전체 group section + teacher-pool |
+| teacher | 항상 full (owner/editor) |
 - 실제 Tier 결제 모델 (User.tier 필드)
