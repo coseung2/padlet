@@ -137,3 +137,171 @@ function tokensEqual(a: string, b: string): boolean {
     return false;
   }
 }
+
+// ─── Breakout visibility gating (BR-6) ────────────────────────────────────
+//
+// Once a board has layout="breakout", `viewSection` alone is not enough —
+// the own-only / peek-others visibility mode also constrains which sections
+// a student may read. Teachers (owner/editor) always have full access.
+//
+// Rules (student):
+//   - own-only  → may only see:
+//       · their BreakoutMembership.sectionId (or sections within their
+//         group — we keep it per-section for now since each group may
+//         contain multiple sections, see `groupSectionTitle`)
+//       · teacher-pool sections (shared titles)
+//   - peek-others → all group + teacher-pool sections
+//
+// Caller is expected to have already passed `viewSection` (i.e. classroom
+// membership or share token matched). `assertBreakoutVisibility` narrows
+// the access further when the section belongs to a breakout board.
+
+export type BreakoutVisibilityMode = "own-only" | "peek-others";
+
+export type BreakoutAccessInput = {
+  sectionId: string;
+  boardId: string;
+  userId?: string | null;
+  studentId?: string | null;
+  token?: string | null;
+};
+
+/**
+ * If the section belongs to a breakout board, apply the visibility override
+ * (or the template's recommendedVisibility). Throws ForbiddenError when a
+ * student would be leaking into another group's section.
+ *
+ * Teacher (board owner/editor) and matched shareToken callers are exempt —
+ * they already satisfied `viewSection`'s stronger checks.
+ */
+export async function assertBreakoutVisibility(
+  input: BreakoutAccessInput
+): Promise<void> {
+  const assignment = await db.breakoutAssignment.findUnique({
+    where: { boardId: input.boardId },
+    include: { template: true },
+  });
+  if (!assignment) return; // not a breakout board → no extra gating
+
+  // Teacher path — owner/editor on the board is always allowed.
+  if (input.userId) {
+    const role = await getBoardRole(input.boardId, input.userId);
+    if (role === "owner" || role === "editor") return;
+  }
+
+  // Shared-token path: if the caller presented the section's accessToken,
+  // `viewSection` already validated it. Allow through.
+  if (input.token) {
+    const sec = await db.section.findUnique({
+      where: { id: input.sectionId },
+      select: { accessToken: true },
+    });
+    if (sec?.accessToken && tokensEqual(input.token, sec.accessToken)) return;
+  }
+
+  // Anyone else must be a student with either teacher-pool access or a
+  // membership matching this section (own-only) or any group section
+  // (peek-others).
+  if (!input.studentId) {
+    throw new ForbiddenError("Breakout: student identity required");
+  }
+
+  const visibility: BreakoutVisibilityMode =
+    (assignment.visibilityOverride as BreakoutVisibilityMode | null) ??
+    (assignment.template.recommendedVisibility as BreakoutVisibilityMode);
+
+  // Parse the template.structure for shared section titles once.
+  // `structure` is JSON; we accept any shape failure silently (falls through
+  // to the membership check).
+  const sharedTitles = new Set<string>();
+  const raw = assignment.template.structure as {
+    sharedSections?: Array<{ title: string }>;
+  } | null;
+  if (raw?.sharedSections) {
+    for (const s of raw.sharedSections) sharedTitles.add(s.title);
+  }
+
+  const section = await db.section.findUnique({
+    where: { id: input.sectionId },
+    select: { title: true },
+  });
+  if (section && sharedTitles.has(section.title)) return; // teacher-pool OK for everyone
+
+  if (visibility === "peek-others") {
+    // Any section in this assignment's board is OK (the earlier viewSection
+    // already verified the section belongs to the board).
+    return;
+  }
+
+  // own-only: must have a membership in THIS specific section.
+  const membership = await db.breakoutMembership.findFirst({
+    where: {
+      assignmentId: assignment.id,
+      studentId: input.studentId,
+      sectionId: input.sectionId,
+    },
+    select: { id: true },
+  });
+  if (!membership) {
+    throw new ForbiddenError("Breakout: own-only section gating");
+  }
+}
+
+/**
+ * Auto-join a student to a breakout section when the assignment's
+ * deployMode === "link-fixed". Idempotent (respects @@unique).
+ *
+ * Returns `{ ok: true }` on success or when already a member, else a reason
+ * the caller can surface to the user.
+ */
+export async function maybeAutoJoinLinkFixed(params: {
+  assignmentId: string;
+  sectionId: string;
+  studentId: string;
+}): Promise<
+  | { ok: true }
+  | { ok: false; reason: "capacity_reached" | "already_in_other" | "not_link_fixed" }
+> {
+  const assignment = await db.breakoutAssignment.findUnique({
+    where: { id: params.assignmentId },
+  });
+  if (!assignment) return { ok: false, reason: "not_link_fixed" };
+  if (assignment.deployMode !== "link-fixed") {
+    return { ok: false, reason: "not_link_fixed" };
+  }
+
+  // Already a member of THIS section?
+  const existing = await db.breakoutMembership.findFirst({
+    where: {
+      assignmentId: assignment.id,
+      studentId: params.studentId,
+    },
+  });
+  if (existing) {
+    if (existing.sectionId === params.sectionId) return { ok: true };
+    return { ok: false, reason: "already_in_other" };
+  }
+
+  // Capacity gate — soft limit but we enforce hard here for link-fixed to
+  // avoid wild oversubscription. Teacher can PATCH capacity if needed.
+  const count = await db.breakoutMembership.count({
+    where: { assignmentId: assignment.id, sectionId: params.sectionId },
+  });
+  if (count >= assignment.groupCapacity) {
+    return { ok: false, reason: "capacity_reached" };
+  }
+
+  try {
+    await db.breakoutMembership.create({
+      data: {
+        assignmentId: assignment.id,
+        sectionId: params.sectionId,
+        studentId: params.studentId,
+      },
+    });
+  } catch {
+    // race with another tab / unique violation — treat as success idempotent
+    return { ok: true };
+  }
+  return { ok: true };
+}

@@ -114,6 +114,20 @@ export default async function BoardPage({
         include: { template: true },
       })
     : null;
+  const breakoutMembershipsPromise = needsBreakoutAssignment
+    ? db.breakoutMembership.findMany({
+        where: { assignment: { boardId: board.id } },
+        include: { student: { select: { id: true, name: true, number: true } } },
+      })
+    : null;
+  const rosterStudentsPromise =
+    needsBreakoutAssignment && board.classroomId
+      ? db.student.findMany({
+          where: { classroomId: board.classroomId },
+          orderBy: [{ number: "asc" }, { name: "asc" }],
+          select: { id: true, name: true, number: true },
+        })
+      : null;
 
   const [
     cardsRaw,
@@ -123,6 +137,8 @@ export default async function BoardPage({
     quizzesRaw,
     role,
     breakoutAssignmentRaw,
+    breakoutMembershipsRaw,
+    rosterStudentsRaw,
   ] = await Promise.all([
     cardsPromise,
     sectionsPromise,
@@ -131,7 +147,11 @@ export default async function BoardPage({
     quizzesPromise,
     rolePromise,
     breakoutAssignmentPromise,
+    breakoutMembershipsPromise,
+    rosterStudentsPromise,
   ]);
+  const breakoutMemberships = breakoutMembershipsRaw ?? [];
+  const rosterStudents = rosterStudentsRaw ?? [];
 
   const cards = cardsRaw ?? [];
   const sections = sectionsRaw ?? [];
@@ -419,12 +439,30 @@ export default async function BoardPage({
               groupCount: breakoutAssignmentRaw.groupCount,
               groupCapacity: breakoutAssignmentRaw.groupCapacity,
               visibility,
+              deployMode: breakoutAssignmentRaw.deployMode as
+                | "link-fixed"
+                | "self-select"
+                | "teacher-assign",
+              status: breakoutAssignmentRaw.status as "active" | "archived",
               sharedSectionTitles,
             }}
             initialCards={cardProps}
             initialSections={sectionProps}
+            initialMemberships={breakoutMemberships.map((m) => ({
+              id: m.id,
+              studentId: m.studentId,
+              studentName: m.student.name,
+              studentNumber: m.student.number,
+              sectionId: m.sectionId,
+            }))}
+            rosterStudents={rosterStudents.map((s) => ({
+              id: s.id,
+              name: s.name,
+              number: s.number,
+            }))}
             currentUserId={effectiveUserId}
             currentRole={effectiveRole!}
+            boardSlug={board!.slug}
           />
         );
       }

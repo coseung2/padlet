@@ -20,6 +20,7 @@ type Props = {
   sectionTitle: string;
   cards: CardLike[];
   shareManagementHref?: string | null; // owner only
+  autoJoinWarning?: string | null; // BR-5 link-fixed feedback
 };
 
 /**
@@ -32,6 +33,7 @@ export function SectionBreakoutView({
   sectionTitle,
   cards,
   shareManagementHref,
+  autoJoinWarning,
 }: Props) {
   return (
     <main className="board-page">
@@ -55,6 +57,21 @@ export function SectionBreakoutView({
       <div className="breakout-header">
         <span className="breakout-breadcrumb">{boardTitle} › {sectionTitle}</span>
       </div>
+      {autoJoinWarning && (
+        <div
+          role="alert"
+          style={{
+            margin: "8px 16px",
+            padding: 12,
+            background: "var(--color-warn-bg,#fff8e1)",
+            color: "var(--color-warn,#8a6d00)",
+            border: "1px solid var(--color-warn-border,#ffe08a)",
+            borderRadius: 6,
+          }}
+        >
+          {autoJoinWarning}
+        </div>
+      )}
 
       {cards.length === 0 ? (
         <p className="breakout-empty">이 섹션에는 아직 카드가 없어요.</p>

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getCurrentStudent } from "@/lib/student-auth";
-import { viewSection, ForbiddenError } from "@/lib/rbac";
+import { viewSection, ForbiddenError, assertBreakoutVisibility } from "@/lib/rbac";
 
 /**
  * GET /api/sections/:id/cards?token=<accessToken>
@@ -25,9 +25,19 @@ export async function GET(
       getCurrentStudent(),
     ]);
 
-    await viewSection(sectionId, {
+    const section = await viewSection(sectionId, {
       userId: user?.id ?? null,
       studentClassroomId: student?.classroomId ?? null,
+      token,
+    });
+
+    // BR-6 layered gate: if section belongs to a breakout board, apply the
+    // visibility mode. Teachers + share-token callers short-circuit inside.
+    await assertBreakoutVisibility({
+      sectionId,
+      boardId: section.boardId,
+      userId: user?.id ?? null,
+      studentId: student?.id ?? null,
       token,
     });
 

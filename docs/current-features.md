@@ -86,4 +86,18 @@ Live feature inventory. Update when merging feature tasks.
 - Tier gating stub: `src/lib/tier.ts` (`process.env.TIER_MODE`) — BR-5~9에서 `User.tier` 필드로 swap
 - UI: `CreateBreakoutBoardModal` (3-step: 템플릿/구성/확인) + `BreakoutBoard` 교사 풀뷰 (모둠 N개 grid + 카드 컨텍스트 메뉴)
 - 학생 격리 뷰: T0-① `/board/[id]/s/[sectionId]` 재사용
-- **out of scope (BR-5~9)**: deployMode 런타임 (link-fixed/self-select/teacher-assign), WS visibility 게이팅 (own-only/peek-others), 학생 명단 CSV import, 분석 대시보드, 실제 Tier 결제 모델
+
+## 모둠 학습 보드 — Runtime (2026-04-12, BR-5 ~ BR-9)
+- **BR-5 배포 모드 런타임**:
+  - `link-fixed`: 교사가 섹션 링크 배포 → 학생 방문 시 `maybeAutoJoinLinkFixed` 자동 upsert
+  - `self-select`: 학생이 `/b/[slug]/select`에서 모둠 선택 (초기 1회만, 변경은 교사 승인)
+  - `teacher-assign`: 교사 대시보드에서 반 학생 → 모둠 배정
+  - APIs: `PATCH /api/breakout/assignments/[id]` (deployMode/visibility/status/capacity), `POST/PATCH/DELETE /api/breakout/assignments/[id]/membership[/mid]` (정원 check + force override)
+- **BR-6 가시성 WS 게이팅**:
+  - `src/lib/rbac.ts#assertBreakoutVisibility` — own-only/peek-others + teacher-pool 섹션 분기
+  - 섹션 진입 + `/api/sections/[id]/cards` 2경로 모두 게이트 통과
+  - `GET /api/breakout/assignments/[id]/my-access` — 학생별 허용 섹션 + 채널 key 리스트 (WS 엔진 도입 시 그대로 사용)
+- **BR-7 교사 대시보드**: `BreakoutAssignmentManager` 모달 — 미배정 학생 리스트 + 모둠별 배정 + 이동/제거 버튼 + link-fixed 링크 복사 + 정체 경고
+- **BR-8 CSV 로스터 import**: `POST /api/breakout/assignments/[id]/roster-import` (multipart) — name/number 헤더 기반 Student upsert, classroom-scoped
+- **BR-9 아카이브**: `PATCH status="archived"` + `/board/[id]/archive` 서버 컴포넌트 — 모둠별 카드 수 / 활동 학생 수 / 최근 활동 / 최종 카드 스냅샷
+- **v2 파킹**: 월드카페 템플릿, 학생 셀프 모둠 이동, 실제 Tier 결제 모델, CSV export
