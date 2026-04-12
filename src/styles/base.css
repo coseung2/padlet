@@ -27,6 +27,10 @@
   --color-plant-upcoming: #d0cfcd;
   --color-plant-stalled: #c62828;
 
+  /* Destructive actions (section-actions-panel) */
+  --color-danger: #c62828;
+  --color-danger-active: #a01b1b;
+
   /* Radii */
   --radius-card: 12px;
   --radius-btn: 4px;

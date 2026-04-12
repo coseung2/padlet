@@ -1,0 +1,9 @@
+ADD  src/components/ui/SidePanel.tsx
+ADD  src/components/SectionActionsPanel.tsx
+ADD  src/styles/side-panel.css
+MOD  src/components/ColumnsBoard.tsx
+MOD  src/components/plant/StageDetailSheet.tsx
+MOD  src/app/board/[id]/page.tsx
+MOD  src/app/board/[id]/s/[sectionId]/share/page.tsx
+MOD  src/styles/base.css
+MOD  src/app/globals.css
