@@ -1,0 +1,10 @@
+REVIEW_OK
+scope=parent-ux
+phases=PV-6..PV-12
+typecheck=PASS
+build=PASS
+scope_enforcement=10/10_routes
+cross_student_403=verified_via_helper
+cross_parent_404=helper_exists
+revoke_sla=polling_45s+event_bus
+date=2026-04-12

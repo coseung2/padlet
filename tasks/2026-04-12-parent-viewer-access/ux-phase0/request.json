@@ -1,0 +1,27 @@
+{
+  "type": "feature",
+  "task_id": "2026-04-12-parent-viewer-access",
+  "sub_pipeline": "ux",
+  "seed_id": "seed_37b35654542f",
+  "scope": "PV-6 ~ PV-12",
+  "branch": "feat/parent-viewer-ux",
+  "base": "main (8a5df45)",
+  "goal": "Parent Viewer UX + Integration: PWA shell, child-scope feature views (5 domains), teacher management tab, revoke SLA, weekly email cron, self-withdraw + 90d anonymize cron, E2E security tests",
+  "upstream_artifacts": [
+    "INBOX/2026-04-12-parent-viewer-access/handoff_note.md",
+    "src/lib/parent-codes.ts",
+    "src/lib/parent-magic-link.ts",
+    "src/lib/parent-rate-limit.ts",
+    "src/lib/parent-scope.ts",
+    "src/lib/parent-session.ts"
+  ],
+  "constraints": {
+    "no_schema_changes": true,
+    "no_new_iframes": true,
+    "no_websocket": true,
+    "polling": "SWR 60s",
+    "viewport": "320-430px iOS Safari / Android Chrome + Galaxy Tab S6 Lite",
+    "TTI": "<2s LTE, <3s 3G",
+    "perf_budget": "first viewport <500KB, thumbnail <200KB"
+  }
+}
