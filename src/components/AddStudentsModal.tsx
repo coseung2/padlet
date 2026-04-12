@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef } from "react";
-import * as XLSX from "xlsx";
 
 type Props = {
   open: boolean;
@@ -28,7 +27,10 @@ function parseTextInput(text: string): ParsedStudent[] {
     .filter((s): s is ParsedStudent => s !== null);
 }
 
-function parseFileData(data: ArrayBuffer, fileName: string): ParsedStudent[] {
+function parseFileData(
+  XLSX: typeof import("xlsx"),
+  data: ArrayBuffer,
+): ParsedStudent[] {
   const wb = XLSX.read(data, { type: "array" });
   const ws = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1 }) as unknown as unknown[][];
@@ -62,15 +64,18 @@ export function AddStudentsModal({ open, classroomId, onClose, onAdded }: Props)
     mode === "text" &&
     text.split("\n").filter((l) => l.trim()).length !== parsed.length;
 
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
+    // xlsx is ~400 KB minified. Keep it out of the initial bundle and only
+    // pay the download cost when the teacher actually picks a spreadsheet.
+    const XLSX = await import("xlsx");
     const reader = new FileReader();
     reader.onload = (ev) => {
       const data = ev.target?.result as ArrayBuffer;
       try {
-        const students = parseFileData(data, file.name);
+        const students = parseFileData(XLSX, data);
         setFileStudents(students);
       } catch {
         alert("파일을 읽을 수 없습니다. 엑셀 또는 CSV 파일을 확인하세요.");
