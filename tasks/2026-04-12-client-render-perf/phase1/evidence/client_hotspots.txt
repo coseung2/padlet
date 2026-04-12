@@ -1,0 +1,47 @@
+클라이언트 렌더링 핫스팟
+
+═══════════════════════════════════════════════════════
+router.refresh() 남발
+═══════════════════════════════════════════════════════
+src/components/ClassroomDetail.tsx:47-49 — 정의
+src/components/ClassroomDetail.tsx:85     — 학생 삭제 후
+src/components/ClassroomDetail.tsx:115    — QR 재발급 후
+src/components/ClassroomDetail.tsx:354-355 — 학생 추가 후
+
+═══════════════════════════════════════════════════════
+렌더마다 배열 연산 반복
+═══════════════════════════════════════════════════════
+src/components/ColumnsBoard.tsx:129-133   — getCardsForSection 정의
+src/components/ColumnsBoard.tsx:52, 114, 137, 193, 269, 346, 479 — 8회 호출
+
+src/components/ColumnsBoard.tsx:348-350   — 렌더 내 hasCanva 계산
+  const hasCanva = sectionCards.some(c => c.linkUrl?.includes("canva"));
+
+═══════════════════════════════════════════════════════
+React.memo 미사용
+═══════════════════════════════════════════════════════
+src/components/DraggableCard.tsx:32       — memo 없음
+src/components/CardAttachments.tsx:1      — memo 없음
+src/components/Dashboard.tsx              — 인라인 스타일 9곳 + 인라인 핸들러
+
+═══════════════════════════════════════════════════════
+useCallback 미사용 핸들러
+═══════════════════════════════════════════════════════
+src/components/ClassroomDetail.tsx:50     — toggleSelect
+src/components/ClassroomDetail.tsx:58     — toggleAll
+src/components/ClassroomDetail.tsx:63+    — handleBatchDelete, handleCopyCode, handleReissue
+
+═══════════════════════════════════════════════════════
+QR 코드 클라이언트 대량 생성
+═══════════════════════════════════════════════════════
+src/components/ClassroomDetail.tsx:380-389 — 학생 N명 × dynamic import("qrcode") × toDataURL
+
+═══════════════════════════════════════════════════════
+DOM style 직접 조작 (레이아웃 스래싱)
+═══════════════════════════════════════════════════════
+src/components/ColumnsBoard.tsx:352-357   — handleDragStart/End에서 opacity 직접 쓰기
+
+═══════════════════════════════════════════════════════
+비효율 CSS 애니메이션
+═══════════════════════════════════════════════════════
+src/styles/modal.css:24-27                — @keyframes attachIn (max-height 애니)
