@@ -2,11 +2,20 @@
 
 import { useState, useRef } from "react";
 
+export type CreatedStudent = {
+  id: string;
+  number: number | null;
+  name: string;
+  qrToken: string;
+  textCode: string;
+  createdAt: string;
+};
+
 type Props = {
   open: boolean;
   classroomId: string;
   onClose: () => void;
-  onAdded: () => void;
+  onAdded: (newStudents: CreatedStudent[]) => void;
 };
 
 type ParsedStudent = { number: number; name: string };
@@ -98,7 +107,8 @@ export function AddStudentsModal({ open, classroomId, onClose, onAdded }: Props)
         }),
       });
       if (res.ok) {
-        onAdded();
+        const body = (await res.json()) as { students: CreatedStudent[] };
+        onAdded(body.students);
       } else {
         const errBody = await res.json().catch(() => null);
         alert(`학생 추가 실패: ${errBody?.error ?? res.statusText}`);

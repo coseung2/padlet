@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { AddStudentsModal } from "./AddStudentsModal";
+import { AddStudentsModal, type CreatedStudent } from "./AddStudentsModal";
 import { QRPrintSheet } from "./QRPrintSheet";
 
 type Student = {
@@ -44,11 +44,32 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
 
-  const refresh = useCallback(() => {
-    router.refresh();
-  }, [router]);
-
   const allSelected = students.length > 0 && selected.size === students.length;
+
+  function handleStudentsAdded(newStudents: CreatedStudent[]) {
+    // Optimistic: splice new students into the existing list locally,
+    // keeping the table sorted by student number (with unnumbered at the end).
+    setStudents((prev) => {
+      const normalized = newStudents.map((s) => ({
+        id: s.id,
+        number: s.number,
+        name: s.name,
+        qrToken: s.qrToken,
+        textCode: s.textCode,
+        createdAt: s.createdAt,
+      }));
+      const merged = [...prev, ...normalized];
+      merged.sort((a, b) => {
+        if (a.number == null && b.number == null) {
+          return a.createdAt.localeCompare(b.createdAt);
+        }
+        if (a.number == null) return 1;
+        if (b.number == null) return -1;
+        return a.number - b.number;
+      });
+      return merged;
+    });
+  }
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -349,9 +370,9 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
           open={showAddStudents}
           classroomId={classroom.id}
           onClose={() => setShowAddStudents(false)}
-          onAdded={() => {
+          onAdded={(newStudents) => {
             setShowAddStudents(false);
-            refresh();
+            handleStudentsAdded(newStudents);
           }}
         />
       )}
