@@ -1,0 +1,15 @@
+{
+  "added": {
+    "--color-plant-active": "#27a35f",
+    "--color-plant-visited": "#b8dfc7",
+    "--color-plant-upcoming": "#d0cfcd",
+    "--color-plant-stalled": "#c62828"
+  },
+  "changed": {},
+  "removed": {},
+  "target_files": [
+    "src/styles/base.css",
+    "docs/design-system.md"
+  ],
+  "rationale": "plant-roadmap UI needs 3-state node color distinct from generic --color-accent. Stalled alias references existing 'returned' semantic red to keep palette tight."
+}
