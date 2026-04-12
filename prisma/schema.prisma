@@ -127,6 +127,9 @@ model Student {
   parents             ParentChildLink[]
   parentInvites       ParentInviteCode[]
   cardsAuthored       Card[]               @relation("StudentCardAuthor")
+  oauthAuthCodes      OAuthAuthCode[]
+  oauthAccessTokens   OAuthAccessToken[]
+  oauthRefreshTokens  OAuthRefreshToken[]
 
   @@unique([classroomId, number])
   @@index([classroomId])
@@ -695,5 +698,109 @@ model ParentSession {
   @@index([parentId])
   @@index([sessionToken])
   @@index([tokenHash])
+  @@index([expiresAt])
+}
+
+// ──── OAuth 2.0 Provider (Seed — oauth2-provider task) ────
+// Aura acts as an OAuth 2.0 Authorization Server for the Canva Content
+// Publisher app. Students log into Aura, grant the Canva app `cards:write`
+// via an on-device consent screen, then Canva exchanges the auth code for
+// an access + refresh token pair that is STUDENT-scoped (not teacher-PAT).
+// This replaces bundling a shared teacher PAT in the Canva app binary.
+//
+// Protocol: RFC 6749 Authorization Code + RFC 7636 PKCE (S256).
+// Canva-specific details: https://www.canva.dev/docs/apps/authenticating-users/oauth/
+// See src/lib/oauth-server.ts for the runtime helpers.
+
+model OAuthClient {
+  id            String   @id          // e.g. "canva" — visible client_id
+  name          String
+  // bcrypt hash of the client secret. Client secrets are rotated by
+  // regenerating this row; no plaintext is kept.
+  secretHash    String
+  // JSON-encoded array of absolute redirect URIs the client is allowed to
+  // receive authorization codes at. Canva registers exactly one per app.
+  redirectUris  String
+  // JSON-encoded array of scope strings (e.g. ["cards:write"]). Authorize
+  // requests are rejected if they request a scope not in this list.
+  scopes        String
+  pkceRequired  Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+
+  authCodes     OAuthAuthCode[]
+  accessTokens  OAuthAccessToken[]
+  refreshTokens OAuthRefreshToken[]
+}
+
+model OAuthAuthCode {
+  // 40-char base64url random — surfaced as `code` query param to Canva.
+  // One-shot: consumedAt is set on the first /oauth/token exchange. Re-use
+  // triggers invalidation of the linked access/refresh tokens per RFC 6749.
+  code                String    @id
+  studentId           String
+  clientId            String
+  redirectUri         String
+  scope               String
+  codeChallenge       String    // PKCE S256 base64url
+  codeChallengeMethod String    @default("S256")
+  state               String?   // opaque, echoed back; stored for audit
+  expiresAt           DateTime  // +10 min from issuance
+  consumedAt          DateTime?
+  createdAt           DateTime  @default(now())
+
+  student Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  client  OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([clientId])
+  @@index([expiresAt])
+}
+
+model OAuthAccessToken {
+  // SHA-256 hex of the plaintext token. Plaintext is only ever returned in
+  // the token exchange response and never stored.
+  tokenHash     String    @id
+  // 8-char base62 prefix extracted from plaintext — O(1) lookup index. The
+  // plaintext returned to Canva is `aurastu_{prefix}_{secret}`.
+  tokenPrefix   String    @unique
+  studentId     String
+  clientId      String
+  scope         String
+  expiresAt     DateTime  // +30 days default
+  revokedAt     DateTime?
+  // When this access token was rotated out of a refresh_token grant we keep
+  // the id of the new refresh token so audits can trace chains.
+  refreshTokenId String?
+  createdAt     DateTime  @default(now())
+  lastUsedAt    DateTime?
+
+  student Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  client  OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([tokenPrefix])
+  @@index([studentId])
+  @@index([expiresAt])
+}
+
+model OAuthRefreshToken {
+  tokenHash     String    @id
+  tokenPrefix   String    @unique
+  studentId     String
+  clientId      String
+  scope         String
+  expiresAt     DateTime  // +180 days default
+  revokedAt     DateTime?
+  // Parent refresh token (set when the current token was rotated out of a
+  // prior refresh grant). Used to detect refresh-token reuse attacks — if a
+  // revoked refresh is presented, we also revoke the chain.
+  parentTokenHash String?
+  createdAt     DateTime  @default(now())
+
+  student Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  client  OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([tokenPrefix])
+  @@index([studentId])
   @@index([expiresAt])
 }

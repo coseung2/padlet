@@ -1,0 +1,31 @@
+{
+  "type": "feature",
+  "slug": "oauth2-provider",
+  "task_id": "2026-04-14-oauth2-provider",
+  "change_type": "new_feature",
+  "motivation": "PAT를 Canva 앱 번들에 심어두는 현재 방식은 (1) 토큰 유출 위험, (2) 학생별 권한 구분 불가, (3) 교사 토큰 폐기 시 모든 학생 publish 중단, (4) Canva Marketplace 심사 불가능. Canva SDK의 oauth.requestAuthorization 경로로 전환해서 학생 각자가 자기 Aura 계정으로 Canva 앱을 승인하는 정식 OAuth 2.0 플로우로 대체.",
+  "user_story": "학생으로서 Canva 에디터에서 'Aura로 로그인' 버튼을 누르면 Canva 팝업에서 내 Aura 계정으로 동의 화면이 떠서 '이 앱이 내 작품을 Aura 보드에 게시할 수 있어요'를 허락할 수 있고, 이후에는 Canva 앱이 내 토큰으로 publish한다. 토큰은 내 student 계정에 스코프되어 있어 다른 학생이 가로챌 수 없다.",
+  "success_metric": "1) Canva 앱이 oauth.requestAuthorization({scope:'cards:write'}) 호출 시 Aura /oauth/authorize 페이지가 Canva 팝업 내 렌더 2) 미로그인 학생이면 /student/login으로 자동 라우팅 후 동의로 복귀 3) 동의 클릭 시 인가코드가 Canva redirect_uri로 발급 (10분 만료) 4) Canva가 POST /oauth/token으로 code 교환 시 student-scoped access_token + refresh_token 반환 (PKCE S256 검증) 5) /api/external/cards, /boards, /sections 가 OAuth Bearer 토큰 수용 (student_session 쿠키 불필요로 대체) 6) refresh 토큰으로 새 access_token 발급 가능 7) /oauth/revoke 호출 시 해당 토큰 무효화 8) 모든 OAuth 로그에 studentId 기록 (감사 추적) 9) PAT 경로 백워드 호환 유지 (내부 테스트용)",
+  "affected_surfaces": [
+    "/oauth/authorize",
+    "/oauth/token",
+    "/oauth/revoke",
+    "/oauth/consent",
+    "/api/external/cards",
+    "/api/external/boards",
+    "/api/external/boards/[id]/sections",
+    "/api/external/whoami",
+    "prisma/schema.prisma",
+    "src/lib/oauth-server.ts (신규)",
+    "aura-canva-app repo:src/intents/content_publisher/*"
+  ],
+  "external_dependencies": [
+    "Canva Developer Portal OAuth provider 등록 (Client ID + Secret 발급)",
+    "Prisma migration (배포 시 production DB 반영)"
+  ],
+  "session_split_proposal": [
+    { "session": 1, "scope": "phase0-7 (backend): DB schema + /oauth/* endpoints + consent UI + dual-auth on /api/external/*. 로컬 build/typecheck 통과까지." },
+    { "session": 2, "scope": "phase8-11 (integration): Canva app repo 수정 + Developer Portal 등록 + 마이그레이션 배포 + e2e 검증." }
+  ],
+  "created_at": "2026-04-14T00:00:00+09:00"
+}

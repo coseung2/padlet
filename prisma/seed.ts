@@ -9,8 +9,17 @@
  *  - Cards per board (12 freeform + 9 grid + 8 stream)
  */
 import { PrismaClient } from "@prisma/client";
+import { createHash } from "crypto";
 
 const prisma = new PrismaClient();
+
+function hashClientSecret(plaintext: string): string {
+  // Mirror src/lib/oauth-server.ts hashing so seeded rows verify at runtime.
+  const pepper =
+    process.env.AURA_PAT_PEPPER ??
+    "aura-dev-pepper-fallback-ge-32-chars-for-local-use-only";
+  return createHash("sha256").update(`${plaintext}:${pepper}`).digest("hex");
+}
 
 const USERS = [
   { id: "u_owner", email: "owner@padlet.local", name: "오너 유진" },
@@ -91,6 +100,32 @@ const STREAM_CARDS: SeedCard[] = [
 
 async function main() {
   console.log("🌱 Seed start");
+
+  // OAuth clients (Canva Content Publisher app).
+  // Client secret is taken from env so the plaintext never lives in git.
+  // Set CANVA_OAUTH_CLIENT_SECRET before seeding in any environment where
+  // the Canva app will actually exchange codes.
+  const canvaRedirectUris =
+    process.env.CANVA_OAUTH_REDIRECT_URIS ??
+    "https://www.canva.com/apps/configured/oauth/redirect";
+  const canvaSecret = process.env.CANVA_OAUTH_CLIENT_SECRET ?? "dev-canva-secret-change-me";
+  await prisma.oAuthClient.upsert({
+    where: { id: "canva" },
+    create: {
+      id: "canva",
+      name: "Canva Content Publisher",
+      secretHash: hashClientSecret(canvaSecret),
+      redirectUris: JSON.stringify(canvaRedirectUris.split(",").map((s) => s.trim())),
+      scopes: JSON.stringify(["cards:write"]),
+      pkceRequired: true,
+    },
+    update: {
+      name: "Canva Content Publisher",
+      redirectUris: JSON.stringify(canvaRedirectUris.split(",").map((s) => s.trim())),
+      scopes: JSON.stringify(["cards:write"]),
+      secretHash: hashClientSecret(canvaSecret),
+    },
+  });
 
   // Users
   for (const u of USERS) {
