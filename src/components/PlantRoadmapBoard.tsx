@@ -51,17 +51,8 @@ export function PlantRoadmapBoard({ initial }: Props) {
     );
   }
 
-  // Viewer (read-only user) — minimal summary
-  if (state.role === "viewer") {
-    return (
-      <div className="plant-empty-state">
-        <h2>읽기 전용 뷰어</h2>
-        <p>식물 관찰일지는 담임 선생님과 학급 학생에게 공개돼요.</p>
-      </div>
-    );
-  }
-
-  // Student path
+  // Student path — must run before generic viewer branch because
+  // server marks student sessions as role="viewer" + viewer.kind="student".
   if (state.viewer.kind === "student") {
     if (state.myPlant) {
       return (
@@ -78,6 +69,16 @@ export function PlantRoadmapBoard({ initial }: Props) {
         species={state.species}
         onStart={handleStarted}
       />
+    );
+  }
+
+  // Read-only viewer (NextAuth user with viewer role, not a student)
+  if (state.role === "viewer") {
+    return (
+      <div className="plant-empty-state">
+        <h2>읽기 전용 뷰어</h2>
+        <p>식물 관찰일지는 담임 선생님과 학급 학생에게 공개돼요.</p>
+      </div>
     );
   }
 
