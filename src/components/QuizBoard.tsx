@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { memo, useState, useEffect, useMemo, useRef, useCallback } from "react";
 
 export type QuizQuestion = {
   id: string;
@@ -157,7 +157,12 @@ export function QuizBoard({ boardId, quizzes: initial }: Props) {
   }
 
   // ---- Quiz exists ----
-  const sorted = [...(quiz.players ?? [])].sort((a, b) => b.score - a.score);
+  // Memoize the sorted player list so PlayerList's referential equality check
+  // actually has a stable array when only `dist` (distribution ticks) changes.
+  const sorted = useMemo(
+    () => [...(quiz.players ?? [])].sort((a, b) => b.score - a.score),
+    [quiz.players]
+  );
   const curQ = quiz.questions[quiz.currentQuestionIndex] ?? null;
   const isActive = quiz.status === "active";
   const isFinished = quiz.status === "finished";
@@ -194,34 +199,81 @@ export function QuizBoard({ boardId, quizzes: initial }: Props) {
         <div className="quiz-question">
           <div className="quiz-question-number">문제 {quiz.currentQuestionIndex + 1} / {quiz.questions.length}</div>
           <div className="quiz-question-text">{curQ.text}</div>
-          <div className="quiz-distribution">
-            {OPT_LABELS.map((label, i) => {
-              const count = dist[label] ?? 0;
-              const total = Object.values(dist).reduce((s, v) => s + v, 0) || 1;
-              return (
-                <div key={i} className="quiz-dist-row">
-                  <div className="quiz-dist-label" style={{ background: OPT_COLORS[i] }}>{label}</div>
-                  <div className="quiz-dist-bar-wrap"><div className={`quiz-dist-bar ${i === curQ.correctIndex ? "correct" : ""}`} style={{ width: `${(count / total) * 100}%`, background: OPT_COLORS[i] }} /></div>
-                  <span className="quiz-dist-count">{count}</span>
-                </div>
-              );
-            })}
-          </div>
+          <Distribution dist={dist} correctIndex={curQ.correctIndex} />
         </div>
       )}
 
-      <div className="quiz-player-list">
-        <div className="quiz-player-list-header"><span>참가자</span><span className="quiz-player-count">{sorted.length}명</span></div>
-        <div className="quiz-player-grid">
-          {sorted.map((p) => <div key={p.id} className="quiz-player-chip"><span>{p.nickname}</span><span className="quiz-player-score">{p.score}점</span></div>)}
-          {sorted.length === 0 && <span style={{ color: "var(--color-text-faint)", fontSize: 13 }}>아직 참가자가 없습니다</span>}
-        </div>
-      </div>
+      <PlayerList players={sorted} />
 
       {isFinished && <Leaderboard players={sorted} />}
     </div></div>
   );
 }
+
+// Answer-distribution bars — depends only on the four-bucket dist map and
+// the current question's correctIndex, so memoize it. Player-score-only
+// SSE updates no longer repaint these bars.
+const Distribution = memo(function Distribution({
+  dist,
+  correctIndex,
+}: {
+  dist: Record<string, number>;
+  correctIndex: number;
+}) {
+  const total = useMemo(
+    () => Object.values(dist).reduce((s, v) => s + v, 0) || 1,
+    [dist]
+  );
+  return (
+    <div className="quiz-distribution">
+      {OPT_LABELS.map((label, i) => {
+        const count = dist[label] ?? 0;
+        return (
+          <div key={i} className="quiz-dist-row">
+            <div className="quiz-dist-label" style={{ background: OPT_COLORS[i] }}>{label}</div>
+            <div className="quiz-dist-bar-wrap">
+              <div
+                className={`quiz-dist-bar ${i === correctIndex ? "correct" : ""}`}
+                style={{ width: `${(count / total) * 100}%`, background: OPT_COLORS[i] }}
+              />
+            </div>
+            <span className="quiz-dist-count">{count}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+});
+
+// Player list re-renders only when the sorted players array reference
+// changes — distribution ticks no longer touch it.
+const PlayerList = memo(function PlayerList({
+  players,
+}: {
+  players: { id: string; nickname: string; score: number }[];
+}) {
+  return (
+    <div className="quiz-player-list">
+      <div className="quiz-player-list-header">
+        <span>참가자</span>
+        <span className="quiz-player-count">{players.length}명</span>
+      </div>
+      <div className="quiz-player-grid">
+        {players.map((p) => (
+          <div key={p.id} className="quiz-player-chip">
+            <span>{p.nickname}</span>
+            <span className="quiz-player-score">{p.score}점</span>
+          </div>
+        ))}
+        {players.length === 0 && (
+          <span style={{ color: "var(--color-text-faint)", fontSize: 13 }}>
+            아직 참가자가 없습니다
+          </span>
+        )}
+      </div>
+    </div>
+  );
+});
 
 function Leaderboard({ players }: { players: { id: string; nickname: string; score: number }[] }) {
   const t = players.slice(0, 3);
