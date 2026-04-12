@@ -19,25 +19,33 @@ export async function POST(req: Request) {
 
     await requirePermission(input.boardId, user.id, "edit");
 
-    const submission = await db.submission.upsert({
-      where: {
-        boardId_userId: { boardId: input.boardId, userId: user.id },
-      },
-      create: {
-        boardId: input.boardId,
-        userId: user.id,
-        content: input.content,
-        linkUrl: input.linkUrl ?? null,
-        fileUrl: input.fileUrl ?? null,
-        status: "submitted",
-      },
-      update: {
-        content: input.content,
-        linkUrl: input.linkUrl ?? null,
-        fileUrl: input.fileUrl ?? null,
-        status: "submitted",
-      },
+    // Assignment path: unique(boardId,userId) used to guarantee one submission
+    // per student. The compound unique was removed in ES-1 to accommodate
+    // public event-signup submissions (userId null). Re-assert uniqueness at
+    // the app layer via findFirst-then-update/create.
+    const existing = await db.submission.findFirst({
+      where: { boardId: input.boardId, userId: user.id },
     });
+    const submission = existing
+      ? await db.submission.update({
+          where: { id: existing.id },
+          data: {
+            content: input.content,
+            linkUrl: input.linkUrl ?? null,
+            fileUrl: input.fileUrl ?? null,
+            status: "submitted",
+          },
+        })
+      : await db.submission.create({
+          data: {
+            boardId: input.boardId,
+            userId: user.id,
+            content: input.content,
+            linkUrl: input.linkUrl ?? null,
+            fileUrl: input.fileUrl ?? null,
+            status: "submitted",
+          },
+        });
 
     return NextResponse.json({ submission });
   } catch (e) {

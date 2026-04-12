@@ -5,7 +5,10 @@ import { useState, useRef } from "react";
 export type SubmissionData = {
   id: string;
   boardId: string;
-  userId: string;
+  // userId is nullable for event-signup public submissions (ES-1).
+  // Assignment flows still carry userId; this component filters by it so
+  // null-owner rows are simply skipped.
+  userId: string | null;
   content: string;
   linkUrl: string | null;
   fileUrl: string | null;

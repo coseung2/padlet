@@ -11,6 +11,7 @@ import { ColumnsBoard } from "@/components/ColumnsBoard";
 import { AssignmentBoard } from "@/components/AssignmentBoard";
 import { QuizBoard, type QuizData } from "@/components/QuizBoard";
 import { PlantRoadmapBoard } from "@/components/PlantRoadmapBoard";
+import { EventSignupBoard } from "@/components/event/EventSignupBoard";
 import { parseObservationPoints, STALL_THRESHOLD_DAYS } from "@/lib/plant-schemas";
 import type { PlantJournalResponse } from "@/types/plant";
 import { UserSwitcher } from "@/components/UserSwitcher";
@@ -30,6 +31,7 @@ const LAYOUT_LABEL: Record<string, string> = {
   assignment: "과제 배부",
   quiz: "퀴즈",
   "plant-roadmap": "식물 관찰",
+  "event-signup": "행사 신청",
 };
 
 export default async function BoardPage({
@@ -57,7 +59,8 @@ export default async function BoardPage({
   const needsAssignmentData = board.layout === "assignment";
   const needsQuizData = board.layout === "quiz";
   const needsPlantData = board.layout === "plant-roadmap";
-  const needsCards = !needsAssignmentData && !needsQuizData && !needsPlantData;
+  const needsEventData = board.layout === "event-signup";
+  const needsCards = !needsAssignmentData && !needsQuizData && !needsPlantData && !needsEventData;
   const needsSections = board.layout === "columns";
 
   const cardsPromise = needsCards
@@ -389,6 +392,21 @@ export default async function BoardPage({
         );
       case "plant-roadmap":
         return <PlantRoadmapBoard initial={plantJournalInitial!} />;
+      case "event-signup":
+        return (
+          <EventSignupBoard
+            boardId={board!.id}
+            slug={board!.slug}
+            accessMode={board!.accessMode}
+            accessToken={board!.accessToken}
+            applicationStart={board!.applicationStart?.toISOString() ?? null}
+            applicationEnd={board!.applicationEnd?.toISOString() ?? null}
+            eventPosterUrl={board!.eventPosterUrl}
+            venue={board!.venue}
+            maxSelections={board!.maxSelections}
+            canEdit={effectiveRole === "owner" || effectiveRole === "editor"}
+          />
+        );
       case "quiz": {
         const answerToIndex: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 };
         return (
