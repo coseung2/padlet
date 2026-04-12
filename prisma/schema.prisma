@@ -31,6 +31,7 @@ model User {
   sessions       Session[]
   classrooms     Classroom[]
   externalTokens ExternalAccessToken[]
+  templatesOwned BreakoutTemplate[]    @relation("TemplateOwner")
 }
 
 model ExternalAccessToken {
@@ -105,10 +106,11 @@ model Student {
   sessionVersion Int      @default(1)
   createdAt      DateTime @default(now())
 
-  classroom     Classroom      @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  quizPlayers   QuizPlayer[]
-  studentPlants StudentPlant[]
-  assets        StudentAsset[]
+  classroom           Classroom            @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  quizPlayers         QuizPlayer[]
+  studentPlants       StudentPlant[]
+  assets              StudentAsset[]
+  breakoutMemberships BreakoutMembership[]
 
   @@unique([classroomId, number])
   @@index([classroomId])
@@ -116,7 +118,7 @@ model Student {
   @@index([textCode])
 }
 
-// layout: "freeform" | "grid" | "stream" | "columns" | "assignment" | "quiz" | "plant-roadmap" | "event-signup" | "drawing"
+// layout: "freeform" | "grid" | "stream" | "columns" | "assignment" | "quiz" | "plant-roadmap" | "event-signup" | "drawing" | "breakout"
 // (validated in app via zod)
 model Board {
   id          String   @id @default(cuid())
@@ -153,13 +155,14 @@ model Board {
   askStudentNumber    Boolean   @default(true)
   askContact          Boolean   @default(false)
 
-  classroom     Classroom?     @relation("ClassroomBoards", fields: [classroomId], references: [id], onDelete: SetNull)
-  members       BoardMember[]
-  cards         Card[]
-  sections      Section[]
-  submissions   Submission[]
-  quizzes       Quiz[]
-  studentPlants StudentPlant[]
+  classroom          Classroom?          @relation("ClassroomBoards", fields: [classroomId], references: [id], onDelete: SetNull)
+  members            BoardMember[]
+  cards              Card[]
+  sections           Section[]
+  submissions        Submission[]
+  quizzes            Quiz[]
+  studentPlants      StudentPlant[]
+  breakoutAssignment BreakoutAssignment?
 }
 
 // Columns/Kanban용 섹션 (grid/stream에선 사용 안 함)
@@ -174,8 +177,9 @@ model Section {
   // previously distributed links. See src/lib/rbac.ts#viewSection.
   accessToken String? @unique
 
-  board Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  cards Card[] @relation("SectionCards")
+  board               Board                @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards               Card[]               @relation("SectionCards")
+  breakoutMemberships BreakoutMembership[]
 
   @@index([boardId])
 }
@@ -512,4 +516,74 @@ model AssetAttachment {
   @@index([assetId])
   @@index([cardId])
   @@index([observationId])
+}
+
+// ──── Breakout Room (BR-1 ~ BR-4) ────
+// BreakoutTemplate — reusable group-learning blueprints (8 system + teacher/school custom).
+// `structure` JSON schema:
+//   { sectionsPerGroup: [{title, role: "group-copy"|"role-expert"|"role-home",
+//                         defaultCards?: [{title, content}]}],
+//     sharedSections?: [{title, role: "teacher-pool"}] }
+// On board creation the structure is deep-cloned into Section rows → template
+// edits never retroactively affect existing boards (decisions Q6).
+model BreakoutTemplate {
+  id                    String   @id @default(cuid())
+  key                   String   @unique
+  name                  String
+  description           String
+  tier                  String   @default("free") // "free" | "pro"
+  requiresPro           Boolean  @default(false)
+  scope                 String   @default("system") // "system" | "teacher" | "school"
+  ownerId               String?
+  structure             Json
+  recommendedVisibility String   @default("own-only") // "own-only" | "peek-others"
+  defaultGroupCount     Int      @default(4)
+  defaultGroupCapacity  Int      @default(6)
+  createdAt             DateTime @default(now())
+
+  owner       User?                @relation("TemplateOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  assignments BreakoutAssignment[]
+
+  @@index([ownerId])
+  @@index([scope])
+}
+
+// BreakoutAssignment — one per Breakout Board. Tracks deploy + visibility state.
+model BreakoutAssignment {
+  id                 String   @id @default(cuid())
+  boardId            String   @unique
+  templateId         String
+  deployMode         String   @default("link-fixed") // "link-fixed" | "self-select" | "teacher-assign"
+  groupCount         Int      @default(4)
+  groupCapacity      Int      @default(6)
+  visibilityOverride String? // null = use template.recommendedVisibility
+  status             String   @default("active") // "active" | "archived"
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  board    Board                @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  template BreakoutTemplate     @relation(fields: [templateId], references: [id])
+  members  BreakoutMembership[]
+
+  @@index([templateId])
+}
+
+// BreakoutMembership — links a Student to their group Section (role for Jigsaw).
+// Foundation does not populate this; BR-5 (deploy modes) writes rows on self-select
+// or teacher-assign. `@@unique([sectionId, studentId])` prevents double-membership.
+model BreakoutMembership {
+  id           String   @id @default(cuid())
+  assignmentId String
+  sectionId    String
+  studentId    String
+  role         String? // "expert" | "home" (Jigsaw) | null
+  joinedAt     DateTime @default(now())
+
+  assignment BreakoutAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  section    Section            @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  student    Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([sectionId, studentId])
+  @@index([assignmentId])
+  @@index([studentId])
 }

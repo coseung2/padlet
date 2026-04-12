@@ -1,0 +1,31 @@
+{
+  "type": "feature",
+  "slug": "breakout-room-board",
+  "task_id": "2026-04-12-breakout-room-board",
+  "parent_seed_id": "seed_bb1d4eb1c442",
+  "change_type": "new_feature",
+  "sub_scope": "BR-1..BR-4 (foundation)",
+  "deferred_to_next_agent": "BR-5..BR-9 (deploy modes runtime, WS visibility gating, teacher assignment UI, student roster, analytics)",
+  "motivation": "Aura-board에 교사가 모둠 협력학습 보드를 템플릿 기반으로 즉시 개설·배포·관리할 수 있는 Breakout Room 기능이 없다. Section 엔티티를 재활용하여 BreakoutTemplate·BreakoutAssignment·BreakoutMembership 3종만 신설하고, 갤럭시 탭 S6 Lite 기준 3배포모드·3열람모드·8종 시스템 템플릿(Free 3 + Pro 5)과 모둠별 독립 복사 모델을 확정 스펙으로 구현한다. 본 agent는 foundation(스키마·시드·생성 플로우·카드 일괄 복제)까지만 담당한다.",
+  "user_story": "교사로서 '브레이크아웃 보드'를 개설할 때 시스템 템플릿 중 하나를 골라 모둠 수·정원·열람 모드를 설정하고, 각 모둠에 섹션별 독립 작업 공간을 자동 생성하며, '모든 모둠에 이 카드 복제' 액션으로 공통 자료를 일괄 배포할 수 있다.",
+  "success_metric": "갤럭시 탭 S6 Lite 기준 TTI < 3s, 4모둠 개설 < 5초, 모둠 간 카드 완전 독립(1모둠 수정이 타 모둠에 전파 X), typecheck/build PASS.",
+  "affected_surfaces": [
+    "/api/boards (extended for layout='breakout')",
+    "/api/breakout/assignments/[id]/copy-card (new)",
+    "/board/[id] (new BreakoutBoard render branch)",
+    "/board/[id]/s/[sectionId] (reuses T0-① isolated view)",
+    "prisma/schema.prisma (+3 models, +relations on User/Section/Student/Board)",
+    "prisma/seed-breakout-templates.ts (new)"
+  ],
+  "reuse": {
+    "T0-①": "Section.accessToken + /board/[id]/s/[sectionId] 섹션 격리 뷰 — 프로덕션 배포 완료. 재마이그레이션 금지, 재사용만.",
+    "drawing-board AssetAttachment copy pattern": "템플릿 구조 복사 원칙 승계"
+  },
+  "context_refs": [
+    "INBOX/2026-04-12-breakout-room-board/handoff_note.md",
+    "INBOX/2026-04-12-breakout-room-board/decisions.md",
+    "INBOX/2026-04-12-breakout-room-board/seed.yaml",
+    "INBOX/2026-04-12-breakout-room-board/request.json"
+  ],
+  "created_at": "2026-04-12T20:15:00+09:00"
+}

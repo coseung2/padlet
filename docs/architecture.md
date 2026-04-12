@@ -123,3 +123,65 @@ Status: schema + route + UI placeholder only. Drawpile 서버/포크/COOP-COEP/p
 4. postMessage bridge (`docs/drawpile-protocol.md`)
 5. Supabase migration 적용
 6. 프로덕션 스토리지 업그레이드 (`@vercel/blob` 등)
+
+## Breakout Room Foundation (2026-04-12, BR-1 ~ BR-4)
+
+### Data model
+```prisma
+model BreakoutTemplate {
+  id, key (unique), name, description,
+  tier ("free"|"pro"), requiresPro,
+  scope ("system"|"teacher"|"school"), ownerId?,
+  structure Json,             // {sectionsPerGroup:[{title,role,defaultCards?}], sharedSections?:[{title,role:"teacher-pool"}]}
+  recommendedVisibility ("own-only"|"peek-others"),
+  defaultGroupCount, defaultGroupCapacity
+}
+
+model BreakoutAssignment {
+  id, boardId (unique), templateId,
+  deployMode ("link-fixed"|"self-select"|"teacher-assign"),
+  groupCount, groupCapacity, visibilityOverride?,
+  status ("active"|"archived")
+}
+
+model BreakoutMembership {
+  id, assignmentId, sectionId, studentId, role? ("expert"|"home"|null), joinedAt
+  @@unique([sectionId, studentId])
+}
+```
+
+관계 필드:
+- `User.templatesOwned BreakoutTemplate[]` (`TemplateOwner`)
+- `Section.breakoutMemberships BreakoutMembership[]`
+- `Student.breakoutMemberships BreakoutMembership[]`
+- `Board.breakoutAssignment BreakoutAssignment?`
+
+### API
+- `POST /api/boards` — `layout="breakout"` + `breakoutConfig` 시 단일 트랜잭션에서 Board + Assignment + N*S group sections + (sharedSections 있으면) teacher-pool section + defaultCards deep-clone 생성. Tier gating: `requiresPro && tier==="free"` → 403.
+- `GET /api/breakout/templates` — 시스템 + 교사 커스텀 (ownerId 일치) 리스트.
+- `POST /api/breakout/assignments/[id]/copy-card` — teacher(owner)-only, body `{sourceCardId}` → teacher-pool 제외 + origin section 제외 group section 전체에 독립 복사 INSERT.
+
+### Components
+- `src/components/CreateBreakoutBoardModal.tsx` — 3-step (template → config → confirm). Pro 템플릿은 Free 사용자에게 aria-disabled + 🔒 배지.
+- `src/components/BreakoutBoard.tsx` — 교사 풀뷰. `parseGroupSection()` 으로 "모둠 N · 섹션명" 포맷 역파싱. teacher-pool 섹션은 상단 밴드 분리. 카드 ContextMenu에 🧬 "모든 모둠에 복제".
+- `src/components/CreateBoardModal.tsx` — LAYOUTS에 `{id:"breakout", emoji:"👥"}` 추가 + `step="breakout"` 분기 → CreateBreakoutBoardModal 오픈.
+- `src/app/board/[id]/page.tsx` — `case "breakout"` 렌더 분기 (BreakoutAssignment + template include 로딩).
+
+### Libraries
+- `src/lib/breakout.ts` — `TemplateStructureSchema` (zod), `cloneStructure()` (deep-clone 분리), `BreakoutConfigSchema`, `groupSectionTitle()`.
+- `src/lib/tier.ts` — `getCurrentTier()` / `canUseTemplate()` stub. `process.env.TIER_MODE` 우선. BR-5~9에서 User.tier 필드로 교체.
+
+### Seed
+- `prisma/seed-breakout-templates.ts` — 8종 upsert(idempotent). `npm run seed:breakout`.
+
+### Student 격리 뷰
+- T0-① `/board/[id]/s/[sectionId]` 재사용. `Section.accessToken` 재마이그레이션 금지.
+- BR-5에서 deployMode 별 진입 URL(token 포함) 배포 예정.
+
+### Deferred → BR-5 ~ BR-9
+- Deploy runtime (link-fixed/self-select/teacher-assign)
+- Visibility WS gating (own-only/peek-others)
+- Teacher assignment UI (drag-assign)
+- Student 명단 CSV import
+- 분석/통계
+- 실제 Tier 결제 모델 (User.tier 필드)
