@@ -1,5 +1,7 @@
 "use client";
 
+import { memo } from "react";
+
 function getYouTubeId(url: string): string | null {
   const m =
     url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|shorts\/))([a-zA-Z0-9_-]{11})/) ??
@@ -16,7 +18,10 @@ type Props = {
   videoUrl?: string | null;
 };
 
-export function CardAttachments({ imageUrl, linkUrl, linkTitle, linkDesc, linkImage, videoUrl }: Props) {
+// All props are primitives/null, so default shallow equality is safe.
+// Memoizing avoids re-rendering attachment previews on every unrelated
+// parent state update (drag, selection, modal toggles, etc.).
+export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl, linkTitle, linkDesc, linkImage, videoUrl }: Props) {
   if (!imageUrl && !linkUrl && !videoUrl) return null;
 
   const ytId = videoUrl ? getYouTubeId(videoUrl) : null;
@@ -77,4 +82,4 @@ export function CardAttachments({ imageUrl, linkUrl, linkTitle, linkDesc, linkIm
       )}
     </div>
   );
-}
+});
