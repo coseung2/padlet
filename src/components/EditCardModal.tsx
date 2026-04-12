@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import type { CardData } from "./DraggableCard";
+import { OptimizedImage } from "./ui/OptimizedImage";
 
 const COLOR_PRESETS = [
   null, "#ffd8f4", "#c3faf5", "#ffe6cd", "#fde0f0",
@@ -123,8 +124,14 @@ export function EditCardModal({ card, onSave, onClose }: Props) {
           {showImage && (
             <div className="modal-attach-section">
               {imageUrl ? (
-                <div className="modal-file-preview">
-                  <img src={imageUrl} alt="" className="modal-preview-img" />
+                <div className="modal-file-preview optimized-img-wrap">
+                  <OptimizedImage
+                    src={imageUrl}
+                    alt=""
+                    className="modal-preview-img"
+                    sizes="320px"
+                    fit="contain"
+                  />
                   <button type="button" className="modal-file-remove" onClick={() => setImageUrl("")}>제거</button>
                 </div>
               ) : (

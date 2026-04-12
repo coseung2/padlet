@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { OptimizedImage } from "./ui/OptimizedImage";
 
 type FolderItem = {
   type: "design" | "folder";
@@ -173,7 +174,9 @@ export function CanvaFolderModal({ sectionTitle, onImport, onClose }: Props) {
                     className="export-item-check"
                   />
                   {d.thumbnail && (
-                    <img src={d.thumbnail.url} alt="" className="export-design-thumb" />
+                    <div className="export-design-thumb optimized-img-wrap">
+                      <OptimizedImage src={d.thumbnail.url} alt="" sizes="160px" />
+                    </div>
                   )}
                   <div className="export-design-info">
                     <div className="export-design-title">{d.name}</div>

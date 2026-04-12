@@ -3,6 +3,7 @@
 import { memo } from "react";
 import { extractCanvaDesignId } from "@/lib/canva";
 import { CanvaEmbedSlot } from "./CanvaEmbedSlot";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 function getYouTubeId(url: string): string | null {
   const m =
@@ -40,8 +41,12 @@ export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl
   return (
     <div className="card-attachments">
       {imageUrl && (
-        <div className="card-attach-image">
-          <img src={imageUrl} alt="" loading="lazy" />
+        <div className="card-attach-image optimized-img-wrap">
+          <OptimizedImage
+            src={imageUrl}
+            alt=""
+            sizes="(max-width: 768px) 100vw, 480px"
+          />
         </div>
       )}
       {videoUrl && ytId && (
@@ -81,8 +86,12 @@ export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl
           onClick={(e) => e.stopPropagation()}
         >
           {linkImage && (
-            <div className="card-link-preview-image">
-              <img src={linkImage} alt="" loading="lazy" />
+            <div className="card-link-preview-image optimized-img-wrap">
+              <OptimizedImage
+                src={linkImage}
+                alt=""
+                sizes="(max-width: 768px) 40vw, 120px"
+              />
             </div>
           )}
           <div className="card-link-preview-body">
@@ -110,4 +119,4 @@ export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl
 
 // NOTE: Legacy inline CanvaEmbed has been replaced by the virtualized
 // CanvaEmbedSlot in ./CanvaEmbedSlot.tsx (T0-② tablet-crash mitigation).
-// All iframe lifecycle lives there now.
+// OptimizedImage (T0-④) is used for thumbnails and link previews above.

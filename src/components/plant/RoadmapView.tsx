@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import type { ObservationDTO, StageDTO, StudentPlantDTO } from "@/types/plant";
 import { ObservationEditor } from "./ObservationEditor";
 import { NoPhotoReasonModal } from "./NoPhotoReasonModal";
+import { OptimizedImage } from "../ui/OptimizedImage";
 
 interface Props {
   plant: StudentPlantDTO;
@@ -310,14 +311,25 @@ export function RoadmapView({
                           {o.images.length > 0 && (
                             <div className="plant-obs-imgs">
                               {o.images.map((img) => (
-                                <img
+                                <div
                                   key={img.id}
-                                  src={img.thumbnailUrl ?? img.url}
-                                  alt="관찰 사진"
-                                  loading="lazy"
-                                  decoding="async"
+                                  className="plant-obs-img optimized-img-wrap"
                                   onClick={() => setLightbox(img.url)}
-                                />
+                                  role="button"
+                                  tabIndex={0}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      setLightbox(img.url);
+                                    }
+                                  }}
+                                >
+                                  <OptimizedImage
+                                    src={img.thumbnailUrl ?? img.url}
+                                    alt="관찰 사진"
+                                    sizes="(max-width: 768px) 33vw, 160px"
+                                  />
+                                </div>
                               ))}
                             </div>
                           )}
@@ -422,7 +434,15 @@ export function RoadmapView({
           aria-label="사진 원본"
           onClick={() => setLightbox(null)}
         >
-          <img src={lightbox} alt="관찰 사진 원본" />
+          <div className="plant-lightbox-frame optimized-img-wrap">
+            <OptimizedImage
+              src={lightbox}
+              alt="관찰 사진 원본"
+              sizes="90vw"
+              priority
+              fit="contain"
+            />
+          </div>
         </div>
       )}
     </div>
