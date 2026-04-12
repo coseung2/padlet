@@ -1,0 +1,5 @@
+QA_OK
+date: 2026-04-12
+scope: PV-1 ~ PV-5 Parent Viewer Access — auth + schema
+report: tasks/2026-04-12-parent-viewer-access/phase9/qa_report.md
+acceptance: all 9 ACs PASS (AC-1, AC-2, AC-4 IP+per-code, AC-5 cookie flags, AC-6 cross-parent 404, AC-12 reissue UI, AC-5 cross-student 403, RLS scaffold, tsc+build)
