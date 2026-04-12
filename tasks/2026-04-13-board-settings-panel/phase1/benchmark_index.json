@@ -1,0 +1,26 @@
+{
+  "references": [
+    {
+      "product": "padlet",
+      "pattern": "board_settings_modal_top_right_gear",
+      "url": "https://padlet.com/help/en/board-settings"
+    },
+    {
+      "product": "miro",
+      "pattern": "share_modal_with_collaboration_modes",
+      "url": "https://help.miro.com"
+    },
+    {
+      "product": "figjam",
+      "pattern": "file_menu_in_header_for_board_level_actions",
+      "url": "https://help.figma.com"
+    },
+    {
+      "product": "classkick",
+      "pattern": "teacher_class_settings_side_panel",
+      "url": "https://classkick.com/help"
+    }
+  ],
+  "capture_dir": "tasks/2026-04-13-board-settings-panel/phase1/benchmark/",
+  "notes": "라이브 캡처는 이번 task에서 생략 — 기능 재배치 성격이라 벤치마크는 텍스트 요약으로 충분. 필요 시 후속 task에서 캡처 추가."
+}
