@@ -58,8 +58,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         { status: gate.status }
       );
     }
-    if (!gate.ownedByActor) {
-      // Only owner student can create observations
+    // v2: student owner OR classroom teacher may create observations.
+    // canAccessStudentPlant already gated teacher on classroom ownership.
+    if (!gate.ownedByActor && actor.kind !== "teacher") {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
