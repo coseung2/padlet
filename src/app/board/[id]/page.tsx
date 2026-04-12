@@ -152,6 +152,7 @@ export default async function BoardPage({
     id: s.id,
     title: s.title,
     order: s.order,
+    accessToken: s.accessToken,
   }));
 
   // Assemble the plant-journal initial payload when rendering that layout.

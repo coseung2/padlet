@@ -33,3 +33,11 @@ Live feature inventory. Update when merging feature tasks.
 
 ## Canva
 - OAuth + iframe oEmbed + PDF export
+
+## Section Actions Panel (2026-04-13)
+- columns 보드 섹션 헤더 `⋯` 버튼 → 우측 슬라이드 패널 (owner/editor 노출)
+- 탭: **공유** (토큰 발급/회전/복사, `SectionShareClient` 재사용, owner-only API) / **이름 변경** (PATCH) / **삭제** (체크박스 2단 확인 → DELETE)
+- a11y: `role=dialog` + `aria-modal` + ESC/backdrop 닫기 + focus trap + body scroll lock
+- 신규 범용 프리미티브: `src/components/ui/SidePanel.tsx`
+- `/board/[id]/s/[sectionId]/share` 라우트는 북마크 호환용 fallback 으로 유지 (안내 배너 포함)
+- `plant/StageDetailSheet` 는 동일 `SidePanel` 을 사용하도록 리팩터 (props 시그니처 불변)

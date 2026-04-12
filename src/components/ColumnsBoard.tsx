@@ -6,16 +6,19 @@ import { AddCardModal, type AddCardData } from "./AddCardModal";
 import { CardAttachments } from "./CardAttachments";
 import { ContextMenu } from "./ContextMenu";
 import { EditCardModal } from "./EditCardModal";
-import { EditSectionModal } from "./EditSectionModal";
 import { ExportModal } from "./ExportModal";
 import { CanvaFolderModal } from "./CanvaFolderModal";
+import { SectionActionsPanel } from "./SectionActionsPanel";
 import type { CardData } from "./DraggableCard";
 
 type SectionData = {
   id: string;
   title: string;
   order: number;
+  accessToken?: string | null;
 };
+
+type PanelTab = "share" | "rename" | "delete";
 
 type Props = {
   boardId: string;
@@ -38,7 +41,10 @@ export function ColumnsBoard({
   );
   const [overSectionId, setOverSectionId] = useState<string | null>(null);
   const [editingCard, setEditingCard] = useState<CardData | null>(null);
-  const [editingSection, setEditingSection] = useState<SectionData | null>(null);
+  const [panelState, setPanelState] = useState<{
+    sectionId: string;
+    tab: PanelTab;
+  } | null>(null);
   const [addForSection, setAddForSection] = useState<string | null>(null);
   const [exportSectionId, setExportSectionId] = useState<string | null>(null);
   const [folderSectionId, setFolderSectionId] = useState<string | null>(null);
@@ -311,42 +317,18 @@ export function ColumnsBoard({
     }
   }
 
-  async function handleEditSectionSave(newTitle: string) {
-    if (!editingSection) return;
-    const prev = [...sections];
+  function handleSectionRenamed(sectionId: string, newTitle: string) {
     setSections((list) =>
-      list.map((s) => (s.id === editingSection.id ? { ...s, title: newTitle } : s))
+      list.map((s) => (s.id === sectionId ? { ...s, title: newTitle } : s))
     );
-    try {
-      const res = await fetch(`/api/sections/${editingSection.id}`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title: newTitle }),
-      });
-      if (!res.ok) setSections(prev);
-    } catch {
-      setSections(prev);
-    }
   }
 
-  async function handleDeleteSection(sectionId: string) {
-    if (!window.confirm("이 섹션을 삭제할까요? 카드는 섹션 없음 상태로 이동됩니다.")) return;
-    const prevSections = [...sections];
-    const prevCards = [...cards];
+  function handleSectionDeleted(sectionId: string) {
     setSections((list) => list.filter((s) => s.id !== sectionId));
     setCards((list) =>
       list.map((c) => (c.sectionId === sectionId ? { ...c, sectionId: null } : c))
     );
-    try {
-      const res = await fetch(`/api/sections/${sectionId}`, { method: "DELETE" });
-      if (!res.ok) {
-        setSections(prevSections);
-        setCards(prevCards);
-      }
-    } catch {
-      setSections(prevSections);
-      setCards(prevCards);
-    }
+    setPanelState(null);
   }
 
   const sectionOptions = sections.map((s) => ({ id: s.id, title: s.title }));
@@ -361,8 +343,9 @@ export function ColumnsBoard({
             (c) => c.linkUrl && (c.linkUrl.includes("canva.link") || c.linkUrl.includes("canva.com"))
           );
 
+          // 섹션 관리(공유/이름/삭제)는 헤더의 ⋯ 버튼 → SectionActionsPanel 로 일원화.
+          // ContextMenu 는 Canva 관련 액션 전용으로 축소.
           const menuItems = [
-            { label: "수정", icon: "✏️", onClick: () => setEditingSection(section) },
             { label: "Canva에서 가져오기", icon: "📁", onClick: () => setFolderSectionId(section.id) },
             ...(hasCanva
               ? [
@@ -374,7 +357,6 @@ export function ColumnsBoard({
                   },
                 ]
               : []),
-            { label: "삭제", icon: "🗑️", danger: true, onClick: () => handleDeleteSection(section.id) },
           ];
 
           return (
@@ -393,7 +375,22 @@ export function ColumnsBoard({
               <div className="column-header">
                 <h3 className="column-title">{section.title}</h3>
                 <span className="column-count">{sectionCards.length}</span>
-                {canEdit && <ContextMenu items={menuItems} />}
+                {canEdit && (
+                  <>
+                    <button
+                      type="button"
+                      className="section-actions-trigger"
+                      aria-label={`${section.title} 섹션 옵션`}
+                      aria-haspopup="dialog"
+                      onClick={() =>
+                        setPanelState({ sectionId: section.id, tab: "share" })
+                      }
+                    >
+                      ⋯
+                    </button>
+                    {menuItems.length > 0 && <ContextMenu items={menuItems} />}
+                  </>
+                )}
               </div>
               <div className={`column-cards ${overSectionId === section.id ? "column-cards-active" : ""}`}>
                 {sectionCards.map((c) => {
@@ -470,13 +467,26 @@ export function ColumnsBoard({
         />
       )}
 
-      {editingSection && (
-        <EditSectionModal
-          title={editingSection.title}
-          onSave={handleEditSectionSave}
-          onClose={() => setEditingSection(null)}
-        />
-      )}
+      {panelState && (() => {
+        const section = sections.find((s) => s.id === panelState.sectionId);
+        if (!section) return null;
+        return (
+          <SectionActionsPanel
+            open={true}
+            onClose={() => setPanelState(null)}
+            section={{
+              id: section.id,
+              title: section.title,
+              accessToken: section.accessToken ?? null,
+            }}
+            boardId={boardId}
+            currentRole={currentRole}
+            defaultTab={panelState.tab}
+            onRenamed={(t) => handleSectionRenamed(section.id, t)}
+            onDeleted={() => handleSectionDeleted(section.id)}
+          />
+        );
+      })()}
 
       {folderSectionId && (
         <CanvaFolderModal

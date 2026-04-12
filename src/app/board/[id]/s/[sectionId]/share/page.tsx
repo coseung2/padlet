@@ -53,6 +53,10 @@ export default async function SectionSharePage({
         <span className="breakout-breadcrumb">{board.title} › {section.title}</span>
       </div>
 
+      <div className="section-panel-notice" style={{ margin: "0 auto 16px", maxWidth: 640 }}>
+        💡 이 기능은 columns 보드 섹션 헤더의 <strong>⋯</strong> 메뉴에서도 바로 열 수 있어요.
+      </div>
+
       <SectionShareClient
         boardId={board.id}
         sectionId={section.id}

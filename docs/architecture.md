@@ -65,14 +65,19 @@ Migrations under `prisma/migrations/`:
 |---|---|---|
 | `/board/[id]` | server | teacher integrated view (unchanged) |
 | **`/board/[id]/s/[sectionId]`** | **server** | **T0-① Breakout view. Scoped card query. Owner sees "공유 관리" link.** |
-| **`/board/[id]/s/[sectionId]/share`** | **server** | **T0-① owner-only share page. Renders `<SectionShareClient>` island.** |
+| **`/board/[id]/s/[sectionId]/share`** | **server** | **T0-① owner-only share page. Renders `<SectionShareClient>` island. 2026-04-13: fallback only (primary entry is ColumnsBoard ⋯ → `<SectionActionsPanel>`).** |
 
 ## Components
 
 - `src/components/SectionBreakoutView.tsx` (server) — renders breadcrumb + `.breakout-grid` of `.column-card`s. Reuses `CardAttachments`.
 - `src/components/SectionShareClient.tsx` (client island) — copy + rotate flow. Computes absolute URL post-mount to avoid hydration mismatch.
+- `src/components/ui/SidePanel.tsx` (2026-04-13) — generic right-side slide-over dialog primitive. `role=dialog`, `aria-modal`, ESC, focus trap, body scroll lock, opener-focus restore, `prefers-reduced-motion` respected.
+- `src/components/SectionActionsPanel.tsx` (2026-04-13) — columns section management. 3 tabs (`공유` / `이름 변경` / `삭제`). Share tab reuses `SectionShareClient`. Rename calls `PATCH /api/sections/:id`. Delete requires checkbox confirm, calls `DELETE /api/sections/:id`.
+- `src/components/plant/StageDetailSheet.tsx` — refactored 2026-04-13 to wrap `SidePanel` (props unchanged). If `feat/plant-journal-v2` rewrites this file, take v2's version and re-apply the wrapper.
 
 ## Design tokens
 
 See `docs/design-system.md`. T0-① Breakout surfaces introduce these utility classes only (no new tokens):
 `.breakout-header`, `.breakout-breadcrumb`, `.breakout-grid`, `.breakout-empty`, `.share-panel`, `.share-label`, `.share-url-input`, `.share-actions`, `.share-help`, `.share-status`.
+
+2026-04-13 section-actions-panel adds: `--color-danger`, `--color-danger-active`, and the `.side-panel-*`, `.section-actions-trigger`, `.section-rename-form`, `.section-delete-*` utility classes in `src/styles/side-panel.css`.
