@@ -1,0 +1,12 @@
+force-dynamic 사용 위치 (grep 결과)
+
+src/app/page.tsx:8                       export const dynamic = "force-dynamic";
+src/app/board/[id]/page.tsx:17           export const dynamic = "force-dynamic";
+src/app/classroom/page.tsx:6             export const dynamic = "force-dynamic";
+src/app/classroom/[id]/page.tsx:6        export const dynamic = "force-dynamic";
+src/app/student/page.tsx:6               export const dynamic = "force-dynamic";
+src/app/quiz/[code]/page.tsx             export const dynamic = "force-dynamic"
+src/app/qr/[token]/page.tsx              export const dynamic = "force-dynamic"
+
+영향: Next.js Data Cache, Full Route Cache, Router Cache 모두 무효화.
+탭 전환마다 서버에서 RSC + DB 쿼리 전체 재실행.
