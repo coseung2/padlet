@@ -13,12 +13,18 @@
  * /board/[id]/s/[sectionId] route (T0-①).
  */
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { AddCardButton } from "./AddCardButton";
 import { AddCardModal, type AddCardData } from "./AddCardModal";
 import { CardAttachments } from "./CardAttachments";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
 import { EditCardModal } from "./EditCardModal";
 import type { CardData } from "./DraggableCard";
+import { BreakoutAssignmentManager } from "./BreakoutAssignmentManager";
+import type {
+  BreakoutMembershipData,
+  BreakoutRosterStudent,
+} from "./BreakoutAssignmentManager";
 
 type SectionData = {
   id: string;
@@ -34,15 +40,20 @@ type AssignmentData = {
   groupCount: number;
   groupCapacity: number;
   visibility: "own-only" | "peek-others";
+  deployMode: "link-fixed" | "self-select" | "teacher-assign";
+  status: "active" | "archived";
   sharedSectionTitles: string[];
 };
 
 type Props = {
   boardId: string;
   boardTitle: string;
+  boardSlug: string;
   assignment: AssignmentData;
   initialCards: CardData[];
   initialSections: SectionData[];
+  initialMemberships: BreakoutMembershipData[];
+  rosterStudents: BreakoutRosterStudent[];
   currentUserId: string;
   currentRole: "owner" | "editor" | "viewer";
 };
@@ -60,9 +71,12 @@ function parseGroupSection(title: string): { groupIndex: number; tabTitle: strin
 export function BreakoutBoard({
   boardId,
   boardTitle,
+  boardSlug,
   assignment,
   initialCards,
   initialSections,
+  initialMemberships,
+  rosterStudents,
   currentUserId,
   currentRole,
 }: Props) {
@@ -70,11 +84,48 @@ export function BreakoutBoard({
   const [sections, setSections] = useState<SectionData[]>(
     [...initialSections].sort((a, b) => a.order - b.order)
   );
+  const [memberships, setMemberships] =
+    useState<BreakoutMembershipData[]>(initialMemberships);
   const [editingCard, setEditingCard] = useState<CardData | null>(null);
   const [addForSection, setAddForSection] = useState<string | null>(null);
   const [copying, setCopying] = useState<string | null>(null);
+  const [managerOpen, setManagerOpen] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+  const [localStatus, setLocalStatus] = useState<"active" | "archived">(assignment.status);
   const canEdit = currentRole === "owner" || currentRole === "editor";
   const canBulkCopy = currentRole === "owner";
+  const isOwner = currentRole === "owner";
+
+  const membershipsBySection = useMemo(() => {
+    const m = new Map<string, BreakoutMembershipData[]>();
+    for (const row of memberships) {
+      const arr = m.get(row.sectionId);
+      if (arr) arr.push(row);
+      else m.set(row.sectionId, [row]);
+    }
+    return m;
+  }, [memberships]);
+
+  async function handleArchive() {
+    if (!isOwner) return;
+    if (!window.confirm("세션을 종료하면 읽기 전용 아카이브로 전환돼요. 계속할까요?")) return;
+    setArchiving(true);
+    try {
+      const res = await fetch(`/api/breakout/assignments/${assignment.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status: "archived" }),
+      });
+      if (res.ok) {
+        setLocalStatus("archived");
+        window.location.href = `/board/${boardSlug}/archive`;
+      } else {
+        alert("세션 종료 실패");
+      }
+    } finally {
+      setArchiving(false);
+    }
+  }
 
   const poolTitles = useMemo(
     () => new Set(assignment.sharedSectionTitles),
@@ -276,12 +327,43 @@ export function BreakoutBoard({
 
   return (
     <div className="board-canvas-wrap">
-      <div className="breakout-header" style={{ padding: "8px 16px" }}>
-        <span className="breakout-breadcrumb">
+      <div
+        className="breakout-header"
+        style={{ padding: "8px 16px", display: "flex", alignItems: "center", gap: 8 }}
+      >
+        <span className="breakout-breadcrumb" style={{ flex: 1 }}>
           {boardTitle} · {assignment.templateName} · {assignment.groupCount}모둠
           {" · "}
           {assignment.visibility === "peek-others" ? "👁 모둠 간 열람" : "🔒 자기 모둠만"}
+          {" · "}
+          {assignment.deployMode === "link-fixed" && "🔗 링크 고정"}
+          {assignment.deployMode === "self-select" && "✋ 자율 선택"}
+          {assignment.deployMode === "teacher-assign" && "👩‍🏫 교사 배정"}
+          {localStatus === "archived" && " · 📦 아카이브"}
         </span>
+        {isOwner && localStatus === "active" && (
+          <>
+            <button
+              type="button"
+              className="column-add-btn"
+              onClick={() => setManagerOpen(true)}
+            >
+              배정 관리
+            </button>
+            <Link href={`/board/${boardSlug}/archive`} className="column-add-btn">
+              아카이브
+            </Link>
+            <button
+              type="button"
+              className="column-add-btn"
+              onClick={handleArchive}
+              disabled={archiving}
+              style={{ borderColor: "var(--color-danger,#c00)" }}
+            >
+              {archiving ? "종료 중…" : "세션 종료"}
+            </button>
+          </>
+        )}
       </div>
 
       {poolSections.length > 0 && (
@@ -338,7 +420,14 @@ export function BreakoutBoard({
       )}
 
       <div className="columns-board" style={{ alignItems: "flex-start" }}>
-        {groupedSections.map(([groupIndex, groupSections]) => (
+        {groupedSections.map(([groupIndex, groupSections]) => {
+          const groupMembers = groupSections
+            .flatMap((s) => membershipsBySection.get(s.id) ?? []);
+          // Per teacher dashboard: show the most recent card updatedAt per group
+          // to surface stalled groups. Foundation CardData doesn't carry updatedAt,
+          // so we approximate with "has cards" presence.
+          const hasAnyCard = groupSections.some((s) => getCardsForSection(s.id).length > 0);
+          return (
           <div
             key={groupIndex}
             className="column"
@@ -347,8 +436,39 @@ export function BreakoutBoard({
           >
             <div className="column-header">
               <h3 className="column-title">모둠 {groupIndex}</h3>
-              <span className="column-count">정원 {assignment.groupCapacity}</span>
+              <span className="column-count">
+                {groupMembers.length} / {assignment.groupCapacity}
+              </span>
             </div>
+            {isOwner && (
+              <div
+                style={{
+                  padding: "2px 8px 8px",
+                  fontSize: "0.85rem",
+                  color: "var(--color-muted,#555)",
+                }}
+              >
+                {groupMembers.length === 0 ? (
+                  <span>아직 배정된 학생 없음</span>
+                ) : (
+                  groupMembers
+                    .map((m) =>
+                      m.studentNumber != null
+                        ? `${m.studentNumber}. ${m.studentName}`
+                        : m.studentName
+                    )
+                    .join(", ")
+                )}
+                {!hasAnyCard && groupMembers.length > 0 && (
+                  <span
+                    style={{ color: "var(--color-warn,#8a6d00)", marginLeft: 4 }}
+                    title="활동 시작 안 됨"
+                  >
+                    ⚠ 정체
+                  </span>
+                )}
+              </div>
+            )}
             <div style={{ display: "grid", gap: 12 }}>
               {groupSections.map((s) => {
                 const sectionCards = getCardsForSection(s.id);
@@ -404,10 +524,35 @@ export function BreakoutBoard({
               })}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
-      {canEdit && <AddCardButton onAdd={handleAdd} sections={sectionOptions} />}
+      {isOwner && managerOpen && (
+        <BreakoutAssignmentManager
+          assignmentId={assignment.id}
+          boardSlug={boardSlug}
+          deployMode={assignment.deployMode}
+          groupCapacity={assignment.groupCapacity}
+          sharedSectionTitles={assignment.sharedSectionTitles}
+          sections={sections}
+          memberships={memberships}
+          roster={rosterStudents}
+          onChange={setMemberships}
+          onRosterChange={(newStudents) => {
+            // Update via parent wouldn't re-render server list; callers refresh.
+            // For now we simply extend local roster via location reload hint.
+            if (newStudents && newStudents.length > 0) {
+              // Caller will `router.refresh()` in the manager.
+            }
+          }}
+          onClose={() => setManagerOpen(false)}
+        />
+      )}
+
+      {canEdit && localStatus === "active" && (
+        <AddCardButton onAdd={handleAdd} sections={sectionOptions} />
+      )}
 
       {addForSection && (
         <AddCardModal
