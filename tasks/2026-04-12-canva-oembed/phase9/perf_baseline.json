@@ -1,0 +1,28 @@
+{
+  "note": "Formal Lighthouse / Core Web Vitals baseline deferred — /benchmark skill not installed, and the feature's observable perf (iframe load time) is dominated by Canva CDN, not Aura-board. A qualitative baseline is captured here for comparison after deploy.",
+  "server_build": {
+    "typecheck": "PASS",
+    "build": "PASS — 48 routes, next build completed",
+    "measured_at": "2026-04-12T05:02:00+09:00 (dev server start)"
+  },
+  "client_bundle_impact": {
+    "added_to_client_bundle_bytes_estimate": 900,
+    "notes": [
+      "CanvaEmbed subcomponent: <1KB gzipped",
+      "extractCanvaDesignId helper + 2 useState: <0.3KB",
+      "card.css additions: ~0.3KB uncompressed",
+      "resolveCanvaEmbedUrl is server-only (Node runtime) — not in client bundle"
+    ]
+  },
+  "expected_runtime_costs": {
+    "post_cards_p50_extra_ms": "150-400 (oEmbed fetch to Canva CDN from icn1 region)",
+    "post_cards_p99_extra_ms": "3000 (AbortSignal hard cap)",
+    "patch_cards_drag_resize_extra_ms": "0 (URL-change guard skips fetch)",
+    "render_extra_ms": "negligible (iframe is async, thumbnail is already on the path)"
+  },
+  "followups_for_real_perf_pass": [
+    "Run Lighthouse on /board/:id with a seeded Canva card after deploy to icn1 production.",
+    "Measure LCP with and without thumbnail-first swap to confirm the v1 selection vs v2 tradeoff from phase5.",
+    "Measure oEmbed p50/p99 in prod logs once live to set a SLO."
+  ]
+}
