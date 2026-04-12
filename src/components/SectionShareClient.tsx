@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Props = {
   boardId: string;
@@ -16,12 +16,17 @@ export function SectionShareClient({ boardId, sectionId, initialToken }: Props) 
   const [token, setToken] = useState<string | null>(initialToken);
   const [status, setStatus] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  // `origin` stays empty during SSR and first hydration so the server-rendered
+  // HTML matches the initial client render (no hydration mismatch). We fill it
+  // in after mount.
+  const [origin, setOrigin] = useState<string>("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") setOrigin(window.location.origin);
+  }, []);
 
   const sharePath = token ? buildSharePath(boardId, sectionId, token) : "";
-  const absolute =
-    sharePath && typeof window !== "undefined"
-      ? new URL(sharePath, window.location.origin).toString()
-      : sharePath;
+  const absolute = sharePath ? (origin ? `${origin}${sharePath}` : sharePath) : "";
 
   async function handleGenerateOrRotate(confirmMessage: string | null) {
     if (confirmMessage && !window.confirm(confirmMessage)) return;

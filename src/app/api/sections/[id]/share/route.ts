@@ -21,7 +21,10 @@ export async function POST(
 ) {
   try {
     const { id: sectionId } = await params;
-    const user = await getCurrentUser();
+    const user = await getCurrentUser().catch(() => null);
+    if (!user) {
+      throw new ForbiddenError("Sign-in required");
+    }
 
     const section = await db.section.findUnique({ where: { id: sectionId } });
     if (!section) {

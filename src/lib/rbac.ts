@@ -8,6 +8,7 @@
  *
  * Author-based exception for delete is handled in the API route, not here.
  */
+import { timingSafeEqual } from "crypto";
 import { db } from "./db";
 
 export type Role = "owner" | "editor" | "viewer";
@@ -100,8 +101,9 @@ export async function viewSection(
     throw new ForbiddenError(`Section ${sectionId} not found or not visible`);
   }
 
-  // 2. token path
-  if (ctx.token && section.accessToken && ctx.token === section.accessToken) {
+  // 2. token path — constant-time compare to avoid leaking token length via
+  // timing side-channels. Short-circuit on null/empty values.
+  if (ctx.token && section.accessToken && tokensEqual(ctx.token, section.accessToken)) {
     return section;
   }
 
@@ -123,4 +125,15 @@ export async function viewSection(
   }
 
   throw new ForbiddenError("Cannot view this section");
+}
+
+function tokensEqual(a: string, b: string): boolean {
+  // Buffer compare is length-sensitive; if lengths differ we bail early (a
+  // legitimate rotated token of the same length is the common case).
+  if (a.length !== b.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  } catch {
+    return false;
+  }
 }
