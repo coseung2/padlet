@@ -1,0 +1,25 @@
+{
+  "patterns": [
+    {
+      "pattern_id": "signed_share_url",
+      "description": "섹션별로 고유한 access 토큰을 포함한 공유 URL. 서버가 쿼리스트링 token과 DB 값을 비교해 인가.",
+      "source_url": "https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0063867",
+      "pros": ["단순", "회전 가능", "교실 외 유출 최소화 (owner only 회전)"],
+      "cons": ["토큰 유출 시 비회원도 볼 수 있음 — Student 세션 보조 권장"]
+    },
+    {
+      "pattern_id": "server_scoped_query",
+      "description": "섹션 라우트가 server component에서 sectionId로만 카드 쿼리. 클라이언트엔 해당 섹션 카드만 전달.",
+      "source_url": "https://miro-upstream-frame-view",
+      "pros": ["태블릿 payload 최소화", "정보 유출 차단"],
+      "cons": ["교사 통합 뷰(/board/[id])는 별도 유지 필요 — 중복 느낌"]
+    },
+    {
+      "pattern_id": "realtime_channel_per_section",
+      "description": "realtime pub/sub 채널 키를 board:{bid}:section:{sid}로 분리.",
+      "source_url": "internal",
+      "pros": ["섹션 간 이벤트 누출 차단", "미래 엔진(Supabase Realtime/PartyKit) 전환 시 키만 유지"],
+      "cons": ["엔진 미정 — 이번 task에선 helper만 정의, pub/sub 구현은 별도 research"]
+    }
+  ]
+}
