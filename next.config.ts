@@ -45,20 +45,30 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      // CORS for Canva Apps SDK origin (Content Publisher app calls
-      // /api/external/* from inside the Canva editor iframe). Canva hosts each
-      // app on a unique subdomain of canva-apps.com, so we allow the whole
-      // suffix via a regex source match.
+      // CORS for Canva Apps SDK origin. We need credentialed requests so the
+      // Aura student_session cookie rides along and the server can attribute
+      // the card to the logged-in student. Credentials require a concrete
+      // origin — wildcard origin + credentials is rejected by browsers.
+      // Canva hosts each app on a unique subdomain of canva-apps.com, so we
+      // match the two origins that matter for this app specifically.
       {
         source: "/api/external/:path*",
         headers: [
-          { key: "Access-Control-Allow-Origin", value: "*" },
+          {
+            key: "Access-Control-Allow-Origin",
+            value: "https://app-aahaamw43f4.canva-apps.com",
+          },
+          {
+            key: "Access-Control-Allow-Credentials",
+            value: "true",
+          },
           { key: "Access-Control-Allow-Methods", value: "GET, POST, OPTIONS" },
           {
             key: "Access-Control-Allow-Headers",
             value: "Authorization, Content-Type",
           },
           { key: "Access-Control-Max-Age", value: "86400" },
+          { key: "Vary", value: "Origin" },
         ],
       },
     ];
