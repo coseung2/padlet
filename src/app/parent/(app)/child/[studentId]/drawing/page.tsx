@@ -72,19 +72,20 @@ export default async function ChildDrawingPage({
             overflow: "hidden",
           }}
         >
-          <OptimizedImage
-            src={a.thumbnailUrl ?? a.fileUrl}
-            alt={a.title || "학생 작품"}
-            width={200}
-            height={200}
+          <div
             style={{
+              position: "relative",
               width: "100%",
               height: 140,
-              objectFit: "cover",
-              display: "block",
               background: "var(--color-surface-muted, #f9fafb)",
             }}
-          />
+          >
+            <OptimizedImage
+              src={a.thumbnailUrl ?? a.fileUrl}
+              alt={a.title || "학생 작품"}
+              fit="cover"
+            />
+          </div>
           <figcaption
             style={{
               padding: "6px 8px 8px",

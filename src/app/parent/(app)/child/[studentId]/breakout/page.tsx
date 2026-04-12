@@ -130,19 +130,23 @@ export default async function ChildBreakoutPage({
                     </div>
                   ) : null}
                   {c.imageUrl ? (
-                    <OptimizedImage
-                      src={c.imageUrl}
-                      alt={c.title || "카드 이미지"}
-                      width={200}
-                      height={120}
+                    <div
                       style={{
+                        position: "relative",
                         width: "100%",
-                        maxHeight: 160,
-                        objectFit: "cover",
+                        height: 140,
                         borderRadius: 6,
+                        overflow: "hidden",
                         marginBottom: 6,
+                        background: "var(--color-surface-muted, #f9fafb)",
                       }}
-                    />
+                    >
+                      <OptimizedImage
+                        src={c.imageUrl}
+                        alt={c.title || "카드 이미지"}
+                        fit="cover"
+                      />
+                    </div>
                   ) : null}
                   {c.content ? (
                     <div style={{ lineHeight: 1.4 }}>

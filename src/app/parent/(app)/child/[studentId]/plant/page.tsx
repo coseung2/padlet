@@ -149,19 +149,23 @@ export default async function ChildPlantPage({
                           }}
                         >
                           {o.images.map((img) => (
-                            <OptimizedImage
+                            <div
                               key={img.id}
-                              src={img.thumbnailUrl ?? img.url}
-                              alt={`관찰 사진 ${img.order + 1}`}
-                              width={200}
-                              height={200}
                               style={{
+                                position: "relative",
                                 width: "100%",
                                 height: 120,
-                                objectFit: "cover",
                                 borderRadius: 6,
+                                overflow: "hidden",
+                                background: "var(--color-surface-muted, #f9fafb)",
                               }}
-                            />
+                            >
+                              <OptimizedImage
+                                src={img.thumbnailUrl ?? img.url}
+                                alt={`관찰 사진 ${img.order + 1}`}
+                                fit="cover"
+                              />
+                            </div>
                           ))}
                         </div>
                       ) : null}
