@@ -205,7 +205,7 @@ export function AssignmentBoard({
       {viewingSub && isTeacher && (
         <ViewModal
           submission={viewingSub}
-          studentName={getStudentName(viewingSub.userId)}
+          studentName={viewingSub.userId ? getStudentName(viewingSub.userId) : "공개 신청자"}
           onReview={handleReview}
           onClose={() => setViewingSub(null)}
         />
