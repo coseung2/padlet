@@ -1,0 +1,91 @@
+{
+  "task_id": "2026-04-12-canva-oembed",
+  "phase": 5,
+  "selected_variant": "v1",
+  "generated_from": "tasks/2026-04-12-canva-oembed/phase4/design_brief.md §5",
+  "summary": "Single component-scoped CSS rule set for .card-canva-embed. No new color/font/spacing/radius/shadow tokens — brief §5 requires exactly one new rule group.",
+  "design_tokens": {
+    "added": [],
+    "modified": [],
+    "removed": []
+  },
+  "css_rules": {
+    "added": [
+      {
+        "selector": ".card-canva-embed",
+        "target_file": "src/styles/card.css",
+        "placement": "append after existing .card-attach-video block",
+        "declarations": {
+          "position": "relative",
+          "width": "100%",
+          "padding-bottom": "56.25%",
+          "background": "var(--color-bg)",
+          "border-radius": "8px",
+          "overflow": "hidden"
+        },
+        "rationale": "16:9 responsive wrapper matching existing .card-attach-video aspect-ratio pattern; reuses --color-bg and the same 8px radius as .card-attach-image for visual consistency."
+      },
+      {
+        "selector": ".card-canva-embed > img, .card-canva-embed > iframe",
+        "target_file": "src/styles/card.css",
+        "declarations": {
+          "position": "absolute",
+          "inset": "0",
+          "width": "100%",
+          "height": "100%",
+          "border": "0"
+        },
+        "rationale": "Stack thumbnail and iframe in the same box. Matches phase3 §3-5 contract."
+      },
+      {
+        "selector": ".card-canva-embed > img",
+        "target_file": "src/styles/card.css",
+        "declarations": {
+          "object-fit": "cover",
+          "transition": "opacity 150ms ease",
+          "opacity": "1"
+        },
+        "rationale": "Thumbnail fills wrapper; opacity transition is the pattern's signature animation."
+      },
+      {
+        "selector": ".card-canva-embed[data-loaded=\"true\"] > img",
+        "target_file": "src/styles/card.css",
+        "declarations": {
+          "opacity": "0",
+          "pointer-events": "none"
+        },
+        "rationale": "React toggles data-loaded on the wrapper from iframe onLoad; the thumb fades out without unmount so a future re-render can restore it."
+      }
+    ],
+    "added_media_queries": [
+      {
+        "query": "@media (prefers-reduced-motion: reduce)",
+        "target_file": "src/styles/card.css",
+        "rules": [
+          {
+            "selector": ".card-canva-embed > img",
+            "declarations": {
+              "transition": "none"
+            },
+            "rationale": "A11y — brief §4-4. Respects user preference; thumb-to-iframe swap becomes instantaneous."
+          }
+        ]
+      }
+    ]
+  },
+  "react_contract_notes": {
+    "state_toggle": "Component sets wrapper attribute `data-loaded=\"true\"` via React prop in onLoad handler. Using the attribute rather than class avoids memo contract breakage and keeps styling declarative.",
+    "dom_order": "img BEFORE iframe in JSX so paint order naturally stacks iframe below img without explicit z-index (keeps CSS minimal).",
+    "no_new_tokens": "No new CSS custom properties are introduced. If future live-embed types (Figma, GeoGebra, etc.) land, promote .card-canva-embed to a generic .card-live-embed in a separate task.",
+    "no_dangerously_set_inner_html": "Per phase3 §5-6, the oEmbed `html` field is never used; iframe is rendered as JSX so no XSS vector is introduced."
+  },
+  "non_goals": {
+    "not_adding": [
+      "new color tokens (brand chip / accent variations)",
+      "new radius tokens",
+      "new shadow tokens",
+      "iframe loading spinner (v2 was rejected in comparison.md)",
+      "attribution chip (v3 was rejected in comparison.md — duplicates Canva ?meta)"
+    ]
+  }
+}

@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>v1 — thumbnail-first fade-in (Aura-board / Canva)</title>
+  <style>
+    /* ===== Aura-board tokens (redeclared from src/styles/base.css) ===== */
+    :root {
+      --color-bg: #f6f5f4;
+      --color-bg-alt: #ffffff;
+      --color-surface: #ffffff;
+      --color-surface-alt: rgba(0, 0, 0, 0.05);
+      --color-text: rgba(0, 0, 0, 0.95);
+      --color-text-muted: #615d59;
+      --color-text-faint: #a39e98;
+      --color-accent: #0075de;
+      --color-border: rgba(0, 0, 0, 0.1);
+      --color-border-hover: rgba(0, 0, 0, 0.15);
+      --radius-card: 12px;
+      --radius-btn: 4px;
+      --radius-pill: 9999px;
+      --font-display: "Inter", -apple-system, system-ui, "Segoe UI", sans-serif;
+      --font-body: "Inter", -apple-system, system-ui, "Segoe UI", sans-serif;
+      --shadow-card:
+        rgba(0,0,0,0.04) 0 4px 18px,
+        rgba(0,0,0,0.027) 0 2.025px 7.85px,
+        rgba(0,0,0,0.02) 0 0.8px 2.93px,
+        rgba(0,0,0,0.01) 0 0.175px 1.04px;
+      --shadow-card-hover:
+        rgba(0,0,0,0.06) 0 12px 34px,
+        rgba(0,0,0,0.04) 0 4px 14px;
+      --border-card: 1px solid var(--color-border);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.5;
+      color: var(--color-text);
+      background: var(--color-bg);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Fake board chrome */
+    .board {
+      max-width: 1040px;
+      margin: 40px auto;
+      padding: 0 24px;
+    }
+    .board-header {
+      display: flex; align-items: baseline; gap: 12px;
+      margin-bottom: 20px;
+    }
+    .board-title {
+      font-family: var(--font-display);
+      font-size: 22px; font-weight: 700; letter-spacing: -0.3px;
+    }
+    .board-badge {
+      font-size: 11px; color: var(--color-text-faint);
+      background: var(--color-surface-alt);
+      padding: 3px 8px; border-radius: var(--radius-pill);
+    }
+    .board-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+    }
+    .column-title {
+      font-size: 13px; font-weight: 600;
+      color: var(--color-text-muted);
+      margin: 0 4px 10px;
+      text-transform: uppercase; letter-spacing: 0.4px;
+    }
+    .column-stack { display: flex; flex-direction: column; gap: 14px; }
+
+    /* Aura-board card (mirrors src/styles/card.css) */
+    .padlet-card {
+      background: var(--color-surface);
+      color: var(--color-text);
+      border: var(--border-card);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+      padding: 16px 18px 18px;
+      transition: box-shadow 180ms ease, border-color 180ms ease;
+      position: relative;
+    }
+    .padlet-card:hover {
+      box-shadow: var(--shadow-card-hover);
+      border-color: var(--color-border-hover);
+    }
+    .padlet-card-title {
+      font-family: var(--font-display);
+      font-size: 16px; font-weight: 700;
+      letter-spacing: -0.25px;
+      margin: 0 28px 8px 0;
+      line-height: 1.3;
+    }
+    .padlet-card-content {
+      font-family: var(--font-body);
+      font-size: 14px; line-height: 1.5; margin: 0;
+      color: var(--color-text-muted);
+    }
+    .card-attachments { margin-bottom: 10px; }
+
+    /* ===== v1: .card-canva-embed with thumbnail-first fade ===== */
+    .card-canva-embed {
+      position: relative;
+      width: 100%;
+      padding-bottom: 56.25%; /* 16:9 */
+      background: var(--color-bg);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .card-canva-embed > img,
+    .card-canva-embed > .fake-iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+    .card-canva-embed > img {
+      object-fit: cover;
+      transition: opacity 150ms ease;
+      opacity: 1;
+      z-index: 2;
+    }
+    /* Simulates post-load state: thumbnail faded out, iframe visible */
+    .card-canva-embed[data-state="ready"] > img {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .card-canva-embed > .fake-iframe {
+      z-index: 1;
+      background:
+        linear-gradient(135deg, #7c3aed 0%, #06b6d4 50%, #10b981 100%);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff;
+      font-family: var(--font-display); font-weight: 600;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    .fake-iframe-inner {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      font-size: 13px; opacity: 0.95;
+    }
+    .fake-iframe-chrome {
+      position: absolute; left: 8px; bottom: 8px;
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      font-size: 10px; padding: 3px 8px; border-radius: 3px;
+      font-weight: 500;
+    }
+    /* Thumbnail placeholder painting (solid gradient) */
+    .thumb-placeholder {
+      width: 100%; height: 100%;
+      background: linear-gradient(120deg, #fef3c7 0%, #fbcfe8 50%, #c7d2fe 100%);
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(0,0,0,0.55);
+      font-family: var(--font-display); font-weight: 600; font-size: 14px;
+      letter-spacing: 0.2px;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .card-canva-embed > img { transition: none; }
+    }
+
+    /* Card link preview (sibling card) */
+    .card-link-preview {
+      display: flex; flex-direction: column;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      overflow: hidden;
+      text-decoration: none;
+      color: inherit;
+      margin-bottom: 8px;
+    }
+    .card-link-preview-image {
+      width: 100%; height: 120px;
+      background: linear-gradient(120deg,#dbeafe,#bfdbfe);
+    }
+    .card-link-preview-body { padding: 10px 12px; }
+    .card-link-preview-title { font-size: 13px; font-weight: 600; }
+    .card-link-preview-url { font-size: 11px; color: var(--color-text-faint); margin-top: 4px; display:block; }
+
+    /* Variant demo controls */
+    .demo-bar {
+      max-width: 1040px;
+      margin: 20px auto 0;
+      padding: 12px 24px;
+      display: flex; gap: 8px; align-items: center;
+      color: var(--color-text-muted); font-size: 13px;
+    }
+    .demo-bar button {
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      border-radius: var(--radius-btn);
+      padding: 6px 12px; font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .demo-bar button:hover { border-color: var(--color-border-hover); }
+    .demo-bar .pill {
+      background: #f2f9ff; color: var(--color-accent);
+      border-radius: var(--radius-pill);
+      padding: 3px 10px; font-size: 11px; font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-bar">
+    <span class="pill">v1</span>
+    <strong>thumbnail-first fade-in</strong>
+    <span>— simulate:</span>
+    <button onclick="document.getElementById('canva').dataset.state=''">loading</button>
+    <button onclick="document.getElementById('canva').dataset.state='ready'">ready</button>
+  </div>
+
+  <div class="board">
+    <div class="board-header">
+      <div class="board-title">팀 디자인 리뷰</div>
+      <span class="board-badge">Aura-board · live</span>
+    </div>
+
+    <div class="board-columns">
+      <!-- column 1 -->
+      <div>
+        <h3 class="column-title">아이디어</h3>
+        <div class="column-stack">
+          <article class="padlet-card">
+            <h4 class="padlet-card-title">오프닝 세션 포스터 초안</h4>
+            <p class="padlet-card-content">팀 컬러 + Inter 라인. 금요일 리뷰 전까지.</p>
+          </article>
+        </div>
+      </div>
+
+      <!-- column 2 — CANVA CARD -->
+      <div>
+        <h3 class="column-title">제작물</h3>
+        <div class="column-stack">
+          <article class="padlet-card">
+            <h4 class="padlet-card-title">Q2 Kickoff Deck</h4>
+            <div class="card-attachments">
+              <!-- v1 pattern: thumb paints first, iframe fades in behind, onLoad flips data-state -->
+              <div class="card-canva-embed" id="canva" data-state="">
+                <!-- Faux Canva iframe (background layer) -->
+                <div class="fake-iframe" aria-hidden="true">
+                  <div class="fake-iframe-inner">
+                    <div style="font-size:28px;">🎨</div>
+                    <div>Canva live iframe</div>
+                    <div style="font-size:11px;opacity:0.85;">canva.com/design/DAFxxx/view?embed&amp;meta</div>
+                  </div>
+                  <div class="fake-iframe-chrome">by Jinho Park · Canva</div>
+                </div>
+                <!-- Thumbnail (top layer, fades to 0 on load) -->
+                <img alt="Q2 Kickoff Deck Canva preview"
+                     src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 225'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%23fef3c7'/%3E%3Cstop offset='55%25' stop-color='%23fbcfe8'/%3E%3Cstop offset='100%25' stop-color='%23c7d2fe'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='400' height='225' fill='url(%23g)'/%3E%3Ctext x='50%25' y='48%25' font-family='Inter,sans-serif' font-size='22' font-weight='700' fill='rgba(0,0,0,0.55)' text-anchor='middle'%3EQ2 Kickoff Deck%3C/text%3E%3Ctext x='50%25' y='62%25' font-family='Inter,sans-serif' font-size='12' fill='rgba(0,0,0,0.45)' text-anchor='middle'%3ECanva thumbnail %E2%80%93 painted first%3C/text%3E%3C/svg%3E" />
+              </div>
+            </div>
+            <p class="padlet-card-content">핵심 지표 + 로드맵 8장. 피드백 댓글 남겨주세요.</p>
+          </article>
+
+          <article class="padlet-card">
+            <h4 class="padlet-card-title">레퍼런스 링크</h4>
+            <a class="card-link-preview" href="#">
+              <div class="card-link-preview-image"></div>
+              <div class="card-link-preview-body">
+                <span class="card-link-preview-title">Notion — 슬라이드 가이드</span>
+                <span class="card-link-preview-url">🔗 notion.so</span>
+              </div>
+            </a>
+          </article>
+        </div>
+      </div>
+
+      <!-- column 3 -->
+      <div>
+        <h3 class="column-title">피드백</h3>
+        <div class="column-stack">
+          <article class="padlet-card">
+            <h4 class="padlet-card-title">컬러 대비</h4>
+            <p class="padlet-card-content">접근성 AA 미달 슬라이드 3장 — 리터치 필요.</p>
+          </article>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
