@@ -1,0 +1,729 @@
+From 3aafe53801ac3f66049e0fd1aef601883fc651d4 Mon Sep 17 00:00:00 2001
+From: coseung2 <coseung2@users.noreply.github.com>
+Date: Sun, 12 Apr 2026 10:36:41 +0900
+Subject: [PATCH 1/6] incident(perf): client-render-perf track scaffold
+ (phase0+phase1)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Triage + diagnosis for client-side rendering performance issues.
+Scope: router.refresh→optimistic update, XLSX dynamic import,
+memo/useCallback, ColumnsBoard getCardsForSection memoization,
+QR code server cache, drag DOM manipulation, CSS animations.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+---
+ .../phase0/request.json                       |  10 ++
+ .../phase0/triage.md                          |  42 +++++
+ .../phase1/diagnosis.md                       | 152 ++++++++++++++++++
+ .../phase1/evidence/bundle_imports.txt        |  22 +++
+ .../phase1/evidence/client_hotspots.txt       |  47 ++++++
+ 5 files changed, 273 insertions(+)
+ create mode 100644 tasks/2026-04-12-client-render-perf/phase0/request.json
+ create mode 100644 tasks/2026-04-12-client-render-perf/phase0/triage.md
+ create mode 100644 tasks/2026-04-12-client-render-perf/phase1/diagnosis.md
+ create mode 100644 tasks/2026-04-12-client-render-perf/phase1/evidence/bundle_imports.txt
+ create mode 100644 tasks/2026-04-12-client-render-perf/phase1/evidence/client_hotspots.txt
+
+diff --git a/tasks/2026-04-12-client-render-perf/phase0/request.json b/tasks/2026-04-12-client-render-perf/phase0/request.json
+new file mode 100644
+index 0000000..56d98eb
+--- /dev/null
++++ b/tasks/2026-04-12-client-render-perf/phase0/request.json
+@@ -0,0 +1,10 @@
++{
++  "type": "incident",
++  "slug": "client-render-perf",
++  "task_id": "2026-04-12-client-render-perf",
++  "severity": "high",
++  "symptom": "학생 목록/보드 편집 시 UI 반응 지연, 드래그 중 끊김, 번들 초기 로드 지연",
++  "first_observed": "2026-04-12",
++  "affected_surfaces": ["/classroom/:id", "/board/:id"],
++  "created_at": "2026-04-12T00:00:00+09:00"
++}
+diff --git a/tasks/2026-04-12-client-render-perf/phase0/triage.md b/tasks/2026-04-12-client-render-perf/phase0/triage.md
+new file mode 100644
+index 0000000..907dc88
+--- /dev/null
++++ b/tasks/2026-04-12-client-render-perf/phase0/triage.md
+@@ -0,0 +1,42 @@
++# Triage — client-render-perf
++
++## 증상 (관찰 가능한 행동만)
++
++- 사용자 보고: "웹이 전체적으로 느려" 중 클라이언트 사이드 기여분
++- 학생 CRUD 후 UI 갱신까지 수 초 지연
++- 드래그 앤 드롭 시 프레임 드랍 체감
++- 초기 페이지 로드 시 JS 번들 다운로드가 큼
++
++## severity 근거
++
++- **high** 분류
++- 자주 반복되는 인터랙션(드래그, 학생 관리)의 체감 지연
++- 기능 자체는 동작하므로 `critical` 아님
++
++## 초기 관찰 (증거)
++
++사전 분석에서 수집된 문제:
++
++1. **`router.refresh()` 로 전체 페이지 리페치** — `src/components/ClassroomDetail.tsx:47-49` (학생 추가/삭제/QR 재발급마다 전체 데이터 재로드)
++2. **XLSX 정적 import (~400KB)** — `src/components/AddStudentsModal.tsx:3`
++3. **`getCardsForSection()` 렌더마다 8회 호출** — `src/components/ColumnsBoard.tsx:129`
++4. **React.memo/useCallback 미사용** — `DraggableCard`, `CardAttachments`, `Dashboard`
++5. **QR 코드 클라이언트 대량 생성** — `src/components/ClassroomDetail.tsx:380-389` (500 학생 × 동적 import + 생성)
++6. **드래그 시 DOM style 직접 조작** — `src/components/ColumnsBoard.tsx:347-358`
++7. **max-height 애니메이션** — `src/styles/modal.css:24-27`
++
++## 스코프
++
++- 클라이언트 컴포넌트 렌더링 성능
++- 번들 사이즈 (dynamic import)
++- 이벤트 핸들러/props 안정성 (memo/callback)
++- 드래그 퍼포먼스 및 CSS 애니메이션
++
++## 스코프 외
++
++- 서버 사이드 쿼리 → `server-query-perf` 트랙
++- 퀴즈 SSE → `quiz-sse-perf` 트랙
++
++## 긴급 단축 여부
++
++- `high` → 미적용
+diff --git a/tasks/2026-04-12-client-render-perf/phase1/diagnosis.md b/tasks/2026-04-12-client-render-perf/phase1/diagnosis.md
+new file mode 100644
+index 0000000..e9b2f33
+--- /dev/null
++++ b/tasks/2026-04-12-client-render-perf/phase1/diagnosis.md
+@@ -0,0 +1,152 @@
++# Diagnosis — client-render-perf
++
++## 1. 재현 절차
++
++### 시나리오 A: 학생 관리
++1. 교실 페이지 접속 (학생 20명 이상)
++2. 학생 1명 삭제 → UI 업데이트까지 1~2초 지연
++3. QR 재발급 → 다시 지연
++
++### 시나리오 B: 드래그 앤 드롭
++1. 보드 페이지 접속 (카드 30개+)
++2. 카드 드래그 시작 → 드래그 중 프레임 드랍
++3. 드롭 시 UI 업데이트 지연
++
++### 시나리오 C: 초기 로드
++1. 교실 페이지 최초 접속 (cold cache)
++2. Network 탭에서 XLSX 라이브러리(~400KB) 다운로드 확인
++3. 실제 엑셀 업로드 모달은 열지 않아도 포함됨
++
++## 2. 증상 범위
++
++- **영향 받는 사용자**: 교실/보드 편집자(owner/editor)
++- **영향 받는 페이지**: `/classroom/:id`, `/board/:id`
++- **시작 시점**: 학생/카드 데이터 증가에 따라 심화
++
++## 3. 근본 원인
++
++### 3-1. `router.refresh()` 남발
++`src/components/ClassroomDetail.tsx:47-49`:
++```ts
++const refresh = useCallback(() => { router.refresh(); }, [router]);
++```
++호출 지점:
++- L354-355 학생 추가
++- L85 학생 삭제
++- L115 QR 재발급
++
++각 호출마다 RSC 전체 재렌더 → 서버 왕복 → 클라이언트 리하이드레이션 → 수백 학생 re-render.
++
++### 3-2. XLSX 정적 import
++`src/components/AddStudentsModal.tsx:3`:
++```ts
++import * as XLSX from "xlsx";
++```
++- 모달을 열지 않아도 초기 번들에 포함
++- ~400KB minified
++- 비교: jspdf, qrcode는 dynamic import 사용 중 (StudentQRCard.tsx)
++
++### 3-3. `getCardsForSection()` 렌더 시 반복 호출
++`src/components/ColumnsBoard.tsx:129-133, 346`:
++```ts
++function getCardsForSection(sectionId: string) {
++  return cards.filter(c => c.sectionId === sectionId).sort(...);
++}
++```
++- 섹션 4개 × 렌더당 2회 = 8회/렌더
++- 카드 100개 × 필터+정렬 × 8 = 800 연산/렌더
++- 카드 1개 이동 시마다 전체 재계산
++
++### 3-4. React.memo / useCallback 미사용
++- `DraggableCard` (L32) — props 안정된데 memo 없음
++- `CardAttachments` — 4개 보드 컴포넌트에서 자식으로 사용되나 memo 없음
++- `Dashboard` — 인라인 스타일 객체 9곳 + 인라인 핸들러
++- `ClassroomDetail` — `toggleSelect`/`toggleAll`/`handleBatchDelete` 등 L50+ 미memo
++
++효과: 부모 상태 변경마다 수십~수백 자식 re-render.
++
++### 3-5. QR 코드 렌더링 비용
++`src/components/ClassroomDetail.tsx:380-389`:
++```ts
++useEffect(() => {
++  import("qrcode").then(QRCode => {
++    QRCode.toDataURL(url, ...).then(setQrSrc);
++  });
++}, [student.qrToken]);
++```
++- 학생 500명이면 500 × dynamic import + 500 × QR 생성
++- 각 `StudentRow` 마운트마다 실행
++
++### 3-6. 드래그 DOM 직접 조작
++`src/components/ColumnsBoard.tsx:352-357`:
++```ts
++handleDragStart: e.currentTarget.style.opacity = "0.5";
++handleDragEnd:   e.currentTarget.style.opacity = "1";
++```
++- style 직접 쓰기 → 레이아웃 스래싱
++- CSS 클래스 토글 권장
++
++### 3-7. `max-height` 애니메이션
++`src/styles/modal.css:24-27`:
++```css
++@keyframes attachIn {
++  from { opacity: 0; max-height: 0; }
++  to   { opacity: 1; max-height: 400px; }
++}
++```
++- `max-height`는 GPU 가속 안 됨. 매 프레임 레이아웃 재계산.
++
++## 4. 증거 목록
++
++- `evidence/client_hotspots.txt` — 핫스팟 파일/라인 요약
++- `evidence/bundle_imports.txt` — 번들 관련 import 목록
++
++## 5. 수정 방향 (제안만)
++
++### 5-1. `router.refresh()` → optimistic update
++- `ClassroomDetail` 에서 학생 CRUD 후 로컬 `students` state 업데이트
++- API 응답으로 서버 truth 검증 (실패 시 롤백)
++- 필요 시 `startTransition` 으로 래핑
++
++### 5-2. XLSX dynamic import
++```ts
++// before
++import * as XLSX from "xlsx";
++// after (파일 선택 핸들러 내부)
++const XLSX = await import("xlsx");
++```
++
++### 5-3. 메모이제이션
++- `ColumnsBoard` — `sectionCardsMap = useMemo(() => groupBy(cards, 'sectionId'), [cards])`
++- `DraggableCard`, `CardAttachments` — `React.memo` 래핑 (props equality)
++- 이벤트 핸들러 — `useCallback`
++
++### 5-4. QR 코드 서버 캐시
++- 학생 생성 시 서버에서 QR dataURL 생성 + `Student.qrDataUrl` 필드 저장
++- 클라이언트는 저장된 dataURL 사용 (생성 부담 0)
++- (schema 변경 필요 — server-query-perf 트랙의 migration 과 조율)
++
++### 5-5. 드래그 CSS 토글
++```tsx
++<div className={isDragging ? "card dragging" : "card"}>
++```
++CSS:
++```css
++.card.dragging { opacity: 0.5; }
++```
++
++### 5-6. `max-height` → `transform` / `clip-path`
++```css
++@keyframes attachIn {
++  from { opacity: 0; transform: scaleY(0); transform-origin: top; }
++  to   { opacity: 1; transform: scaleY(1); }
++}
++```
++
++### 5-7. 구현 순서 (phase2)
++1. XLSX dynamic import (라인 수정 최소, 즉시 효과)
++2. memo / useCallback (리스크 낮음)
++3. `router.refresh()` → optimistic (로직 변경, 테스트 필요)
++4. ColumnsBoard 메모이제이션
++5. QR 서버 캐시 (schema 변경 동반, server-query-perf 트랙과 조율)
++6. 드래그 CSS + max-height 교체
+diff --git a/tasks/2026-04-12-client-render-perf/phase1/evidence/bundle_imports.txt b/tasks/2026-04-12-client-render-perf/phase1/evidence/bundle_imports.txt
+new file mode 100644
+index 0000000..7b6ca96
+--- /dev/null
++++ b/tasks/2026-04-12-client-render-perf/phase1/evidence/bundle_imports.txt
+@@ -0,0 +1,22 @@
++번들 관련 import 분석
++
++═══════════════════════════════════════════════════════
++정적 import — 번들 포함됨 (문제)
++═══════════════════════════════════════════════════════
++src/components/AddStudentsModal.tsx:3
++  import * as XLSX from "xlsx";
++  → ~400KB minified, 모달 열지 않아도 포함
++
++═══════════════════════════════════════════════════════
++동적 import — 번들 분할됨 (OK 패턴)
++═══════════════════════════════════════════════════════
++src/components/StudentQRCard.tsx
++  import("jspdf")
++  import("qrcode")
++src/components/QRPrintSheet.tsx
++  import("jspdf")
++  import("qrcode")
++src/components/ClassroomDetail.tsx:380
++  import("qrcode")  — 단, 500회 실행으로 효과 상쇄
++
++→ AddStudentsModal의 XLSX도 동일 패턴으로 전환 권장.
+diff --git a/tasks/2026-04-12-client-render-perf/phase1/evidence/client_hotspots.txt b/tasks/2026-04-12-client-render-perf/phase1/evidence/client_hotspots.txt
+new file mode 100644
+index 0000000..8b21d70
+--- /dev/null
++++ b/tasks/2026-04-12-client-render-perf/phase1/evidence/client_hotspots.txt
+@@ -0,0 +1,47 @@
++클라이언트 렌더링 핫스팟
++
++═══════════════════════════════════════════════════════
++router.refresh() 남발
++═══════════════════════════════════════════════════════
++src/components/ClassroomDetail.tsx:47-49 — 정의
++src/components/ClassroomDetail.tsx:85     — 학생 삭제 후
++src/components/ClassroomDetail.tsx:115    — QR 재발급 후
++src/components/ClassroomDetail.tsx:354-355 — 학생 추가 후
++
++═══════════════════════════════════════════════════════
++렌더마다 배열 연산 반복
++═══════════════════════════════════════════════════════
++src/components/ColumnsBoard.tsx:129-133   — getCardsForSection 정의
++src/components/ColumnsBoard.tsx:52, 114, 137, 193, 269, 346, 479 — 8회 호출
++
++src/components/ColumnsBoard.tsx:348-350   — 렌더 내 hasCanva 계산
++  const hasCanva = sectionCards.some(c => c.linkUrl?.includes("canva"));
++
++═══════════════════════════════════════════════════════
++React.memo 미사용
++═══════════════════════════════════════════════════════
++src/components/DraggableCard.tsx:32       — memo 없음
++src/components/CardAttachments.tsx:1      — memo 없음
++src/components/Dashboard.tsx              — 인라인 스타일 9곳 + 인라인 핸들러
++
++═══════════════════════════════════════════════════════
++useCallback 미사용 핸들러
++═══════════════════════════════════════════════════════
++src/components/ClassroomDetail.tsx:50     — toggleSelect
++src/components/ClassroomDetail.tsx:58     — toggleAll
++src/components/ClassroomDetail.tsx:63+    — handleBatchDelete, handleCopyCode, handleReissue
++
++═══════════════════════════════════════════════════════
++QR 코드 클라이언트 대량 생성
++═══════════════════════════════════════════════════════
++src/components/ClassroomDetail.tsx:380-389 — 학생 N명 × dynamic import("qrcode") × toDataURL
++
++═══════════════════════════════════════════════════════
++DOM style 직접 조작 (레이아웃 스래싱)
++═══════════════════════════════════════════════════════
++src/components/ColumnsBoard.tsx:352-357   — handleDragStart/End에서 opacity 직접 쓰기
++
++═══════════════════════════════════════════════════════
++비효율 CSS 애니메이션
++═══════════════════════════════════════════════════════
++src/styles/modal.css:24-27                — @keyframes attachIn (max-height 애니)
+-- 
+2.43.0
+
+
+From 1f088ad77109bd7b852d1cf3214e69e6edef8f07 Mon Sep 17 00:00:00 2001
+From: coseung2 <coseung2@users.noreply.github.com>
+Date: Sun, 12 Apr 2026 10:50:33 +0900
+Subject: [PATCH 2/6] fix: load xlsx dynamically in AddStudentsModal
+ (client-render-perf)
+
+xlsx is ~400 KB minified and was bundled into every page load via a
+top-level import, even though it is only used when a teacher picks a
+spreadsheet file. Switch to `await import("xlsx")` inside the file
+handler, and pass the module into parseFileData explicitly.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+---
+ src/components/AddStudentsModal.tsx | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/components/AddStudentsModal.tsx b/src/components/AddStudentsModal.tsx
+index 0a4a2c6..e4dd8a7 100644
+--- a/src/components/AddStudentsModal.tsx
++++ b/src/components/AddStudentsModal.tsx
+@@ -1,7 +1,6 @@
+ "use client";
+ 
+ import { useState, useRef } from "react";
+-import * as XLSX from "xlsx";
+ 
+ type Props = {
+   open: boolean;
+@@ -28,7 +27,10 @@ function parseTextInput(text: string): ParsedStudent[] {
+     .filter((s): s is ParsedStudent => s !== null);
+ }
+ 
+-function parseFileData(data: ArrayBuffer, fileName: string): ParsedStudent[] {
++function parseFileData(
++  XLSX: typeof import("xlsx"),
++  data: ArrayBuffer,
++): ParsedStudent[] {
+   const wb = XLSX.read(data, { type: "array" });
+   const ws = wb.Sheets[wb.SheetNames[0]];
+   const rows = XLSX.utils.sheet_to_json(ws, { header: 1 }) as unknown as unknown[][];
+@@ -62,15 +64,18 @@ export function AddStudentsModal({ open, classroomId, onClose, onAdded }: Props)
+     mode === "text" &&
+     text.split("\n").filter((l) => l.trim()).length !== parsed.length;
+ 
+-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
++  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+     const file = e.target.files?.[0];
+     if (!file) return;
+     setFileName(file.name);
++    // xlsx is ~400 KB minified. Keep it out of the initial bundle and only
++    // pay the download cost when the teacher actually picks a spreadsheet.
++    const XLSX = await import("xlsx");
+     const reader = new FileReader();
+     reader.onload = (ev) => {
+       const data = ev.target?.result as ArrayBuffer;
+       try {
+-        const students = parseFileData(data, file.name);
++        const students = parseFileData(XLSX, data);
+         setFileStudents(students);
+       } catch {
+         alert("파일을 읽을 수 없습니다. 엑셀 또는 CSV 파일을 확인하세요.");
+-- 
+2.43.0
+
+
+From eb8a586f294cf70f9f2a227048adc5ef84c1aca6 Mon Sep 17 00:00:00 2001
+From: coseung2 <coseung2@users.noreply.github.com>
+Date: Sun, 12 Apr 2026 10:52:40 +0900
+Subject: [PATCH 3/6] fix: memoize ColumnsBoard card grouping + CSS-driven drag
+ state (client-render-perf)
+
+- Build a cardsBySection Map once per cards change via useMemo so
+  the 8 render-time calls to getCardsForSection become O(1) lookups.
+  Previously a 100-card / 4-section board ran 800 filter+sort ops
+  on every render, which included every card move.
+- Replace e.currentTarget.style.opacity = "0.5" during drag with
+  classList.add("is-dragging") and a matching .column-card.is-dragging
+  CSS rule, so we no longer force an inline-style recalculation on
+  dragstart/dragend.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+---
+ src/components/ColumnsBoard.tsx | 27 ++++++++++++++++++++-------
+ src/styles/boards.css           |  7 +++++++
+ 2 files changed, 27 insertions(+), 7 deletions(-)
+
+diff --git a/src/components/ColumnsBoard.tsx b/src/components/ColumnsBoard.tsx
+index de0e72e..a58b343 100644
+--- a/src/components/ColumnsBoard.tsx
++++ b/src/components/ColumnsBoard.tsx
+@@ -1,6 +1,6 @@
+ "use client";
+ 
+-import { useState } from "react";
++import { useMemo, useState } from "react";
+ import { AddCardButton } from "./AddCardButton";
+ import { AddCardModal, type AddCardData } from "./AddCardModal";
+ import { CardAttachments } from "./CardAttachments";
+@@ -126,10 +126,23 @@ export function ColumnsBoard({
+     setFolderSectionId(null);
+   }
+ 
+-  function getCardsForSection(sectionId: string) {
+-    return cards
+-      .filter((c) => c.sectionId === sectionId)
+-      .sort((a, b) => a.order - b.order);
++  // Group cards by section once per cards change, then O(1) lookup per section.
++  // Render path previously filtered + sorted the whole card list 8×, turning
++  // a 100-card board into 800 filter/sort ops per render.
++  const cardsBySection = useMemo(() => {
++    const map = new Map<string, CardData[]>();
++    const sorted = [...cards].sort((a, b) => a.order - b.order);
++    for (const card of sorted) {
++      const key = card.sectionId ?? "";
++      const bucket = map.get(key);
++      if (bucket) bucket.push(card);
++      else map.set(key, [card]);
++    }
++    return map;
++  }, [cards]);
++
++  function getCardsForSection(sectionId: string): CardData[] {
++    return cardsBySection.get(sectionId) ?? [];
+   }
+ 
+   /* ── Card drag/drop ── */
+@@ -164,13 +177,13 @@ export function ColumnsBoard({
+     e.dataTransfer.setData("application/card-id", cardId);
+     e.dataTransfer.effectAllowed = "move";
+     if (e.currentTarget instanceof HTMLElement) {
+-      e.currentTarget.style.opacity = "0.5";
++      e.currentTarget.classList.add("is-dragging");
+     }
+   }
+ 
+   function handleDragEnd(e: React.DragEvent) {
+     if (e.currentTarget instanceof HTMLElement) {
+-      e.currentTarget.style.opacity = "1";
++      e.currentTarget.classList.remove("is-dragging");
+     }
+     setOverSectionId(null);
+   }
+diff --git a/src/styles/boards.css b/src/styles/boards.css
+index 6e9b3f9..0ac6628 100644
+--- a/src/styles/boards.css
++++ b/src/styles/boards.css
+@@ -191,6 +191,13 @@
+   opacity: 0.85;
+ }
+ 
++/* Drag-source marker — toggled from classList in ColumnsBoard
++   handleDragStart/End. Using a class rather than inline styles
++   avoids forcing style recalculation on every drag event. */
++.column-card.is-dragging {
++  opacity: 0.5;
++}
++
+ .column-card .padlet-card-title {
+   font-size: 14px;
+   font-weight: 600;
+-- 
+2.43.0
+
+
+From 1b4e104f19d186dc5d9ca4ddead175720bdcc5f5 Mon Sep 17 00:00:00 2001
+From: coseung2 <coseung2@users.noreply.github.com>
+Date: Sun, 12 Apr 2026 10:53:41 +0900
+Subject: [PATCH 4/6] fix: memoize CardAttachments with React.memo
+ (client-render-perf)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+CardAttachments renders inside every card (freeform/grid/stream/
+columns) and receives only primitive/null props, so default shallow
+equality is correct. Wrapping it in React.memo prevents the
+attachment preview subtree from re-rendering on every unrelated
+parent state update (drag, selection, modal toggle, etc.).
+
+DraggableCard was considered but skipped: its onPositionChange /
+onDelete callbacks are currently per-card closures at the callsite,
+so React.memo there would require a broader API change to pass
+cardId as an argument — out of scope for the hotfix.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+---
+ src/components/CardAttachments.tsx | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/components/CardAttachments.tsx b/src/components/CardAttachments.tsx
+index 07409e4..51d95e1 100644
+--- a/src/components/CardAttachments.tsx
++++ b/src/components/CardAttachments.tsx
+@@ -1,5 +1,7 @@
+ "use client";
+ 
++import { memo } from "react";
++
+ function getYouTubeId(url: string): string | null {
+   const m =
+     url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|shorts\/))([a-zA-Z0-9_-]{11})/) ??
+@@ -16,7 +18,10 @@ type Props = {
+   videoUrl?: string | null;
+ };
+ 
+-export function CardAttachments({ imageUrl, linkUrl, linkTitle, linkDesc, linkImage, videoUrl }: Props) {
++// All props are primitives/null, so default shallow equality is safe.
++// Memoizing avoids re-rendering attachment previews on every unrelated
++// parent state update (drag, selection, modal toggles, etc.).
++export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl, linkTitle, linkDesc, linkImage, videoUrl }: Props) {
+   if (!imageUrl && !linkUrl && !videoUrl) return null;
+ 
+   const ytId = videoUrl ? getYouTubeId(videoUrl) : null;
+@@ -77,4 +82,4 @@ export function CardAttachments({ imageUrl, linkUrl, linkTitle, linkDesc, linkIm
+       )}
+     </div>
+   );
+-}
++});
+-- 
+2.43.0
+
+
+From 763ad025f2d4c280bf9383a0fa5e6b2b2007b922 Mon Sep 17 00:00:00 2001
+From: coseung2 <coseung2@users.noreply.github.com>
+Date: Sun, 12 Apr 2026 10:54:32 +0900
+Subject: [PATCH 5/6] fix: optimistic update for bulk student add instead of
+ router.refresh (client-render-perf)
+
+After a teacher bulk-added students, ClassroomDetail called
+router.refresh() which re-ran the classroom RSC tree and refetched
+both the full student list and the teacher's board memberships from
+Postgres before any UI change was visible.
+
+The POST /api/classroom/:id/students handler already returns the
+newly created student records. Propagate them through the
+AddStudentsModal onAdded callback and merge them into local state
+locally, so the table updates instantly and the existing
+per-student state (selection, QR thumbnails, etc.) is preserved.
+
+Other classroom mutations (delete, reissue, batch-delete, link /
+unlink board) were already optimistic; this closes the remaining
+router.refresh path.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+---
+ src/components/AddStudentsModal.tsx | 14 +++++++++--
+ src/components/ClassroomDetail.tsx  | 37 ++++++++++++++++++++++-------
+ 2 files changed, 41 insertions(+), 10 deletions(-)
+
+diff --git a/src/components/AddStudentsModal.tsx b/src/components/AddStudentsModal.tsx
+index e4dd8a7..819bb1d 100644
+--- a/src/components/AddStudentsModal.tsx
++++ b/src/components/AddStudentsModal.tsx
+@@ -2,11 +2,20 @@
+ 
+ import { useState, useRef } from "react";
+ 
++export type CreatedStudent = {
++  id: string;
++  number: number | null;
++  name: string;
++  qrToken: string;
++  textCode: string;
++  createdAt: string;
++};
++
+ type Props = {
+   open: boolean;
+   classroomId: string;
+   onClose: () => void;
+-  onAdded: () => void;
++  onAdded: (newStudents: CreatedStudent[]) => void;
+ };
+ 
+ type ParsedStudent = { number: number; name: string };
+@@ -98,7 +107,8 @@ export function AddStudentsModal({ open, classroomId, onClose, onAdded }: Props)
+         }),
+       });
+       if (res.ok) {
+-        onAdded();
++        const body = (await res.json()) as { students: CreatedStudent[] };
++        onAdded(body.students);
+       } else {
+         const errBody = await res.json().catch(() => null);
+         alert(`학생 추가 실패: ${errBody?.error ?? res.statusText}`);
+diff --git a/src/components/ClassroomDetail.tsx b/src/components/ClassroomDetail.tsx
+index ee203b2..5fbba50 100644
+--- a/src/components/ClassroomDetail.tsx
++++ b/src/components/ClassroomDetail.tsx
+@@ -1,8 +1,8 @@
+ "use client";
+ 
+-import { useState, useCallback, useEffect } from "react";
++import { useState, useEffect } from "react";
+ import { useRouter } from "next/navigation";
+-import { AddStudentsModal } from "./AddStudentsModal";
++import { AddStudentsModal, type CreatedStudent } from "./AddStudentsModal";
+ import { QRPrintSheet } from "./QRPrintSheet";
+ 
+ type Student = {
+@@ -44,12 +44,33 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
+   const [selected, setSelected] = useState<Set<string>>(new Set());
+   const [deleting, setDeleting] = useState(false);
+ 
+-  const refresh = useCallback(() => {
+-    router.refresh();
+-  }, [router]);
+-
+   const allSelected = students.length > 0 && selected.size === students.length;
+ 
++  function handleStudentsAdded(newStudents: CreatedStudent[]) {
++    // Optimistic: splice new students into the existing list locally,
++    // keeping the table sorted by student number (with unnumbered at the end).
++    setStudents((prev) => {
++      const normalized = newStudents.map((s) => ({
++        id: s.id,
++        number: s.number,
++        name: s.name,
++        qrToken: s.qrToken,
++        textCode: s.textCode,
++        createdAt: s.createdAt,
++      }));
++      const merged = [...prev, ...normalized];
++      merged.sort((a, b) => {
++        if (a.number == null && b.number == null) {
++          return a.createdAt.localeCompare(b.createdAt);
++        }
++        if (a.number == null) return 1;
++        if (b.number == null) return -1;
++        return a.number - b.number;
++      });
++      return merged;
++    });
++  }
++
+   function toggleSelect(id: string) {
+     setSelected((prev) => {
+       const next = new Set(prev);
+@@ -349,9 +370,9 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
+           open={showAddStudents}
+           classroomId={classroom.id}
+           onClose={() => setShowAddStudents(false)}
+-          onAdded={() => {
++          onAdded={(newStudents) => {
+             setShowAddStudents(false);
+-            refresh();
++            handleStudentsAdded(newStudents);
+           }}
+         />
+       )}
+-- 
+2.43.0
+
+
+From a40c15d41e096fa7cd130cfaf1d16f3aae30cf62 Mon Sep 17 00:00:00 2001
+From: coseung2 <coseung2@users.noreply.github.com>
+Date: Sun, 12 Apr 2026 10:54:53 +0900
+Subject: [PATCH 6/6] fix: replace max-height keyframe with transform for
+ attach section (client-render-perf)
+
+@keyframes attachIn animated max-height, which forces a layout
+recalculation every frame. Switch to scaleY + opacity so the
+animation runs on the compositor only.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+---
+ src/styles/modal.css | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/styles/modal.css b/src/styles/modal.css
+index 900322f..351beaa 100644
+--- a/src/styles/modal.css
++++ b/src/styles/modal.css
+@@ -226,11 +226,14 @@
+ 
+ .modal-attach-section {
+   animation: attachIn 150ms ease;
++  transform-origin: top;
+ }
+ 
++/* Animate via transform/opacity (composite-only) instead of max-height,
++   which forces a layout recalculation on every frame. */
+ @keyframes attachIn {
+-  from { opacity: 0; max-height: 0; }
+-  to { opacity: 1; max-height: 400px; }
++  from { opacity: 0; transform: scaleY(0.8) translateZ(0); }
++  to { opacity: 1; transform: scaleY(1) translateZ(0); }
+ }
+ 
+ .modal-color-section {
+-- 
+2.43.0
+
