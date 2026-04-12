@@ -13,23 +13,24 @@ export default async function ClassroomDetailPage({ params }: Props) {
   const { id } = await params;
   const user = await getCurrentUser();
 
-  const classroom = await db.classroom.findUnique({
-    where: { id },
-    include: {
-      students: { orderBy: [{ number: "asc" }, { createdAt: "asc" }] },
-      boards: { orderBy: { createdAt: "desc" } },
-    },
-  });
+  // Classroom + teacher's owned-board list are independent — run in parallel.
+  const [classroom, teacherMemberships] = await Promise.all([
+    db.classroom.findUnique({
+      where: { id },
+      include: {
+        students: { orderBy: [{ number: "asc" }, { createdAt: "asc" }] },
+        boards: { orderBy: { createdAt: "desc" } },
+      },
+    }),
+    db.boardMember.findMany({
+      where: { userId: user.id, role: "owner" },
+      include: { board: true },
+    }),
+  ]);
 
   if (!classroom || classroom.teacherId !== user.id) {
     notFound();
   }
-
-  // Fetch all boards owned by teacher (for board picker)
-  const teacherMemberships = await db.boardMember.findMany({
-    where: { userId: user.id, role: "owner" },
-    include: { board: true },
-  });
   const allBoards = teacherMemberships.map((m) => ({
     id: m.board.id,
     slug: m.board.slug,
