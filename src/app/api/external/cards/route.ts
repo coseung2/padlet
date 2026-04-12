@@ -1,200 +1,162 @@
 /**
- * POST /api/external/cards
+ * POST /api/external/cards — Canva Publisher receiver endpoint (Seed 8 CR-4).
  *
- * External card creation endpoint for the Content-Publisher integration (P0-②).
- * Authenticated via Personal Access Token in `Authorization: Bearer …` header.
- *
- * Contract: see docs/external-api.md
+ * Pipeline:
+ *   1. Content-Length hard guard (4MB) → 413
+ *   2. PAT verify (prefix O(1) + timing-safe) → 401/410
+ *   3. Scope check cards:write → 403
+ *   4. Tier dual-defense (Free → 402)
+ *   5. 3-axis Upstash rate limit (token/teacher/ip, OR) → 429
+ *   6. Zod strict body parse → 422
+ *   7. scopeBoardIds allowlist → 403
+ *   8. RBAC owner/editor on board → 403, board missing → 404
+ *   9. sectionId must belong to board → 422
+ *  10. Streaming Blob upload (multipart) → 500 on failure
+ *  11. Card INSERT (defaults width=240 height=160 content="" authorId=token.user)
+ *  12. 200 { id, url: https://aura-board-app.vercel.app/board/<slug>#c/<cardId> }
  */
 import { NextResponse } from "next/server";
-import { writeFile } from "fs/promises";
-import path from "path";
-import { randomBytes } from "crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requirePermission, ForbiddenError } from "@/lib/rbac";
-import { verifyToken, checkRateLimit } from "@/lib/external-auth";
+import { verifyPat } from "@/lib/external-pat";
+import { checkAll as rateLimitCheck } from "@/lib/rate-limit";
+import { uploadPngFromDataUrl, BlobUploadError } from "@/lib/blob";
+import { requireProTier, TierRequiredError } from "@/lib/tier";
+import { externalErrorResponse } from "@/lib/external-errors";
 
-// Keep runtime default (Node) — Prisma + optional @vercel/blob dynamic import.
 export const runtime = "nodejs";
+export const maxDuration = 30;
 
-const CreateExternalCardSchema = z
+const MAX_BODY_BYTES = 4 * 1024 * 1024; // 4.0 MB hard guard (Vercel 4.5MB ceiling)
+
+const CARD_URL_BASE =
+  process.env.NEXT_PUBLIC_APP_BASE_URL?.replace(/\/$/, "") ??
+  "https://aura-board-app.vercel.app";
+
+// Zod strict body schema per Seed 8 §1.6 — 4 fields, unknown = 422.
+// Using z.string().min(1) for boardId/sectionId (cuid-ish; SQLite lacks the
+// cuid1 guarantee but the runtime still validates presence + DB existence).
+const BodySchema = z
   .object({
-    boardId: z.string().min(1),
-    sectionId: z.string().min(1).nullable().optional(),
+    boardId: z.string().min(1).max(40),
     title: z.string().min(1).max(200),
-    content: z.string().max(5000).optional().default(""),
-    imageDataUrl: z.string().optional(),
-    linkUrl: z.string().url().optional(),
-    canvaDesignId: z.string().min(1).optional(),
+    imageDataUrl: z
+      .string()
+      .regex(/^data:image\/png;base64,/, "imageDataUrl must be a data:image/png;base64, URL"),
+    sectionId: z.string().min(1).max(40).nullable().optional(),
   })
   .strict();
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB decoded
-const DATA_URL_RE = /^data:image\/png;base64,([A-Za-z0-9+/=_-]+)$/;
-
-function jsonError(code: string, message: string, status: number) {
-  return NextResponse.json({ success: false, error: code, message }, { status });
-}
-
-async function storeImageFromDataUrl(
-  dataUrl: string
-): Promise<{ url: string } | { error: string; status: number }> {
-  const m = DATA_URL_RE.exec(dataUrl);
-  if (!m) return { error: "unsupported_image_type", status: 400 };
-  let buffer: Buffer;
-  try {
-    buffer = Buffer.from(m[1], "base64");
-  } catch {
-    return { error: "invalid_base64", status: 400 };
-  }
-  if (buffer.byteLength > MAX_IMAGE_BYTES) {
-    return { error: "image_too_large", status: 413 };
-  }
-  const filename = `ext-${Date.now()}-${randomBytes(4).toString("hex")}.png`;
-
-  // Prefer Vercel Blob when configured; otherwise fall back to /public/uploads/.
-  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
-  if (blobToken) {
-    // Dynamic import via a runtime-computed specifier so TS doesn't require
-    // @vercel/blob to be installed at typecheck time. Optional dep.
-    const blobSpecifier = ["@vercel", "blob"].join("/");
-    try {
-      const mod = (await import(/* webpackIgnore: true */ blobSpecifier).catch(
-        () => null
-      )) as { put?: (k: string, v: Buffer, o: unknown) => Promise<{ url: string }> } | null;
-      if (mod && typeof mod.put === "function") {
-        const result = await mod.put(`external/${filename}`, buffer, {
-          access: "public",
-          contentType: "image/png",
-          token: blobToken,
-        });
-        return { url: result.url };
-      }
-      console.warn("[external/cards] BLOB_READ_WRITE_TOKEN set but @vercel/blob not installed; TODO: install");
-    } catch (e) {
-      console.warn("[external/cards] blob put failed, falling back to fs", e);
-    }
-  }
-
-  // Filesystem fallback (dev / self-hosted).
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
-  const filePath = path.join(uploadDir, filename);
-  try {
-    await writeFile(filePath, buffer);
-  } catch (e) {
-    console.error("[external/cards] fs write failed", e);
-    return { error: "image_store_failed", status: 500 };
-  }
-  return { url: `/uploads/${filename}` };
-}
-
 export async function POST(req: Request) {
-  // 1) Bearer auth
+  // [1] Content-Length hard guard (before body parse).
+  const contentLength = req.headers.get("content-length");
+  if (contentLength && Number(contentLength) > MAX_BODY_BYTES) {
+    return externalErrorResponse("payload_too_large");
+  }
+
+  // [2] PAT verify.
   const authHeader = req.headers.get("authorization");
-  const verified = await verifyToken(authHeader);
-  if (!verified) {
-    return jsonError("unauthorized", "Missing or invalid Authorization bearer token", 401);
+  const verified = await verifyPat(authHeader);
+  if (!verified.ok) {
+    // 401 for format/invalid_token, 410 for revoked/expired.
+    return externalErrorResponse(verified.code);
   }
-  const { user, tokenId } = verified;
+  const { user, tokenId, tokenPrefix, scopes, scopeBoardIds } = verified.value;
 
-  // 2) Rate limit (per token, 60/min)
-  const gate = checkRateLimit(tokenId);
+  // [3] Scope gate.
+  if (!scopes.includes("cards:write")) {
+    return externalErrorResponse("forbidden_scope");
+  }
+
+  // [4] Tier dual-defense (R7).
+  try {
+    requireProTier(user.id);
+  } catch (e) {
+    if (e instanceof TierRequiredError) {
+      return externalErrorResponse("tier_required", undefined, {
+        "X-Upgrade-Url": e.upgradeUrl,
+      });
+    }
+    throw e;
+  }
+
+  // [5] 3-axis rate limit.
+  const gate = await rateLimitCheck({ tokenId, userId: user.id, req });
   if (!gate.ok) {
-    return NextResponse.json(
-      { success: false, error: "rate_limited", retryAfter: gate.retryAfter },
-      { status: 429, headers: { "Retry-After": String(gate.retryAfter) } }
-    );
+    return externalErrorResponse("rate_limited", undefined, {
+      "Retry-After": String(gate.retryAfter),
+      "X-Rate-Limit-Axis": gate.axis ?? "unknown",
+    });
   }
 
-  // 3) Body parse + zod validate
+  // [6] Body parse + strict zod.
   let bodyRaw: unknown;
   try {
     bodyRaw = await req.json();
   } catch {
-    return jsonError("invalid_json", "Request body must be JSON", 400);
+    return externalErrorResponse("invalid_data_url", "Request body must be JSON");
   }
-  let input: z.infer<typeof CreateExternalCardSchema>;
-  try {
-    input = CreateExternalCardSchema.parse(bodyRaw);
-  } catch (e) {
-    if (e instanceof z.ZodError) {
-      return NextResponse.json(
-        { success: false, error: "validation_failed", issues: e.issues },
-        { status: 400 }
-      );
-    }
-    throw e;
+  const parsed = BodySchema.safeParse(bodyRaw);
+  if (!parsed.success) {
+    return externalErrorResponse(
+      "invalid_data_url",
+      parsed.error.issues[0]?.message ?? "Zod strict validation failed"
+    );
+  }
+  const input = parsed.data;
+
+  // Defensive: clamp decoded size. base64 encodes 3 bytes → 4 chars, so a
+  // 4MB body can yield ~3MB PNG. We recheck the decoded buffer in blob.ts,
+  // but a quick length check here saves a decode round-trip for obvious
+  // violations beyond content-length (e.g. chunked requests).
+  const approxBytes = Math.floor((input.imageDataUrl.length - "data:image/png;base64,".length) * 0.75);
+  if (approxBytes > MAX_BODY_BYTES) {
+    return externalErrorResponse("payload_too_large");
   }
 
-  // 4) Board existence + RBAC (viewer/non-member -> 403; absent -> 404)
+  // [7] scopeBoardIds allowlist check.
+  if (scopeBoardIds.length > 0 && !scopeBoardIds.includes(input.boardId)) {
+    return externalErrorResponse("forbidden_board");
+  }
+
+  // [8] Board + RBAC.
   const board = await db.board.findUnique({
     where: { id: input.boardId },
     select: { id: true, slug: true },
   });
-  if (!board) return jsonError("board_not_found", "Board does not exist", 404);
-
+  if (!board) return externalErrorResponse("not_found");
   try {
     await requirePermission(board.id, user.id, "edit");
   } catch (e) {
-    if (e instanceof ForbiddenError) {
-      return jsonError("forbidden", "Token user cannot edit this board", 403);
-    }
+    if (e instanceof ForbiddenError) return externalErrorResponse("forbidden");
     throw e;
   }
 
-  // 5) sectionId must belong to boardId
+  // [9] sectionId membership if provided.
   if (input.sectionId) {
     const sec = await db.section.findUnique({
       where: { id: input.sectionId },
       select: { id: true, boardId: true },
     });
     if (!sec || sec.boardId !== board.id) {
-      return jsonError("section_mismatch", "sectionId does not belong to boardId", 400);
+      return externalErrorResponse(
+        "invalid_data_url",
+        "sectionId does not belong to boardId"
+      );
     }
   }
 
-  // 6) Optional image
-  let imageUrl: string | null = null;
-  if (input.imageDataUrl) {
-    const res = await storeImageFromDataUrl(input.imageDataUrl);
-    if ("error" in res) return jsonError(res.error, res.error, res.status);
-    imageUrl = res.url;
-  }
-
-  // 7) Optional Canva link (best-effort oEmbed enrichment)
-  let linkUrl: string | null = input.linkUrl ?? null;
-  let linkTitle: string | null = null;
-  let linkImage: string | null = null;
-  let linkDesc: string | null = null;
-  if (input.canvaDesignId) {
-    linkUrl = `https://www.canva.com/design/${input.canvaDesignId}/view`;
-    try {
-      const { resolveCanvaEmbedUrl } = await import("@/lib/canva");
-      const embed = await resolveCanvaEmbedUrl(linkUrl);
-      if (embed) {
-        linkUrl = `https://www.canva.com/design/${embed.designId}/view`;
-        linkImage = embed.thumbnailUrl;
-        linkTitle = embed.title;
-        linkDesc = embed.authorName ? `by ${embed.authorName}` : null;
-      }
-    } catch (e) {
-      console.warn("[external/cards] canva oEmbed enrichment failed (non-fatal)", e);
-    }
-  }
-
-  // 8) Create card
+  // [10+11] Atomically (best-effort): create the card first with null
+  // imageUrl so we can key the blob path by cardId, then upload, then
+  // update. On upload failure, we delete the empty card to avoid orphans.
   const card = await db.card.create({
     data: {
       boardId: board.id,
       authorId: user.id,
       title: input.title,
-      content: input.content ?? "",
-      imageUrl,
-      linkUrl,
-      linkTitle,
-      linkImage,
-      linkDesc,
+      content: "",
+      imageUrl: null,
       x: 0,
       y: 0,
       width: 240,
@@ -205,9 +167,37 @@ export async function POST(req: Request) {
     select: { id: true },
   });
 
-  return NextResponse.json({
-    success: true,
-    cardId: card.id,
-    cardUrl: `/board/${board.slug}?card=${card.id}`,
+  let blobUrl: string;
+  try {
+    const res = await uploadPngFromDataUrl(
+      input.imageDataUrl,
+      `external-cards/${board.id}/${card.id}.png`
+    );
+    blobUrl = res.url;
+  } catch (e) {
+    // Rollback empty card.
+    await db.card.delete({ where: { id: card.id } }).catch(() => void 0);
+    if (e instanceof BlobUploadError) {
+      return externalErrorResponse("blob_upload_failed");
+    }
+    console.error("[POST /api/external/cards] upload", e);
+    return externalErrorResponse("internal");
+  }
+
+  await db.card.update({
+    where: { id: card.id },
+    data: { imageUrl: blobUrl },
   });
+
+  // Audit: we already touched lastUsedAt in verifyPat; nothing else to do.
+  void tokenPrefix; // silence unused-var
+
+  // [12] Minimal response.
+  return NextResponse.json(
+    {
+      id: card.id,
+      url: `${CARD_URL_BASE}/board/${board.slug}#c/${card.id}`,
+    },
+    { status: 200 }
+  );
 }
