@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentParent } from "@/lib/parent-session";
 import { ParentBottomNav } from "@/components/parent/ParentBottomNav";
+import { SessionWatchdog } from "@/components/parent/SessionWatchdog";
 
 // Authenticated parent segment layout (PV-6).
 //
@@ -30,6 +31,7 @@ export default async function ParentAppLayout({ children }: { children: ReactNod
     >
       {children}
       <ParentBottomNav />
+      <SessionWatchdog />
     </div>
   );
 }
