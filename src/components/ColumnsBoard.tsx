@@ -18,7 +18,7 @@ type SectionData = {
   accessToken?: string | null;
 };
 
-type PanelTab = "share" | "rename" | "delete";
+type PanelTab = "rename" | "delete";
 
 type Props = {
   boardId: string;
@@ -343,21 +343,47 @@ export function ColumnsBoard({
             (c) => c.linkUrl && (c.linkUrl.includes("canva.link") || c.linkUrl.includes("canva.com"))
           );
 
-          // 섹션 관리(공유/이름/삭제)는 헤더의 ⋯ 버튼 → SectionActionsPanel 로 일원화.
-          // ContextMenu 는 Canva 관련 액션 전용으로 축소.
-          const menuItems = [
-            { label: "Canva에서 가져오기", icon: "📁", onClick: () => setFolderSectionId(section.id) },
-            ...(hasCanva
-              ? [
-                  { label: "PDF 내보내기", icon: "📄", onClick: () => setExportSectionId(section.id) },
-                  {
-                    label: organizing === section.id ? "정리 중..." : "Canva 폴더로 정리",
-                    icon: "📂",
-                    onClick: () => handleOrganizeToCanva(section.id),
-                  },
-                ]
-              : []),
-          ];
+          // 섹션 헤더 ⋯ 한 개로 rename/delete + Canva 옵션 통합.
+          // 공유(브레이크아웃) 진입점은 보드 헤더의 ⚙ → BoardSettingsPanel 로 이동.
+          const menuItems = canEdit
+            ? [
+                {
+                  label: "이름 변경",
+                  icon: "✏️",
+                  onClick: () =>
+                    setPanelState({ sectionId: section.id, tab: "rename" }),
+                },
+                {
+                  label: "Canva에서 가져오기",
+                  icon: "📁",
+                  onClick: () => setFolderSectionId(section.id),
+                },
+                ...(hasCanva
+                  ? [
+                      {
+                        label: "PDF 내보내기",
+                        icon: "📄",
+                        onClick: () => setExportSectionId(section.id),
+                      },
+                      {
+                        label:
+                          organizing === section.id
+                            ? "정리 중..."
+                            : "Canva 폴더로 정리",
+                        icon: "📂",
+                        onClick: () => handleOrganizeToCanva(section.id),
+                      },
+                    ]
+                  : []),
+                {
+                  label: "섹션 삭제",
+                  icon: "🗑️",
+                  danger: true,
+                  onClick: () =>
+                    setPanelState({ sectionId: section.id, tab: "delete" }),
+                },
+              ]
+            : [];
 
           return (
             <div
@@ -375,22 +401,7 @@ export function ColumnsBoard({
               <div className="column-header">
                 <h3 className="column-title">{section.title}</h3>
                 <span className="column-count">{sectionCards.length}</span>
-                {canEdit && (
-                  <>
-                    <button
-                      type="button"
-                      className="section-actions-trigger"
-                      aria-label={`${section.title} 섹션 옵션`}
-                      aria-haspopup="dialog"
-                      onClick={() =>
-                        setPanelState({ sectionId: section.id, tab: "share" })
-                      }
-                    >
-                      ⋯
-                    </button>
-                    {menuItems.length > 0 && <ContextMenu items={menuItems} />}
-                  </>
-                )}
+                {menuItems.length > 0 && <ContextMenu items={menuItems} />}
               </div>
               <div className={`column-cards ${overSectionId === section.id ? "column-cards-active" : ""}`}>
                 {sectionCards.map((c) => {
@@ -477,9 +488,7 @@ export function ColumnsBoard({
             section={{
               id: section.id,
               title: section.title,
-              accessToken: section.accessToken ?? null,
             }}
-            boardId={boardId}
             currentRole={currentRole}
             defaultTab={panelState.tab}
             onRenamed={(t) => handleSectionRenamed(section.id, t)}

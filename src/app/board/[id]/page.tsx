@@ -16,6 +16,8 @@ import type { PlantJournalResponse } from "@/types/plant";
 import { UserSwitcher } from "@/components/UserSwitcher";
 import { AuthHeader } from "@/components/AuthHeader";
 import { EditableTitle } from "@/components/EditableTitle";
+import { BoardSettingsLauncher } from "@/components/BoardSettingsLauncher";
+import type { BoardSection } from "@/components/BoardSettingsPanel";
 
 // Auth + cookie reads already flag this route as dynamic.
 // Dropping the explicit flag keeps the Router Cache warm for navigations.
@@ -323,6 +325,15 @@ export default async function BoardPage({
     };
   }
 
+  // Sections prop for the board settings ⚙ launcher. Only present for
+  // layouts that persist sections (columns); other layouts still get the
+  // settings panel but its Breakout tab shows an empty-state notice.
+  const settingsSections: BoardSection[] = sectionProps.map((s) => ({
+    id: s.id,
+    title: s.title,
+    accessToken: s.accessToken,
+  }));
+
   if (!effectiveRole) {
     return (
       <main className="board-page">
@@ -421,6 +432,7 @@ export default async function BoardPage({
         userRole={effectiveRole}
         mockRole={mockRole}
         canEdit={effectiveRole === "owner" || effectiveRole === "editor"}
+        settingsSections={settingsSections}
       />
       {renderBoard()}
     </main>
@@ -435,6 +447,7 @@ function BoardHeader({
   userRole,
   mockRole,
   canEdit,
+  settingsSections,
 }: {
   boardId?: string;
   title: string;
@@ -443,6 +456,7 @@ function BoardHeader({
   userRole?: string;
   mockRole: string | null;
   canEdit: boolean;
+  settingsSections?: BoardSection[];
 }) {
   return (
     <header className="board-header">
@@ -454,6 +468,13 @@ function BoardHeader({
           <EditableTitle boardId={boardId} initialTitle={title} canEdit={canEdit} />
         ) : (
           <h1 className="board-title">{title}</h1>
+        )}
+        {boardId && canEdit && (
+          <BoardSettingsLauncher
+            boardId={boardId}
+            layout={layout}
+            sections={settingsSections ?? []}
+          />
         )}
         <span className="board-layout-badge">{LAYOUT_LABEL[layout] ?? layout}</span>
         {userName && userRole && (

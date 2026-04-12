@@ -54,7 +54,9 @@ export default async function SectionSharePage({
       </div>
 
       <div className="section-panel-notice" style={{ margin: "0 auto 16px", maxWidth: 640 }}>
-        💡 이 기능은 columns 보드 섹션 헤더의 <strong>⋯</strong> 메뉴에서도 바로 열 수 있어요.
+        💡 이제 이 기능은 <Link href={`/board/${board.id}`}>보드 페이지</Link>의{" "}
+        <strong>⚙ 보드 설정 → 브레이크아웃</strong> 탭에서 섹션별로 한 번에
+        관리할 수 있어요. 이 페이지는 하위 호환용으로 유지돼요.
       </div>
 
       <SectionShareClient

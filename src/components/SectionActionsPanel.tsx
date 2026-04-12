@@ -2,21 +2,18 @@
 
 import { useEffect, useId, useState } from "react";
 import { SidePanel } from "./ui/SidePanel";
-import { SectionShareClient } from "./SectionShareClient";
 
 export type SectionForPanel = {
   id: string;
   title: string;
-  accessToken: string | null;
 };
 
-type Tab = "share" | "rename" | "delete";
+type Tab = "rename" | "delete";
 
 type Props = {
   open: boolean;
   onClose: () => void;
   section: SectionForPanel;
-  boardId: string;
   currentRole: "owner" | "editor" | "viewer";
   defaultTab?: Tab;
   onRenamed: (newTitle: string) => void;
@@ -27,9 +24,8 @@ export function SectionActionsPanel({
   open,
   onClose,
   section,
-  boardId,
   currentRole,
-  defaultTab = "share",
+  defaultTab = "rename",
   onRenamed,
   onDeleted,
 }: Props) {
@@ -41,13 +37,10 @@ export function SectionActionsPanel({
     if (open) setTab(defaultTab);
   }, [open, defaultTab, section.id]);
 
-  const isOwner = currentRole === "owner";
   const canEdit = currentRole === "owner" || currentRole === "editor";
 
   return (
     <SidePanel open={open} onClose={onClose} title={`${section.title} 옵션`}>
-      {/* Tablist sits just above the body — we render it inside children
-          because SidePanel keeps the head + body layout flexible. */}
       <div
         role="tablist"
         aria-label="섹션 옵션"
@@ -55,17 +48,6 @@ export function SectionActionsPanel({
         id={tablistId}
         style={{ margin: "-16px -20px 16px" }}
       >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "share"}
-          aria-controls={`${tablistId}-panel-share`}
-          id={`${tablistId}-tab-share`}
-          className="side-panel-tab"
-          onClick={() => setTab("share")}
-        >
-          공유
-        </button>
         <button
           type="button"
           role="tab"
@@ -91,25 +73,6 @@ export function SectionActionsPanel({
           삭제
         </button>
       </div>
-
-      {tab === "share" && (
-        <div
-          role="tabpanel"
-          id={`${tablistId}-panel-share`}
-          aria-labelledby={`${tablistId}-tab-share`}
-        >
-          {!isOwner && (
-            <p className="section-panel-notice">
-              공유 링크는 소유자만 관리할 수 있습니다.
-            </p>
-          )}
-          <SectionShareClient
-            boardId={boardId}
-            sectionId={section.id}
-            initialToken={section.accessToken}
-          />
-        </div>
-      )}
 
       {tab === "rename" && canEdit && (
         <div
