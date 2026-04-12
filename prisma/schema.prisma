@@ -26,6 +26,7 @@ model User {
   memberships  BoardMember[]
   cards        Card[]
   submissions  Submission[]
+  reviews      SubmissionReview[]
   accounts     Account[]
   sessions     Session[]
   classrooms   Classroom[]
@@ -100,7 +101,7 @@ model Student {
   @@index([textCode])
 }
 
-// layout: "freeform" | "grid" | "stream" | "columns" | "assignment" | "quiz" | "plant-roadmap"
+// layout: "freeform" | "grid" | "stream" | "columns" | "assignment" | "quiz" | "plant-roadmap" | "event-signup"
 // (validated in app via zod)
 model Board {
   id          String   @id @default(cuid())
@@ -110,6 +111,32 @@ model Board {
   description String   @default("")
   classroomId String?
   createdAt   DateTime @default(now())
+
+  // ── Event-signup (ES-1) ────────────────────────────────────────────
+  // Public link access. "classroom" = NextAuth or classroom-scoped only.
+  // "public-link" = anyone with accessToken in URL can view the signup form.
+  accessMode           String   @default("classroom")
+  accessToken          String?  @unique
+  eventPosterUrl       String?
+  applicationStart     DateTime?
+  applicationEnd       DateTime?
+  eventStart           DateTime?
+  eventEnd             DateTime?
+  venue                String?
+  maxSelections        Int?
+  videoPolicy          String   @default("optional")  // "none" | "optional" | "required"
+  videoProviders       String   @default("youtube")   // csv
+  maxVideoDurationSec  Int?
+  maxVideoSizeMb       Int?
+  allowTeam            Boolean  @default(false)
+  maxTeamSize          Int?
+  customQuestions      String   @default("[]")        // JSON-encoded question[]
+  announceMode         String   @default("private")   // "public-list" | "private-search" | "private"
+  requireApproval      Boolean  @default(false)
+  askName              Boolean  @default(true)
+  askGradeClass        Boolean  @default(true)
+  askStudentNumber     Boolean  @default(true)
+  askContact           Boolean  @default(false)
 
   classroom     Classroom?     @relation("ClassroomBoards", fields: [classroomId], references: [id], onDelete: SetNull)
   members       BoardMember[]
@@ -187,22 +214,61 @@ model Card {
 model Submission {
   id        String   @id @default(cuid())
   boardId   String
-  userId    String
+  userId    String?  // nullable for public event-signup submissions (ES-1)
   content   String   @default("")
   linkUrl   String?
   fileUrl   String?
-  status    String   @default("submitted") // "submitted" | "reviewed" | "returned"
+  // status (event-signup adds): "pending_approval" | "submitted" | "approved" | "rejected"
+  // status (assignment keeps): "submitted" | "reviewed" | "returned"
+  status    String   @default("submitted")
   feedback  String?
   grade     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id])
+  // ── Event-signup applicant fields (ES-1) ─────────────────────────
+  submitToken       String?  @unique       // public self-auth for /my page
+  applicantName     String?
+  applicantGrade    Int?
+  applicantClass    Int?
+  applicantNumber   Int?
+  applicantContact  String?
+  ipHash            String?
+  teamName          String?
+  teamMembers       String   @default("[]")  // JSON — {name,grade,class,number}[]
+  answers           String   @default("{}")  // JSON — {questionId: value}
+  videoUrl          String?
+  videoProvider     String?   // "youtube" | "cfstream"
+  videoId           String?
+  videoThumbnail    String?
+  scoreAvg          Float?
 
-  @@unique([boardId, userId])
+  board   Board              @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user    User?              @relation(fields: [userId], references: [id])
+  reviews SubmissionReview[]
+
   @@index([boardId])
   @@index([userId])
+  @@index([boardId, status])
+  @@index([ipHash, createdAt])
+}
+
+// ── Event-signup reviews (ES-1, ES-9) ─────────────────────────────
+model SubmissionReview {
+  id           String   @id @default(cuid())
+  submissionId String
+  reviewerId   String
+  score        Int
+  comment      String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  reviewer   User       @relation(fields: [reviewerId], references: [id])
+
+  @@unique([submissionId, reviewerId])
+  @@index([submissionId])
+  @@index([reviewerId])
 }
 
 // ──── Quiz system ────
