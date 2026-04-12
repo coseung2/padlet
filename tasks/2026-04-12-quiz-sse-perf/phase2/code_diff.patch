@@ -1,0 +1,674 @@
+From f1fb292a9390f9816b53b8ab04b11a1540061c6f Mon Sep 17 00:00:00 2001
+From: coseung2 <coseung2@users.noreply.github.com>
+Date: Sun, 12 Apr 2026 10:36:54 +0900
+Subject: [PATCH 1/3] incident(perf): quiz-sse-perf track scaffold
+ (phase0+phase1)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Triage + diagnosis for quiz SSE stream performance issues.
+Scope: per-second full-quiz polling → delta events, reduce
+question fetch scope, QuizBoard state granularity, EventSource
+cleanup with AbortController.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+---
+ .../phase0/request.json                       |  10 ++
+ .../2026-04-12-quiz-sse-perf/phase0/triage.md |  33 ++++++
+ .../phase1/diagnosis.md                       | 105 ++++++++++++++++++
+ .../phase1/evidence/quiz_client_updates.txt   |  22 ++++
+ .../phase1/evidence/sse_route.txt             |  22 ++++
+ 5 files changed, 192 insertions(+)
+ create mode 100644 tasks/2026-04-12-quiz-sse-perf/phase0/request.json
+ create mode 100644 tasks/2026-04-12-quiz-sse-perf/phase0/triage.md
+ create mode 100644 tasks/2026-04-12-quiz-sse-perf/phase1/diagnosis.md
+ create mode 100644 tasks/2026-04-12-quiz-sse-perf/phase1/evidence/quiz_client_updates.txt
+ create mode 100644 tasks/2026-04-12-quiz-sse-perf/phase1/evidence/sse_route.txt
+
+diff --git a/tasks/2026-04-12-quiz-sse-perf/phase0/request.json b/tasks/2026-04-12-quiz-sse-perf/phase0/request.json
+new file mode 100644
+index 0000000..75f7a7f
+--- /dev/null
++++ b/tasks/2026-04-12-quiz-sse-perf/phase0/request.json
+@@ -0,0 +1,10 @@
++{
++  "type": "incident",
++  "slug": "quiz-sse-perf",
++  "task_id": "2026-04-12-quiz-sse-perf",
++  "severity": "high",
++  "symptom": "퀴즈 진행 중 서버 부하 급증, 진행 상태 업데이트 지연",
++  "first_observed": "2026-04-12",
++  "affected_surfaces": ["/quiz/:code", "/board/:id (quiz live)"],
++  "created_at": "2026-04-12T00:00:00+09:00"
++}
+diff --git a/tasks/2026-04-12-quiz-sse-perf/phase0/triage.md b/tasks/2026-04-12-quiz-sse-perf/phase0/triage.md
+new file mode 100644
+index 0000000..0d31cf4
+--- /dev/null
++++ b/tasks/2026-04-12-quiz-sse-perf/phase0/triage.md
+@@ -0,0 +1,33 @@
++# Triage — quiz-sse-perf
++
++## 증상 (관찰 가능한 행동만)
++
++- 사용자 보고: "전체적으로 느려" 중 퀴즈 진행 중 가중 요인
++- 퀴즈 활성 시 다른 페이지 응답도 함께 지연 (DB 리소스 경합)
++- SSE 구독자 수 증가할수록 심화
++
++## severity 근거
++
++- **high**
++- 퀴즈 기능 자체는 동작하나 서버 전체 성능 잠식
++- 데이터 손실/보안 사고 없으므로 `critical` 아님
++
++## 초기 관찰 (증거)
++
++- `src/app/api/quiz/[id]/stream/route.ts:20-104` — 1초마다 전체 퀴즈 데이터 풀 쿼리
++- `src/components/QuizBoard.tsx:58-73` — 매 이벤트마다 전체 퀴즈 객체 교체 (광범위 리렌더)
++- `src/components/QuizPlay.tsx:63-155` — EventSource 정리 누락 가능성
++
++## 스코프
++
++- 퀴즈 SSE 스트림 라우트 (`/api/quiz/[id]/stream`)
++- QuizBoard / QuizPlay 의 상태 업데이트 전략
++
++## 스코프 외
++
++- 다른 서버 쿼리 → `server-query-perf`
++- 일반 클라이언트 렌더링 → `client-render-perf`
++
++## 긴급 단축 여부
++
++- `high` → 미적용
+diff --git a/tasks/2026-04-12-quiz-sse-perf/phase1/diagnosis.md b/tasks/2026-04-12-quiz-sse-perf/phase1/diagnosis.md
+new file mode 100644
+index 0000000..60f79ce
+--- /dev/null
++++ b/tasks/2026-04-12-quiz-sse-perf/phase1/diagnosis.md
+@@ -0,0 +1,105 @@
++# Diagnosis — quiz-sse-perf
++
++## 1. 재현 절차
++
++1. 교사 계정으로 퀴즈 생성 및 시작
++2. 학생 10명+ 참가
++3. 서버 로그에서 1초마다 동일한 풀 쿼리 반복 확인
++4. 다른 탭에서 대시보드/보드 열기 → 평소보다 더 느림 (DB 경합)
++
++## 2. 증상 범위
++
++- **영향 받는 사용자**: 퀴즈 호스트 + 참가자 전원
++- **영향 받는 페이지**: `/quiz/:code`, `/board/:id` (퀴즈 라이브 뷰)
++- **시작 시점**: 퀴즈 라이브 세션 중 지속
++
++## 3. 근본 원인
++
++### 3-1. 1초 간격 풀 쿼리 폴링
++`src/app/api/quiz/[id]/stream/route.ts:20-104`:
++```ts
++async function poll() {
++  const quiz = await db.quiz.findUnique({
++    where: { id },
++    include: {
++      questions: { orderBy: { order: "asc" }, include: { answers: true } },
++      players: { orderBy: { score: "desc" } },
++    },
++  });
++  // ... 전체 quiz 객체 SSE로 전송
++  setTimeout(poll, 1000);
++}
++```
++- 매초 전체 questions + 모든 answers + 모든 players 재조회
++- 100 players × 50 questions = 분당 6,000+ 쿼리
++- 변경 없어도 동일 페이로드 반복 전송
++- SSE 연결당 1 poller → N명 접속 시 N배 부하
++
++### 3-2. 델타 전송 부재
++- 점수 1명 변경 → 전체 players 배열 송신
++- 클라이언트는 전체 배열로 상태 교체 → 광범위 재렌더
++
++### 3-3. QuizBoard 상태 업데이트가 광범위
++`src/components/QuizBoard.tsx:58-73`:
++```ts
++es.addEventListener("quiz-status", (e) => {
++  setQuizzes(prev => prev.map(q =>
++    q.id === quiz.id ? { ...q, status: d.status, ... } : q
++  ));
++});
++```
++- 단순 상태 필드 변경인데 퀴즈 객체 전체 교체
++- 렌더 범위: 분포 차트(OPT_LABELS.map) 재계산 포함
++
++### 3-4. EventSource 정리 경로 취약
++`src/components/QuizPlay.tsx:63-155`:
++- `useEffect([quizId, playerId])` 내 EventSource 생성
++- 라우트 이동 시 중복 구독 가능성
++- cleanup에서 AbortController 미사용
++
++## 4. 증거 목록
++
++- `evidence/sse_route.txt` — 현재 스트림 라우트 구조 요약
++- `evidence/quiz_client_updates.txt` — 클라이언트 상태 업데이트 경로
++
++## 5. 수정 방향 (제안만)
++
++### 5-1. 델타 기반 SSE
++- 서버에서 마지막 emit 상태를 메모리에 캐시
++- 변경된 필드만 `quiz-delta` 이벤트로 전송
++  ```ts
++  { type: "player-score", playerId, score }
++  { type: "status", status }
++  ```
++- 전체 상태는 첫 접속 시 `quiz-init` 이벤트로 1회만
++
++### 5-2. 쿼리 최소화
++- 현재 질문만 fetch: `questions: { where: { order: quiz.currentQ } }`
++- 플레이어 업데이트는 DB trigger 또는 애플리케이션 레벨 pub/sub 사용
++- 폴링 간격 1초 → 2~3초 (델타 전환 후)
++
++### 5-3. 중장기: pub/sub 도입
++- Redis pub/sub 또는 Supabase Realtime 으로 DB 폴링 제거
++- Vercel 배포 환경이면 **Vercel Queues** 또는 Supabase Realtime 검토
++  (server-query-perf 트랙 이후 별도 research task로 분기 가능)
++
++### 5-4. 클라이언트 상태 세분화
++- `quizzes` 단일 state → `quizStatusMap`, `playersMap`, `distributionMap` 분리
++- 분포 차트는 별도 memoized 컴포넌트로 추출
++
++### 5-5. EventSource cleanup 강화
++```ts
++useEffect(() => {
++  const ac = new AbortController();
++  const es = new EventSource(url);
++  ac.signal.addEventListener("abort", () => es.close());
++  return () => ac.abort();
++}, [quizId, playerId]);
++```
++
++### 5-6. 구현 순서 (phase2)
++1. 현재 질문만 fetch (즉시 효과, 리스크 낮음)
++2. 델타 전송 (로직 재설계, 테스트 필요)
++3. 클라이언트 상태 분리 + memo
++4. EventSource cleanup 강화
++5. pub/sub 도입은 research task로 분기
+diff --git a/tasks/2026-04-12-quiz-sse-perf/phase1/evidence/quiz_client_updates.txt b/tasks/2026-04-12-quiz-sse-perf/phase1/evidence/quiz_client_updates.txt
+new file mode 100644
+index 0000000..377ce6f
+--- /dev/null
++++ b/tasks/2026-04-12-quiz-sse-perf/phase1/evidence/quiz_client_updates.txt
+@@ -0,0 +1,22 @@
++퀴즈 클라이언트 상태 업데이트 경로
++
++═══════════════════════════════════════════════════════
++QuizBoard (호스트 뷰)
++═══════════════════════════════════════════════════════
++src/components/QuizBoard.tsx:58-73
++  es.addEventListener("quiz-status", ...) → setQuizzes 전체 객체 교체
++  es.addEventListener("quiz-players", ...) → 전체 players 배열 교체
++
++src/components/QuizBoard.tsx:80+
++  OPT_LABELS.map — 분포 차트 렌더마다 재계산, memo 없음
++
++═══════════════════════════════════════════════════════
++QuizPlay (참가자 뷰)
++═══════════════════════════════════════════════════════
++src/components/QuizPlay.tsx:63-155
++  useEffect([quizId, playerId]) — EventSource 생성
++  cleanup: es.close() — 단, 라우트 전환 시 중복 구독 리스크
++
++누락:
++  - AbortController 사용
++  - StrictMode 더블 마운트 대비 (개발 환경)
+diff --git a/tasks/2026-04-12-quiz-sse-perf/phase1/evidence/sse_route.txt b/tasks/2026-04-12-quiz-sse-perf/phase1/evidence/sse_route.txt
+new file mode 100644
+index 0000000..7632d5c
+--- /dev/null
++++ b/tasks/2026-04-12-quiz-sse-perf/phase1/evidence/sse_route.txt
+@@ -0,0 +1,22 @@
++퀴즈 SSE 스트림 라우트 구조
++
++src/app/api/quiz/[id]/stream/route.ts:20-104
++
++구조:
++  - GET 핸들러가 SSE 스트림 반환
++  - poll() 함수 내부에서 db.quiz.findUnique 호출
++  - include: questions(+answers), players
++  - setTimeout(poll, 1000) 으로 재귀 호출
++
++문제 부하 계산:
++  - 연결 1개당: 60 쿼리/분
++  - questions 50 + answers 평균 4 + players 100 = 응답 페이로드 ~수백 KB
++  - 동시 구독자 N명 → N배 부하 (각자 독립 poller)
++
++헤더:
++  - Cache-Control: no-cache (정상)
++
++누락:
++  - 델타 추적
++  - 마지막 변경 timestamp 기반 조건부 전송
++  - DB 레벨 pub/sub (Supabase Realtime 미사용)
+-- 
+2.43.0
+
+
+From f4719464d4189bfce2c474230348218eaa8d1d81 Mon Sep 17 00:00:00 2001
+From: coseung2 <coseung2@users.noreply.github.com>
+Date: Sun, 12 Apr 2026 10:58:40 +0900
+Subject: [PATCH 2/3] fix: slim quiz SSE poll to deltas and per-tick counts
+ (quiz-sse-perf)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The quiz stream fired a single findUnique with a questions+answers
+join plus a full players list every second. For a 50-question,
+100-player quiz that meant thousands of hydrated rows per tick,
+even when nothing had changed.
+
+Changes:
+- Per-tick query now only reads { status, currentQ, players:
+  {id, nickname, score} }. No more questions or answers join.
+- Cache the question list once (questions are immutable during a
+  running quiz). Reset lastAnswerCount when currentQ advances so
+  distribution re-emits for the new question.
+- Track a players hash (id:score) so score-only updates actually
+  fan out — the old delta only compared player count.
+- Replace "re-emit distribution on every tick" with count() gate:
+  only when count changes do we fetch the minimal
+  { selected } findMany and recompute the 4-bucket distribution.
+- Flip `cancelled` on ReadableStream.cancel() so the recursive
+  setTimeout exits when the client disconnects instead of looping
+  forever against a closed controller.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+---
+ src/app/api/quiz/[id]/stream/route.ts | 144 ++++++++++++++++++++------
+ 1 file changed, 113 insertions(+), 31 deletions(-)
+
+diff --git a/src/app/api/quiz/[id]/stream/route.ts b/src/app/api/quiz/[id]/stream/route.ts
+index 84bbf73..bfc8195 100644
+--- a/src/app/api/quiz/[id]/stream/route.ts
++++ b/src/app/api/quiz/[id]/stream/route.ts
+@@ -1,51 +1,109 @@
+ import { db } from "@/lib/db";
+ 
++type CachedQuestion = {
++  id: string;
++  question: string;
++  optionA: string;
++  optionB: string;
++  optionC: string;
++  optionD: string;
++  timeLimit: number;
++};
++
+ export async function GET(
+   _req: Request,
+   { params }: { params: Promise<{ id: string }> }
+ ) {
+   const { id } = await params;
+ 
++  // `cancelled` is flipped by ReadableStream.cancel() when the client
++  // disconnects, so the recursive setTimeout poll stops immediately
++  // instead of leaking a live DB loop per closed EventSource.
++  let cancelled = false;
++
+   const stream = new ReadableStream({
+     async start(controller) {
+       const encoder = new TextEncoder();
+       let lastStatus = "";
+-      let lastQ = -2;
+-      let lastPlayerCount = -1;
++      let lastCurrentQ = -2;
++      let lastPlayersHash = "";
++      let lastAnswerCount = -1;
++      let questionsCache: CachedQuestion[] | null = null;
+ 
+       function send(event: string, data: unknown) {
+-        controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
++        if (cancelled) return;
++        try {
++          controller.enqueue(
++            encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
++          );
++        } catch {
++          // Stream is closed — mark cancelled so the next poll exits.
++          cancelled = true;
++        }
+       }
+ 
+       async function poll() {
++        if (cancelled) return;
+         try {
++          // Tick query — keep it narrow. status, currentQ, and player scores
++          // are the only things that change on the "every second" boundary.
+           const quiz = await db.quiz.findUnique({
+             where: { id },
+-            include: {
+-              questions: { orderBy: { order: "asc" }, include: { answers: true } },
+-              players: { orderBy: { score: "desc" } },
++            select: {
++              status: true,
++              currentQ: true,
++              players: {
++                select: { id: true, nickname: true, score: true },
++                orderBy: { score: "desc" },
++              },
+             },
+           });
+ 
+           if (!quiz) {
+             send("error", { message: "Quiz not found" });
+             controller.close();
++            cancelled = true;
+             return;
+           }
+ 
+-          // Send status updates
++          // Questions are immutable for a running quiz, so cache after the
++          // first fetch and skip the join on every subsequent poll.
++          if (!questionsCache) {
++            questionsCache = await db.quizQuestion.findMany({
++              where: { quizId: id },
++              orderBy: { order: "asc" },
++              select: {
++                id: true,
++                question: true,
++                optionA: true,
++                optionB: true,
++                optionC: true,
++                optionD: true,
++                timeLimit: true,
++              },
++            });
++          }
++
++          // Status delta
+           if (quiz.status !== lastStatus) {
+             lastStatus = quiz.status;
+-            send("quiz-status", { status: quiz.status, currentQ: quiz.currentQ });
++            send("quiz-status", {
++              status: quiz.status,
++              currentQ: quiz.currentQ,
++            });
+           }
+ 
+-          // Send current question (without correct answer)
+-          if (quiz.currentQ !== lastQ && quiz.currentQ >= 0 && quiz.currentQ < quiz.questions.length) {
+-            lastQ = quiz.currentQ;
+-            const q = quiz.questions[quiz.currentQ];
++          // Current-question delta
++          if (
++            quiz.currentQ !== lastCurrentQ &&
++            quiz.currentQ >= 0 &&
++            quiz.currentQ < questionsCache.length
++          ) {
++            lastCurrentQ = quiz.currentQ;
++            const q = questionsCache[quiz.currentQ];
+             send("question", {
+               index: quiz.currentQ,
+-              total: quiz.questions.length,
++              total: questionsCache.length,
+               id: q.id,
+               question: q.question,
+               optionA: q.optionA,
+@@ -54,11 +112,17 @@ export async function GET(
+               optionD: q.optionD,
+               timeLimit: q.timeLimit,
+             });
++            // A new question resets the running answer tally.
++            lastAnswerCount = -1;
+           }
+ 
+-          // Send player list
+-          if (quiz.players.length !== lastPlayerCount) {
+-            lastPlayerCount = quiz.players.length;
++          // Player delta — hash id:score so score-only changes are detected
++          // (the old code only noticed when the player count changed).
++          const playersHash = quiz.players
++            .map((p) => `${p.id}:${p.score}`)
++            .join(",");
++          if (playersHash !== lastPlayersHash) {
++            lastPlayersHash = playersHash;
+             send("players", {
+               players: quiz.players.map((p) => ({
+                 id: p.id,
+@@ -68,22 +132,36 @@ export async function GET(
+             });
+           }
+ 
+-          // Send answer results for current question if all answered or question changed
+-          if (quiz.currentQ >= 0 && quiz.currentQ < quiz.questions.length) {
+-            const q = quiz.questions[quiz.currentQ];
+-            const answerCount = q.answers.length;
+-            const distribution = { A: 0, B: 0, C: 0, D: 0 };
+-            for (const a of q.answers) {
+-              if (a.selected in distribution) {
+-                distribution[a.selected as keyof typeof distribution]++;
++          // Answer distribution — only re-emit when the answer count for the
++          // current question actually changed. Use a cheap count() tick,
++          // then a scoped findMany(select: selected) only when it moves.
++          if (
++            quiz.currentQ >= 0 &&
++            quiz.currentQ < questionsCache.length
++          ) {
++            const activeQuestionId = questionsCache[quiz.currentQ].id;
++            const count = await db.quizAnswer.count({
++              where: { questionId: activeQuestionId },
++            });
++            if (count !== lastAnswerCount) {
++              lastAnswerCount = count;
++              const answers = await db.quizAnswer.findMany({
++                where: { questionId: activeQuestionId },
++                select: { selected: true },
++              });
++              const distribution = { A: 0, B: 0, C: 0, D: 0 };
++              for (const a of answers) {
++                if (a.selected in distribution) {
++                  distribution[a.selected as keyof typeof distribution]++;
++                }
+               }
++              send("answers", {
++                questionId: activeQuestionId,
++                totalAnswers: count,
++                totalPlayers: quiz.players.length,
++                distribution,
++              });
+             }
+-            send("answers", {
+-              questionId: q.id,
+-              totalAnswers: answerCount,
+-              totalPlayers: quiz.players.length,
+-              distribution,
+-            });
+           }
+ 
+           if (quiz.status === "finished") {
+@@ -95,17 +173,21 @@ export async function GET(
+               })),
+             });
+             controller.close();
++            cancelled = true;
+             return;
+           }
+         } catch (e) {
+           console.error("[SSE poll]", e);
+         }
+ 
+-        setTimeout(poll, 1000);
++        if (!cancelled) setTimeout(poll, 1000);
+       }
+ 
+       poll();
+     },
++    cancel() {
++      cancelled = true;
++    },
+   });
+ 
+   return new Response(stream, {
+-- 
+2.43.0
+
+
+From 65fb78a1757cf4886693f0af4070772fe03795f3 Mon Sep 17 00:00:00 2001
+From: coseung2 <coseung2@users.noreply.github.com>
+Date: Sun, 12 Apr 2026 10:59:46 +0900
+Subject: [PATCH 3/3] fix: split QuizBoard into memoized Distribution +
+ PlayerList (quiz-sse-perf)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Distribution bars and the player chip grid both lived inline in
+the QuizBoard render body, so every SSE delta (status, players,
+answers) re-rendered both subtrees and their derived totals.
+
+- Extract the distribution UI into a memoized Distribution
+  component keyed on { dist, correctIndex }.
+- Extract the player grid into a memoized PlayerList component.
+- Memoize the `sorted` players array so PlayerList's props are
+  referentially stable when only `dist` ticks.
+
+Net effect: an "answers" SSE tick now only repaints the bars,
+and a "players" tick only repaints the chips — not the whole
+quiz board.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+---
+ src/components/QuizBoard.tsx | 96 +++++++++++++++++++++++++++---------
+ 1 file changed, 74 insertions(+), 22 deletions(-)
+
+diff --git a/src/components/QuizBoard.tsx b/src/components/QuizBoard.tsx
+index 86a4f86..2ba0470 100644
+--- a/src/components/QuizBoard.tsx
++++ b/src/components/QuizBoard.tsx
+@@ -1,6 +1,6 @@
+ "use client";
+ 
+-import { useState, useEffect, useRef, useCallback } from "react";
++import { memo, useState, useEffect, useMemo, useRef, useCallback } from "react";
+ 
+ export type QuizQuestion = {
+   id: string;
+@@ -157,7 +157,12 @@ export function QuizBoard({ boardId, quizzes: initial }: Props) {
+   }
+ 
+   // ---- Quiz exists ----
+-  const sorted = [...(quiz.players ?? [])].sort((a, b) => b.score - a.score);
++  // Memoize the sorted player list so PlayerList's referential equality check
++  // actually has a stable array when only `dist` (distribution ticks) changes.
++  const sorted = useMemo(
++    () => [...(quiz.players ?? [])].sort((a, b) => b.score - a.score),
++    [quiz.players]
++  );
+   const curQ = quiz.questions[quiz.currentQuestionIndex] ?? null;
+   const isActive = quiz.status === "active";
+   const isFinished = quiz.status === "finished";
+@@ -194,35 +199,82 @@ export function QuizBoard({ boardId, quizzes: initial }: Props) {
+         <div className="quiz-question">
+           <div className="quiz-question-number">문제 {quiz.currentQuestionIndex + 1} / {quiz.questions.length}</div>
+           <div className="quiz-question-text">{curQ.text}</div>
+-          <div className="quiz-distribution">
+-            {OPT_LABELS.map((label, i) => {
+-              const count = dist[label] ?? 0;
+-              const total = Object.values(dist).reduce((s, v) => s + v, 0) || 1;
+-              return (
+-                <div key={i} className="quiz-dist-row">
+-                  <div className="quiz-dist-label" style={{ background: OPT_COLORS[i] }}>{label}</div>
+-                  <div className="quiz-dist-bar-wrap"><div className={`quiz-dist-bar ${i === curQ.correctIndex ? "correct" : ""}`} style={{ width: `${(count / total) * 100}%`, background: OPT_COLORS[i] }} /></div>
+-                  <span className="quiz-dist-count">{count}</span>
+-                </div>
+-              );
+-            })}
+-          </div>
++          <Distribution dist={dist} correctIndex={curQ.correctIndex} />
+         </div>
+       )}
+ 
+-      <div className="quiz-player-list">
+-        <div className="quiz-player-list-header"><span>참가자</span><span className="quiz-player-count">{sorted.length}명</span></div>
+-        <div className="quiz-player-grid">
+-          {sorted.map((p) => <div key={p.id} className="quiz-player-chip"><span>{p.nickname}</span><span className="quiz-player-score">{p.score}점</span></div>)}
+-          {sorted.length === 0 && <span style={{ color: "var(--color-text-faint)", fontSize: 13 }}>아직 참가자가 없습니다</span>}
+-        </div>
+-      </div>
++      <PlayerList players={sorted} />
+ 
+       {isFinished && <Leaderboard players={sorted} />}
+     </div></div>
+   );
+ }
+ 
++// Answer-distribution bars — depends only on the four-bucket dist map and
++// the current question's correctIndex, so memoize it. Player-score-only
++// SSE updates no longer repaint these bars.
++const Distribution = memo(function Distribution({
++  dist,
++  correctIndex,
++}: {
++  dist: Record<string, number>;
++  correctIndex: number;
++}) {
++  const total = useMemo(
++    () => Object.values(dist).reduce((s, v) => s + v, 0) || 1,
++    [dist]
++  );
++  return (
++    <div className="quiz-distribution">
++      {OPT_LABELS.map((label, i) => {
++        const count = dist[label] ?? 0;
++        return (
++          <div key={i} className="quiz-dist-row">
++            <div className="quiz-dist-label" style={{ background: OPT_COLORS[i] }}>{label}</div>
++            <div className="quiz-dist-bar-wrap">
++              <div
++                className={`quiz-dist-bar ${i === correctIndex ? "correct" : ""}`}
++                style={{ width: `${(count / total) * 100}%`, background: OPT_COLORS[i] }}
++              />
++            </div>
++            <span className="quiz-dist-count">{count}</span>
++          </div>
++        );
++      })}
++    </div>
++  );
++});
++
++// Player list re-renders only when the sorted players array reference
++// changes — distribution ticks no longer touch it.
++const PlayerList = memo(function PlayerList({
++  players,
++}: {
++  players: { id: string; nickname: string; score: number }[];
++}) {
++  return (
++    <div className="quiz-player-list">
++      <div className="quiz-player-list-header">
++        <span>참가자</span>
++        <span className="quiz-player-count">{players.length}명</span>
++      </div>
++      <div className="quiz-player-grid">
++        {players.map((p) => (
++          <div key={p.id} className="quiz-player-chip">
++            <span>{p.nickname}</span>
++            <span className="quiz-player-score">{p.score}점</span>
++          </div>
++        ))}
++        {players.length === 0 && (
++          <span style={{ color: "var(--color-text-faint)", fontSize: 13 }}>
++            아직 참가자가 없습니다
++          </span>
++        )}
++      </div>
++    </div>
++  );
++});
++
+ function Leaderboard({ players }: { players: { id: string; nickname: string; score: number }[] }) {
+   const t = players.slice(0, 3);
+   return (
+-- 
+2.43.0
+
