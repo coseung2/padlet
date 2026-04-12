@@ -1,0 +1,39 @@
+{
+  "patterns": [
+    {
+      "pattern_id": "role_selector_landing",
+      "description": "Pre-auth landing page presents 3 role cards (Teacher / Student / Parent), each a primary CTA routing to the role-specific auth flow. Post-auth: redirect to role dashboard.",
+      "source_url": "https://web.seesaw.me/",
+      "applies_to": ["subscope_C"],
+      "tradeoff": "Extra 1 click for returning teachers, mitigated by session-aware auto-redirect"
+    },
+    {
+      "pattern_id": "dual_gate_external_api",
+      "description": "External API requires both PAT (for teacher-bound capabilities) and student_session cookie (for scoping). Mismatch of classroomId between two → 403.",
+      "source_url": "internal:/api/external/cards",
+      "applies_to": ["subscope_A"],
+      "tradeoff": "Requires Canva app to send credentials=include; already done (CORS memory entry confirms)"
+    },
+    {
+      "pattern_id": "sdk_external_url_request",
+      "description": "Sandboxed app contexts must request host platform to open external URLs via SDK, not window.open. Host provides consent UX.",
+      "source_url": "https://www.canva.dev/docs/apps/api/platform-request-open-external-url/",
+      "applies_to": ["subscope_B"],
+      "tradeoff": "Adds dependency on host SDK; user may abort (status=aborted) — requires graceful handling"
+    },
+    {
+      "pattern_id": "dashboard_quick_access_cluster",
+      "description": "Group low-frequency but critical links (token settings, Canva app install) in a single header cluster rather than scattering across routes.",
+      "source_url": "internal convention",
+      "applies_to": ["subscope_D"],
+      "tradeoff": "Could become kitchen sink; limit to 3-4 items"
+    },
+    {
+      "pattern_id": "semantic_token_only",
+      "description": "All UI chrome colors must use CSS var(--color-*) / var(--radius-*) / var(--shadow-*). User-data-driven colors (e.g. card.color) are allowed but must come from a validated palette.",
+      "source_url": "docs/design-system.md",
+      "applies_to": ["subscope_E"],
+      "tradeoff": "Fallback values (var(--x, #hex)) reduce reliance on token system — should remove once tokens verified loaded"
+    }
+  ]
+}

@@ -1,17 +1,21 @@
 /**
  * GET /api/external/boards
  *
- * Returns the list of boards the PAT owner can write to (owner/editor role).
- * Used by the Aura Canva app to populate a "보드 선택" dropdown so students
- * never type board IDs by hand.
+ * Returns the list of boards the PAT owner can write to (owner/editor role),
+ * further restricted to the boards that belong to the **currently logged-in
+ * student's classroom**. Dual-gate (PAT + student_session) mirrors the pattern
+ * established in POST /api/external/cards so the Canva app cannot leak other
+ * classrooms' boards by swapping its session.
  *
  * Pipeline:
  *   1. PAT verify (prefix O(1) + timing-safe) → 401/410
  *   2. Scope check cards:write → 403
  *   3. Tier dual-defense (Free → 402)
  *   4. 3-axis rate limit (token/teacher/ip) → 429
- *   5. 200 { boards: [{ id, slug, title, layout, role }] }
- *     — intersected with `scopeBoardIds` when the token restricts boards.
+ *   5. student_session required → 401 student_session_required
+ *   6. 200 { boards: [{ id, slug, title, layout, role }] }
+ *     — intersected with `scopeBoardIds` when the token restricts boards
+ *     — restricted to `board.classroomId === session.classroomId`.
  */
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
@@ -51,10 +55,24 @@ export async function GET(req: Request) {
     });
   }
 
+  // Dual-gate: the Canva publisher flow requires an Aura student session so
+  // the listing is scoped to the student's classroom. Without this a student
+  // in classroom X could see every board owned by teacher Y, including other
+  // classrooms the teacher manages.
+  const { getCurrentStudent } = await import("@/lib/student-auth");
+  const student = await getCurrentStudent();
+  if (!student) {
+    return externalErrorResponse(
+      "student_session_required",
+      "Aura 학생 로그인이 필요해요."
+    );
+  }
+
   const memberships = await db.boardMember.findMany({
     where: {
       userId: user.id,
       role: { in: ["owner", "editor"] },
+      board: { classroomId: student.classroomId },
       ...(scopeBoardIds.length > 0 ? { boardId: { in: scopeBoardIds } } : {}),
     },
     include: {

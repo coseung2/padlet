@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AddStudentsModal, type CreatedStudent } from "./AddStudentsModal";
 import { QRPrintSheet } from "./QRPrintSheet";
 import ParentInviteButton from "./ParentInviteButton";
+import { ParentManagementTab } from "./parent/ParentManagementTab";
 
 type Student = {
   id: string;
@@ -364,6 +365,21 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
           </div>
         )}
       </div>
+
+      {/* Parent management (PV-8 widget mounted here for discoverability) */}
+      <section
+        className="classroom-parent-section"
+        style={{
+          marginTop: 32,
+          paddingTop: 24,
+          borderTop: "1px solid var(--color-border)",
+        }}
+      >
+        <h2 className="classroom-boards-heading" style={{ marginBottom: 12 }}>
+          학부모 관리
+        </h2>
+        <ParentManagementTab classroomId={classroom.id} />
+      </section>
 
       {/* Add students modal */}
       {showAddStudents && (

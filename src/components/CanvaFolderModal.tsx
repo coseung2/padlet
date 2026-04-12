@@ -142,7 +142,7 @@ export function CanvaFolderModal({ sectionTitle, onImport, onClose }: Props) {
           </div>
 
           {loading && <div className="export-hint">로딩 중...</div>}
-          {error && <div className="export-hint" style={{ color: "#dc3545" }}>{error}</div>}
+          {error && <div className="export-hint" style={{ color: "var(--color-danger)" }}>{error}</div>}
 
           {!loading && (
             <div className="export-design-list">
