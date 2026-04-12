@@ -1,0 +1,108 @@
+/* Breakout section-isolation UI (T0-①)
+ *
+ * Reuses design-system tokens only. No hard-coded hex.
+ * Surfaces: /board/:id/s/:sectionId  and  /board/:id/s/:sectionId/share
+ */
+
+.breakout-header {
+  max-width: 1040px;
+  margin: 16px auto 0;
+  padding: 0 24px;
+}
+
+.breakout-breadcrumb {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05px;
+  color: var(--color-text-muted);
+}
+
+.breakout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  max-width: 1040px;
+  margin: 16px auto 40px;
+  padding: 0 24px;
+}
+
+.breakout-empty {
+  max-width: 1040px;
+  margin: 32px auto;
+  padding: 24px;
+  text-align: center;
+  color: var(--color-text-faint);
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
+  border: var(--border-card);
+}
+
+/* -------- Share panel -------- */
+
+.share-panel {
+  max-width: 640px;
+  margin: 24px auto 40px;
+  padding: 24px;
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
+  border: var(--border-card);
+  box-shadow: var(--shadow-card);
+}
+
+.share-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: 8px;
+}
+
+.share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.share-url-input {
+  flex: 1 1 260px;
+  min-width: 0;
+  padding: 10px 12px;
+  font-family: var(--font-body, inherit);
+  font-size: 14px;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.share-url-input:hover {
+  border-color: var(--color-border-hover);
+}
+
+.share-url-input:focus {
+  outline: 2px solid var(--color-accent-tinted-text);
+  outline-offset: 1px;
+}
+
+.share-help {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.share-help-warn {
+  color: var(--color-text-faint);
+}
+
+.share-empty {
+  margin: 0 0 16px;
+  color: var(--color-text-muted);
+}
+
+.share-status {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--color-accent);
+  min-height: 1.2em;
+}
