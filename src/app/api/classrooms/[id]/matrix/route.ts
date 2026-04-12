@@ -15,15 +15,15 @@
  */
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { auth } from "@/lib/auth-config";
+import { getCurrentUser } from "@/lib/auth";
 
 const DESKTOP_MIN_WIDTH = 1024;
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const session = await auth();
-    if (!session?.user?.id) {
+    const user = await getCurrentUser().catch(() => null);
+    if (!user?.id) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
@@ -42,7 +42,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       select: { id: true, teacherId: true },
     });
     if (!classroom) return NextResponse.json({ error: "not found" }, { status: 404 });
-    if (classroom.teacherId !== session.user.id) {
+    if (classroom.teacherId !== user.id) {
       return NextResponse.json({ error: "forbidden", reason: "owner_only" }, { status: 403 });
     }
 

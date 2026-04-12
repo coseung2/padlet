@@ -4,15 +4,17 @@
  */
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { auth } from "@/lib/auth-config";
+import { getCurrentUser } from "@/lib/auth";
 import { getCurrentStudent } from "@/lib/student-auth";
 import { parseObservationPoints } from "@/lib/plant-schemas";
 
 export async function GET() {
   try {
-    const session = await auth();
-    const student = await getCurrentStudent();
-    if (!session?.user?.id && !student) {
+    const [user, student] = await Promise.all([
+      getCurrentUser().catch(() => null),
+      getCurrentStudent(),
+    ]);
+    if (!user?.id && !student) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
     const species = await db.plantSpecies.findMany({

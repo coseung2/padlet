@@ -1,0 +1,22 @@
+{
+  "environment": "local dev, Next.js 16.2.3 turbopack, Postgres (Supabase pooler ap-northeast-2)",
+  "measurements": {
+    "board_page_ssr_student": {
+      "samples_s": [0.55, 0.49, 0.49],
+      "mean_s": 0.51,
+      "budget_s": 3.0,
+      "status": "PASS"
+    },
+    "api_plant_journal_get": {
+      "cold_ms": 5500,
+      "warm_ms": 200,
+      "note": "cold includes turbopack compile"
+    },
+    "api_matrix_get": {
+      "cold_ms": 7000,
+      "warm_ms": 700
+    }
+  },
+  "lighthouse": null,
+  "note": "Headed browser unavailable in agent env; Lighthouse measurement deferred to operator."
+}

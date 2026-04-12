@@ -8,18 +8,18 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { auth } from "@/lib/auth-config";
+import { getCurrentUser } from "@/lib/auth";
 import { getCurrentStudent } from "@/lib/student-auth";
 import { AllowListSchema, parseObservationPoints } from "@/lib/plant-schemas";
 
 async function resolveClassroomAccess(classroomId: string) {
-  const [session, student, classroom] = await Promise.all([
-    auth(),
+  const [user, student, classroom] = await Promise.all([
+    getCurrentUser().catch(() => null),
     getCurrentStudent(),
     db.classroom.findUnique({ where: { id: classroomId } }),
   ]);
   if (!classroom) return { status: 404 as const };
-  const isTeacher = !!session?.user?.id && classroom.teacherId === session.user.id;
+  const isTeacher = !!user?.id && classroom.teacherId === user.id;
   const isStudent = !!student && student.classroomId === classroomId;
   if (!isTeacher && !isStudent) return { status: 403 as const };
   return { status: 200 as const, classroom, isTeacher };
@@ -69,13 +69,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const session = await auth();
-    if (!session?.user?.id) {
+    const user = await getCurrentUser().catch(() => null);
+    if (!user?.id) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
     const classroom = await db.classroom.findUnique({ where: { id } });
     if (!classroom) return NextResponse.json({ error: "not found" }, { status: 404 });
-    if (classroom.teacherId !== session.user.id) {
+    if (classroom.teacherId !== user.id) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
     const body = await req.json();

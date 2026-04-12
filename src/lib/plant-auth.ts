@@ -5,7 +5,7 @@
  */
 import "server-only";
 import { db } from "./db";
-import { auth } from "./auth-config";
+import { getCurrentUser } from "./auth";
 import { getCurrentStudent } from "./student-auth";
 
 export type PlantActor =
@@ -13,12 +13,17 @@ export type PlantActor =
   | { kind: "teacher"; userId: string };
 
 export async function resolvePlantActor(): Promise<PlantActor | null> {
-  const [session, student] = await Promise.all([auth(), getCurrentStudent()]);
+  const [user, student] = await Promise.all([
+    getCurrentUser().catch(() => null),
+    getCurrentStudent(),
+  ]);
+  // Student session takes precedence so that a teacher who is also logged as
+  // a student (same browser) is treated as the student actor first.
   if (student) {
     return { kind: "student", studentId: student.id, classroomId: student.classroomId };
   }
-  if (session?.user?.id) {
-    return { kind: "teacher", userId: session.user.id };
+  if (user?.id) {
+    return { kind: "teacher", userId: user.id };
   }
   return null;
 }

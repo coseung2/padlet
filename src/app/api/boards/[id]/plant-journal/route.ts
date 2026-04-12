@@ -8,7 +8,7 @@
  */
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { auth } from "@/lib/auth-config";
+import { getCurrentUser } from "@/lib/auth";
 import { getCurrentStudent } from "@/lib/student-auth";
 import { getBoardRole } from "@/lib/rbac";
 import { parseObservationPoints, STALL_THRESHOLD_DAYS } from "@/lib/plant-schemas";
@@ -16,8 +16,8 @@ import { parseObservationPoints, STALL_THRESHOLD_DAYS } from "@/lib/plant-schema
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const [session, student, board] = await Promise.all([
-      auth(),
+    const [user, student, board] = await Promise.all([
+      getCurrentUser().catch(() => null),
       getCurrentStudent(),
       db.board.findUnique({ where: { id }, select: { id: true, classroomId: true, layout: true, title: true } }),
     ]);
@@ -26,7 +26,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: "wrong layout" }, { status: 400 });
     }
 
-    const userId = session?.user?.id ?? null;
+    const userId = user?.id ?? null;
     const role = userId ? await getBoardRole(board.id, userId) : null;
     const isStudentOfBoard =
       !!student && board.classroomId !== null && student.classroomId === board.classroomId;
