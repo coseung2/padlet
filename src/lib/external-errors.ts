@@ -12,6 +12,9 @@ export type ExternalErrorCode =
   | "invalid_token_format" // 401 — aurapat_ prefix/regex mismatch
   | "invalid_token" // 401 — prefix lookup miss or hash mismatch (timing-safe)
   | "token_revoked" // 410 — revokedAt/expiresAt reached
+  | "revoked" // 410 — OAuth access token revoked
+  | "expired" // 410 — OAuth access token expired
+  | "orphan" // 409 — OAuth student or classroom teacher missing
   | "forbidden" // 403 — RBAC (not owner/editor on board)
   | "forbidden_board" // 403 — boardId outside scopeBoardIds allowlist
   | "forbidden_scope" // 403 — cards:write not in token.scopes
@@ -30,6 +33,9 @@ const STATUS: Record<ExternalErrorCode, number> = {
   invalid_token_format: 401,
   invalid_token: 401,
   token_revoked: 410,
+  revoked: 410,
+  expired: 410,
+  orphan: 409,
   forbidden: 403,
   forbidden_board: 403,
   forbidden_scope: 403,
@@ -49,6 +55,9 @@ const DEFAULT_MESSAGE: Record<ExternalErrorCode, string> = {
   invalid_token_format: "Token must match aurapat_{prefix}_{secret}",
   invalid_token: "Token not found or secret mismatch",
   token_revoked: "Token has been revoked or expired",
+  revoked: "OAuth access token has been revoked",
+  expired: "OAuth access token has expired — use refresh_token to get a new one",
+  orphan: "OAuth token references a student or classroom that no longer exists",
   forbidden: "Token owner is not an editor of this board",
   forbidden_board: "Board is outside this token's scopeBoardIds allowlist",
   forbidden_scope: "Token does not include cards:write scope",

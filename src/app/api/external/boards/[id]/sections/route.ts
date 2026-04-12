@@ -17,7 +17,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requirePermission, ForbiddenError } from "@/lib/rbac";
-import { verifyPat } from "@/lib/external-pat";
+import { verifyBearer } from "@/lib/external-auth";
 import { checkAll as rateLimitCheck } from "@/lib/rate-limit";
 import { requireProTier, TierRequiredError } from "@/lib/tier";
 import { externalErrorResponse } from "@/lib/external-errors";
@@ -31,10 +31,10 @@ export async function GET(
 ) {
   const { id: boardId } = await params;
 
-  // [1] PAT verify.
-  const verified = await verifyPat(req.headers.get("authorization"));
+  // [1] Bearer verify (PAT or student OAuth token).
+  const verified = await verifyBearer(req.headers.get("authorization"));
   if (!verified.ok) return externalErrorResponse(verified.code);
-  const { user, tokenId, scopes, scopeBoardIds } = verified.value;
+  const { user, tokenId, scopes, scopeBoardIds, kind } = verified;
 
   // [2] Scope gate — reuse cards:write scope; listing sections is a subset
   // of the write flow so we don't define a separate read scope in v1.
@@ -68,16 +68,20 @@ export async function GET(
     return externalErrorResponse("forbidden_board");
   }
 
-  // [5.5] Student session required — sections belong to a classroom context,
-  // so we refuse to enumerate them without knowing which student is asking.
-  // Matches POST /api/external/cards dual-gate pattern.
-  const { getCurrentStudent } = await import("@/lib/student-auth");
-  const student = await getCurrentStudent();
-  if (!student) {
-    return externalErrorResponse(
-      "student_session_required",
-      "Aura 학생 로그인이 필요해요."
-    );
+  // [5.5] Student classroom — from OAuth token directly, or cookie for PAT.
+  let studentClassroomId: string;
+  if (kind === "oauth") {
+    studentClassroomId = verified.student.classroomId;
+  } else {
+    const { getCurrentStudent } = await import("@/lib/student-auth");
+    const student = await getCurrentStudent();
+    if (!student) {
+      return externalErrorResponse(
+        "student_session_required",
+        "Aura 학생 로그인이 필요해요."
+      );
+    }
+    studentClassroomId = student.classroomId;
   }
 
   // [6] Board existence + RBAC.
@@ -87,10 +91,10 @@ export async function GET(
   });
   if (!board) return externalErrorResponse("not_found");
 
-  // Student classroom must match the board's classroom; otherwise a student
-  // could enumerate sections of a sibling class's board owned by the same
-  // teacher.
-  if (board.classroomId && board.classroomId !== student.classroomId) {
+  // Board's classroom must match the student's classroom; otherwise a
+  // student (or attacker replaying a token) could enumerate sections of a
+  // sibling class's board owned by the same teacher.
+  if (board.classroomId && board.classroomId !== studentClassroomId) {
     return externalErrorResponse("forbidden", "학생의 학급이 보드 학급과 달라요.");
   }
 

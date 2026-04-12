@@ -19,7 +19,7 @@
  */
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { verifyPat } from "@/lib/external-pat";
+import { verifyBearer } from "@/lib/external-auth";
 import { checkAll as rateLimitCheck } from "@/lib/rate-limit";
 import { requireProTier, TierRequiredError } from "@/lib/tier";
 import { externalErrorResponse } from "@/lib/external-errors";
@@ -28,9 +28,9 @@ export const runtime = "nodejs";
 export const maxDuration = 15;
 
 export async function GET(req: Request) {
-  const verified = await verifyPat(req.headers.get("authorization"));
+  const verified = await verifyBearer(req.headers.get("authorization"));
   if (!verified.ok) return externalErrorResponse(verified.code);
-  const { user, tokenId, scopes, scopeBoardIds } = verified.value;
+  const { user, tokenId, scopes, scopeBoardIds, kind } = verified;
 
   if (!scopes.includes("cards:write")) {
     return externalErrorResponse("forbidden_scope");
@@ -55,24 +55,29 @@ export async function GET(req: Request) {
     });
   }
 
-  // Dual-gate: the Canva publisher flow requires an Aura student session so
-  // the listing is scoped to the student's classroom. Without this a student
-  // in classroom X could see every board owned by teacher Y, including other
-  // classrooms the teacher manages.
-  const { getCurrentStudent } = await import("@/lib/student-auth");
-  const student = await getCurrentStudent();
-  if (!student) {
-    return externalErrorResponse(
-      "student_session_required",
-      "Aura 학생 로그인이 필요해요."
-    );
+  // Determine classroom scoping:
+  //   - OAuth: token is student-scoped → use verified.student.classroomId.
+  //   - PAT: student_session cookie is required (existing dual-gate).
+  let classroomId: string;
+  if (kind === "oauth") {
+    classroomId = verified.student.classroomId;
+  } else {
+    const { getCurrentStudent } = await import("@/lib/student-auth");
+    const student = await getCurrentStudent();
+    if (!student) {
+      return externalErrorResponse(
+        "student_session_required",
+        "Aura 학생 로그인이 필요해요."
+      );
+    }
+    classroomId = student.classroomId;
   }
 
   const memberships = await db.boardMember.findMany({
     where: {
       userId: user.id,
       role: { in: ["owner", "editor"] },
-      board: { classroomId: student.classroomId },
+      board: { classroomId },
       ...(scopeBoardIds.length > 0 ? { boardId: { in: scopeBoardIds } } : {}),
     },
     include: {
