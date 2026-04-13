@@ -24,7 +24,7 @@ import { checkAll as rateLimitCheck } from "@/lib/rate-limit";
 import { uploadPngFromDataUrl, BlobUploadError } from "@/lib/blob";
 import { requireProTier, TierRequiredError } from "@/lib/tier";
 import { externalErrorResponse } from "@/lib/external-errors";
-import { extractCanvaDesignId, isCanvaDesignUrl } from "@/lib/canva";
+import { extractCanvaDesignId, isCanvaDesignUrl, getAccessToken, canvaGetDesign } from "@/lib/canva";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -261,10 +261,34 @@ export async function POST(req: Request) {
   // For Canva-published cards, the blob PNG doubles as the thumbnail
   // (linkImage) so CanvaEmbedSlot activates. For legacy image-only cards,
   // imageUrl is the only field set.
+  //
+  // Also: if the Canva App sent a bare design URL (no share token), resolve
+  // through Canva Connect using the teacher's token to upgrade linkUrl to
+  // the public "공개 보기" URL that embeds all pages. Best-effort — if the
+  // teacher isn't connected or the design isn't visible to them, we keep
+  // the original URL and the iframe will fall back to the bare form.
+  let finalLinkUrl: string | null = input.canvaDesignUrl ?? null;
+  if (canvaDesignId && finalLinkUrl) {
+    const hasShareToken = /\/design\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\//.test(
+      new URL(finalLinkUrl).pathname
+    );
+    if (!hasShareToken) {
+      try {
+        const token = await getAccessToken(user.id);
+        if (token) {
+          const design = await canvaGetDesign(token, canvaDesignId);
+          if (design.viewUrl) finalLinkUrl = design.viewUrl;
+        }
+      } catch (e) {
+        console.warn("[external/cards] share URL enrichment failed", e);
+      }
+    }
+  }
+
   await db.card.update({
     where: { id: card.id },
     data: input.canvaDesignUrl
-      ? { linkImage: blobUrl }
+      ? { linkImage: blobUrl, linkUrl: finalLinkUrl }
       : { imageUrl: blobUrl },
   });
 

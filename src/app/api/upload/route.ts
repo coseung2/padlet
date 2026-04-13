@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { writeFile } from "fs/promises";
+import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { randomBytes } from "crypto";
+import { put } from "@vercel/blob";
 import { getCurrentUser } from "@/lib/auth";
 
 const ALLOWED_IMAGE = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"];
@@ -30,15 +32,33 @@ export async function POST(req: Request) {
       );
     }
 
-    const ext = file.name.split(".").pop() ?? (isImage ? "png" : "mp4");
-    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    const filePath = path.join(uploadDir, filename);
-
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? (isImage ? "png" : "mp4");
+    const safeExt = /^[a-z0-9]+$/.test(ext) ? ext : (isImage ? "png" : "mp4");
+    const filename = `${Date.now()}-${randomBytes(3).toString("hex")}.${safeExt}`;
+    const pathname = `uploads/${filename}`;
     const buffer = Buffer.from(await file.arrayBuffer());
-    await writeFile(filePath, buffer);
 
-    const url = `/uploads/${filename}`;
+    // Vercel Lambda filesystem is read-only outside /tmp — must use Blob
+    // in production. Fall back to public/uploads/ only for local dev
+    // without BLOB_READ_WRITE_TOKEN.
+    let url: string;
+    const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+    if (blobToken) {
+      const res = await put(pathname, buffer, {
+        access: "public",
+        contentType: file.type,
+        token: blobToken,
+        multipart: true,
+        addRandomSuffix: false,
+      });
+      url = res.url;
+    } else {
+      const uploadDir = path.join(process.cwd(), "public", "uploads");
+      await mkdir(uploadDir, { recursive: true });
+      await writeFile(path.join(uploadDir, filename), buffer);
+      url = `/uploads/${filename}`;
+    }
+
     return NextResponse.json({ url, type: isImage ? "image" : "video" });
   } catch (e) {
     console.error("[POST /api/upload]", e);
