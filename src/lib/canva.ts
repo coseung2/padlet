@@ -408,18 +408,20 @@ export function extractCanvaDesignId(rawUrl: string): string | null {
 /**
  * Build the iframe src for a canva.com design URL.
  *
- * Canva exposes two share surfaces that users can paste as "공개 보기 링크":
- *   - `/design/{id}/{shareToken}/view`   — interactive gallery (scroll pages)
- *   - `/design/{id}/{shareToken}/watch`  — presentation / slide player
+ * Canva's official oEmbed response returns an iframe src in the form
+ *   `/design/{designId}/{shareToken}/view?embed&meta`
+ * regardless of whether the user's "공개 보기 링크" surface is `/view`
+ * (gallery / document / poster) or `/watch` (presentation player). We
+ * normalise every paste to that canonical form.
  *
- * Only `/watch` is officially meant to be embedded. `/view` in an iframe
- * occasionally throws a client-side state-deserialize error
- * ("Expected object value for key D, found undefined at path .Bj.A") and
- * renders blank. We normalise BOTH surfaces to `/watch?embed` so
- * pasting a "공개 보기" link still produces a working inline preview.
+ * Previous attempts to simplify the URL (dropping `&meta`, or rewriting
+ * `/view` → `/watch`) broke embedding: `/watch?embed` returns 403 +
+ * `X-Frame-Options: SAMEORIGIN`, and `?embed` without `&meta` leaves some
+ * multi-page designs in a half-loaded state. Keep the exact format
+ * Canva blesses via oEmbed.
  *
- * We also preserve the share-token path segment — without it Canva treats
- * the request as an unauthenticated peek and shows its login gate.
+ * Also preserve the share-token path segment — without it Canva shows its
+ * login gate instead of the design.
  *
  * Returns null for URLs we don't recognise as canva design pages.
  */
@@ -430,18 +432,17 @@ export function buildCanvaEmbedSrc(rawUrl: string): string | null {
     const host = u.hostname.toLowerCase();
     if (host !== "canva.com" && host !== "www.canva.com") return null;
 
-    // Accept /design/{id}/view, /design/{id}/watch, or the full share form
-    // /design/{id}/{shareToken}/(view|watch). We only branch on the
-    // captured shareToken below; the trailing surface name is discarded.
+    // Accept /design/{id}/(view|watch), or the full share form
+    // /design/{id}/{shareToken}/(view|watch).
     const m = u.pathname.match(
       /\/design\/([A-Za-z0-9_-]+)(?:\/([A-Za-z0-9_-]+))?\/(?:view|watch)/
     );
     if (!m) return null;
     const [, designId, shareToken] = m;
     const pathPrefix = shareToken
-      ? `/design/${designId}/${shareToken}/watch`
-      : `/design/${designId}/watch`;
-    return `https://www.canva.com${pathPrefix}?embed`;
+      ? `/design/${designId}/${shareToken}/view`
+      : `/design/${designId}/view`;
+    return `https://www.canva.com${pathPrefix}?embed&meta`;
   } catch {
     return null;
   }
