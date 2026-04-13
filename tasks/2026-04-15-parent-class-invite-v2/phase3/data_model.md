@@ -200,10 +200,15 @@ maskName(fullName: string): string
   - NFC 정규화
   - 복성 whitelist: ["남궁","황보","선우","제갈","독고","동방","사공","서문"] → 성 2자
   - 그 외 성 1자
-  - 나머지 문자를 '○' 로 치환
+  - 가운데 글자(성과 끝 글자 사이)를 'O' 로 치환, 끝 글자는 노출
+  - 예: "김보민"→"김O민", "박서연"→"박O연", "남궁민수"→"남궁O수", "남궁가나다"→"남궁OO다"
   - edge:
+    - 2자 이름 → 가운데 부재 → 원본 반환 (예: "김보"→"김보")
     - 1자 이름 → 원본 반환 (성 1자만)
-    - 빈 문자열 → "○" 반환 (panic-free)
+    - 빈 문자열 → "" 반환 (panic-free)
+
+  decision: 2026-04-15 사용자 확정. INBOX handoff_note.md 패턴 채택.
+  phase2 user_preconfirmed.masked_name_format ("김○○") 는 OVERRIDE.
 ```
 
 unit test 케이스 ≥ 10개 (phase9 QA).
