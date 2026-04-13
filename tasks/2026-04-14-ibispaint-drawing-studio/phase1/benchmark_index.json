@@ -1,0 +1,47 @@
+{
+  "references": [
+    {
+      "product": "Ibis Paint X",
+      "url": "https://ibispaint.com/",
+      "pattern": "레이어·브러시·블렌드 표준 인터랙션. 좌툴바 + 우레이어패널 + 색상휠 팝업",
+      "relevance": "MVP UX 벤치"
+    },
+    {
+      "product": "Procreate (iPad)",
+      "url": "https://procreate.com/",
+      "pattern": "좌측 사이즈/불투명 슬라이더, QuickMenu",
+      "relevance": "브러시 조절 UI 참고 (MVP는 단순화)"
+    },
+    {
+      "product": "Krita",
+      "url": "https://krita.org/",
+      "pattern": "오픈소스 페인트 툴 — 블렌드 모드 19종, 브러시 엔진 테스처",
+      "relevance": "고급 기능 로드맵"
+    },
+    {
+      "product": "PixiJS",
+      "url": "https://pixijs.com/",
+      "pattern": "WebGL 2D 렌더러, 블렌드 모드, 스프라이트",
+      "relevance": "후보 라이브러리 (v2)"
+    },
+    {
+      "product": "Perfect Freehand",
+      "url": "https://github.com/steveruizok/perfect-freehand",
+      "pattern": "Pointer 좌표+필압 → 매끄러운 vector path 생성",
+      "relevance": "스트로크 스무딩 보조"
+    },
+    {
+      "product": "tldraw",
+      "url": "https://tldraw.dev/",
+      "pattern": "협업 화이트보드 SDK",
+      "relevance": "페인팅 아닌 다이어그램 — 목표 불일치로 비채택"
+    },
+    {
+      "product": "W3C Pointer Events Level 3",
+      "url": "https://www.w3.org/TR/pointerevents3/",
+      "pattern": "pressure/tilt/getCoalescedEvents API 스펙",
+      "relevance": "S-Pen 입력 표준"
+    }
+  ],
+  "captured_at": "2026-04-14T00:00:00+09:00"
+}
