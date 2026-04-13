@@ -24,6 +24,7 @@ import { checkAll as rateLimitCheck } from "@/lib/rate-limit";
 import { uploadPngFromDataUrl, BlobUploadError } from "@/lib/blob";
 import { requireProTier, TierRequiredError } from "@/lib/tier";
 import { externalErrorResponse } from "@/lib/external-errors";
+import { extractCanvaDesignId } from "@/lib/canva";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -45,6 +46,9 @@ const BodySchema = z
       .string()
       .regex(/^data:image\/png;base64,/, "imageDataUrl must be a data:image/png;base64, URL"),
     sectionId: z.string().min(1).max(40).nullable().optional(),
+    // Canva design URL of the source — when supplied, the card is wired
+    // for CanvaEmbedSlot's thumbnail+live toggle UX.
+    canvaDesignUrl: z.string().url().max(500).optional(),
   })
   .strict();
 
@@ -194,6 +198,9 @@ export async function POST(req: Request) {
   // [10+11] Atomically (best-effort): create the card first with null
   // imageUrl so we can key the blob path by cardId, then upload, then
   // update. On upload failure, we delete the empty card to avoid orphans.
+  const canvaDesignId = input.canvaDesignUrl
+    ? extractCanvaDesignId(input.canvaDesignUrl)
+    : null;
   const card = await db.card.create({
     data: {
       boardId: board.id,
@@ -203,6 +210,12 @@ export async function POST(req: Request) {
       content: "",
       imageUrl: null,
       externalAuthorName,
+      canvaDesignId,
+      // When a Canva design URL is supplied, populate linkUrl/linkTitle so
+      // CardAttachments' canRenderCanvaEmbed gate (canvaDesignId &&
+      // linkImage) can fire once linkImage is set to the blob PNG below.
+      linkUrl: input.canvaDesignUrl ?? null,
+      linkTitle: input.canvaDesignUrl ? input.title : null,
       x: 0,
       y: 0,
       width: 240,
@@ -230,9 +243,14 @@ export async function POST(req: Request) {
     return externalErrorResponse("internal");
   }
 
+  // For Canva-published cards, the blob PNG doubles as the thumbnail
+  // (linkImage) so CanvaEmbedSlot activates. For legacy image-only cards,
+  // imageUrl is the only field set.
   await db.card.update({
     where: { id: card.id },
-    data: { imageUrl: blobUrl },
+    data: input.canvaDesignUrl
+      ? { linkImage: blobUrl }
+      : { imageUrl: blobUrl },
   });
 
   // Audit: we already touched lastUsedAt in verifyPat; nothing else to do.

@@ -109,6 +109,10 @@ export default async function BreakoutPage({
   const cards = await db.card.findMany({
     where: { sectionId: section.id },
     orderBy: { order: "asc" },
+    include: {
+      author: { select: { name: true } },
+      studentAuthor: { select: { name: true } },
+    },
   });
 
   // Owner sees a "공유 관리" link.
@@ -133,6 +137,10 @@ export default async function BreakoutPage({
         linkDesc: c.linkDesc,
         linkImage: c.linkImage,
         videoUrl: c.videoUrl,
+        externalAuthorName: c.externalAuthorName,
+        studentAuthorName: c.studentAuthor?.name ?? null,
+        authorName: c.author?.name ?? null,
+        createdAt: c.createdAt.toISOString(),
       }))}
       shareManagementHref={shareManagementHref}
       autoJoinWarning={

@@ -1,0 +1,41 @@
+{
+  "task_id": "2026-04-13-canva-publish-polish",
+  "benchmarks": [
+    {
+      "id": "oembed-spec",
+      "name": "oEmbed 1.0 Specification",
+      "url": "https://oembed.com/",
+      "captured_at": "2026-04-13",
+      "relevance": "라이브 임베드 카드의 표준 응답 포맷(rich type). html/width/height 필수, author_name 선택. cross-domain iframe 권장(XSS 방어).",
+      "evidence": "WebFetch 본문 보관: oEmbed rich type 요구사항·iframe 보안 권고"
+    },
+    {
+      "id": "canva-connect-design",
+      "name": "Canva Connect API — Get Design",
+      "url": "https://www.canva.dev/docs/connect/api-reference/designs/get-design/",
+      "captured_at": "2026-04-13",
+      "relevance": "Option B 구현 시 핵심 제약. view_url 30일 유효, thumbnail 15분 만료, owner={user_id,team_id}(이름 별도 조회 필요), updated_at 타임스탬프 제공. 'designed to support return navigation workflows' 표기 — 범용 임베드용이 아님.",
+      "evidence": "WebFetch 본문 보관: URL TTL·owner 구조·updated_at"
+    },
+    {
+      "id": "figma-embed",
+      "name": "Figma Embed Kit 2.0",
+      "url": "https://help.figma.com/hc/en-us/articles/360039827134-Embed-Figma-files-in-other-apps",
+      "captured_at": "2026-04-13",
+      "relevance": "유사 디자인툴의 임베드 UX 비교. 'live' 임베드 표현은 있으나 공식 문서에 자동 갱신 보장은 없음. 패스워드 보호 파일 미지원, 조직 파일은 로그인 필요.",
+      "evidence": "WebFetch 본문 보관: live 문구·제약"
+    }
+  ],
+  "not_captured": [
+    {
+      "url": "https://www.canva.com/developers/docs/connect-api/oembed/",
+      "reason": "403 Forbidden (Canva 공개 문서 접근 차단). oEmbed 호환성은 canva.dev API doc + 일반 oEmbed 스펙으로 간접 검증."
+    },
+    {
+      "url": "https://help.padlet.com/...",
+      "reason": "공식 헬프센터 페이지 404/접근 실패. Padlet 작성자 표시 UX는 /docs/current-features.md 및 기존 Aura-board 구현 관찰로 대체."
+    }
+  ],
+  "screenshots_dir": null,
+  "screenshots_note": "헤디드 Chromium(/browse gstack) 미사용 — 스크린샷 캡처 생략. phase6 검수에서 필요 시 보강."
+}

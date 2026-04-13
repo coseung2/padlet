@@ -81,6 +81,10 @@ export default async function BoardPage({
     ? db.card.findMany({
         where: { boardId: board.id },
         orderBy: { order: "asc" },
+        include: {
+          author: { select: { name: true } },
+          studentAuthor: { select: { name: true } },
+        },
       })
     : null;
   const sectionsPromise = needsSections
@@ -200,6 +204,9 @@ export default async function BoardPage({
     sectionId: c.sectionId,
     authorId: c.authorId,
     createdAt: c.createdAt.toISOString(),
+    externalAuthorName: c.externalAuthorName,
+    studentAuthorName: c.studentAuthor?.name ?? null,
+    authorName: c.author?.name ?? null,
   }));
 
   const sectionProps = sections.map((s) => ({

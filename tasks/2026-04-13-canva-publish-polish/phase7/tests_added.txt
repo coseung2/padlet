@@ -1,0 +1,8 @@
+src/lib/__tests__/card-author.test.ts
+  - pickAuthorName fallback chain (6 cases): external/student/author wins, all-null, empty-string, undefined skip
+  - formatRelativeKo (7 cases): 0s/29s "방금", 30s 초, 분, 시간, 일, ≥7일 절대 날짜
+  - 13/13 PASS
+  - Run: `npx tsx src/lib/__tests__/card-author.test.ts`
+
+src/lib/__tests__/canva-embed.test.ts (기존 — 회귀 확인)
+  - 18/18 PASS
