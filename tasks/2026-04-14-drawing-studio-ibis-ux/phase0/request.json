@@ -1,0 +1,32 @@
+{
+  "type": "feature",
+  "slug": "drawing-studio-ibis-ux",
+  "task_id": "2026-04-14-drawing-studio-ibis-ux",
+  "change_type": "enhancement",
+  "parent_seed": "2026-04-13-drawpile-schema-stub",
+  "prior_feature": "2026-04-14-ibispaint-drawing-studio",
+  "relation_to_prior": "v1 은 엔진·도구·저장 파이프라인까지 구현. 이 태스크는 UI/UX 만 Ibis Paint 수준으로 재설계. 엔진/저장/parent seed 계약 불변.",
+  "motivation": "v1 UI 는 데스크톱 페인트 에디터 톤이라 태블릿 + S-Pen 학생 사용성에 미흡. 사용자 피드백: '이비스페인트 수준으로 해라'. 이비스가 확립한 태블릿 페인팅 인터랙션 — 좌측 아이콘 툴바 + 우측 수직 슬라이더 + 하단 팔레트 + 슬라이드 레이어 시트 + HSV 모달 + 멀티터치 제스처 — 를 재현한다.",
+  "user_story": "학생/교사로서 그림보드 스튜디오에 들어가면 양손 태블릿 조작에 최적화된 레이아웃을 본다. 펜으로 캔버스에 그리고, 엄지/검지 두 손가락으로 핀치하면 캔버스가 줌/팬되며, 두 손가락 탭 한 번으로 되돌리기, 세 손가락 탭으로 다시한다. 굵기·불투명·보정 슬라이더가 우측에 세로로 붙어 있어 바로 스와이프 조정. 현재 색과 최근 색은 하단 바에 항상 보인다.",
+  "success_metric": "1) 태블릿 가로모드(1280×800 이상)에서 좌 아이콘 툴바 48px + 우 수직 슬라이더 레일 64px + 하단 색 팔레트 56px + 캔버스 paper 메타포(그림자/여백) 렌더 2) 2-finger pinch → zoom 0.25~8× 범위 3) 2-finger drag → pan 4) 2-finger tap(<250ms) → undo, 3-finger tap → redo 5) 더블탭 → fit to viewport 6) HSV Hue 링 + SV 사각형 모달(=이비스 색상 선택기) 렌더 + 최근/팔레트/Hex 통합 7) 레이어 패널은 오른쪽 슬라이드 시트, 📁 버튼 또는 L 단축키로 토글 8) Stabilizer 슬라이더 0~10 으로 stroke 지수평균 적용, 체감 떨림 제거 9) 브러시 커서 프리뷰: 현재 색·굵기 원이 캔버스 중앙 상단 or 포인터 위치에 시각화 10) v1 의 엔진·저장·Drawpile 분기 계약 전부 보존(StudentAsset 스키마 불변, /api/student-assets 응답 envelope 동일)",
+  "affected_surfaces": [
+    "src/components/drawing/DrawingStudio.tsx (전면 리디자인)",
+    "src/components/drawing/ui/ (Toolbar/TopBar/LayerPanel 리팩토링 + HSVWheel/CanvasViewport/RightRail/BottomColorBar 신설)",
+    "src/components/drawing/hooks/ (useViewportGestures 신설)",
+    "src/components/drawing/canvas/StrokeEngine.ts (stabilizer pipe 추가, 기존 API 호환)",
+    "src/styles/drawing.css (스튜디오 블록 덮어쓰기)"
+  ],
+  "non_goals": [
+    "엔진 로직 변경 (BrushPresets/LayerStack/HistoryStack/FloodFill/Eyedropper 불변)",
+    "저장 경로 변경 (/api/student-assets 그대로)",
+    "schema 변경 (StudentAsset, Board.layout 불변)",
+    "신규 브러시 추가 (v1 6종 유지, 브러시 설정 UX만 강화)"
+  ],
+  "constraints_from_priors": [
+    "v1 이 제공하는 BrushPresets, LayerStack, StrokeEngine, HistoryStack API 시그니처 유지 — UI 가 그들을 consume 만 함",
+    "Drawpile URL 설정 시 스튜디오 비활성 로직(DrawingBoard.tsx 분기) 그대로",
+    "Galaxy Tab S6 Lite + S-Pen 성능 기준"
+  ],
+  "perf_baseline": "Galaxy Tab S6 Lite (Exynos 9611), Android Chrome + S-Pen, 60fps stroke + 60fps pan/zoom",
+  "created_at": "2026-04-14T00:00:00+09:00"
+}

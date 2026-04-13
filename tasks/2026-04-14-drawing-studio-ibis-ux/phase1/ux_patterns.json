@@ -1,0 +1,71 @@
+{
+  "patterns": [
+    {
+      "pattern_id": "bottom_horizontal_toolbar",
+      "description": "하단 가로 툴바. 좌 30%(undo/redo/레이어), 중 50%(도구 스트립 가로 스크롤), 우 20%(현재색+최근2~3+more).",
+      "source_url": "Ibis Paint X Android screenshots",
+      "applies_to": ["toolbar_position"],
+      "tradeoff": "데스크톱 모니터에선 좌측 세로가 관습적이지만 태블릿/폰에선 엄지 닿기가 더 좋음. 우리 타깃은 태블릿 → 채택."
+    },
+    {
+      "pattern_id": "right_vertical_size_slider",
+      "description": "우측 엣지 세로 막대 슬라이더 — 굵기/불투명/보정. 트랙 6~10px, thumb 20~24px, 숫자는 우측에 작게.",
+      "source_url": "Ibis Paint X tablet",
+      "applies_to": ["size_opacity_control"]
+    },
+    {
+      "pattern_id": "hsv_ring_square_modal",
+      "description": "전면 오버레이 모달. 외곽 Hue 링(240~280px 지름) + 내부 SV 사각형. 하단에 최근색/팔레트/Hex. 드래그로 색 선택.",
+      "source_url": "Krita + Ibis 공통",
+      "applies_to": ["color_picker"]
+    },
+    {
+      "pattern_id": "layer_sheet_slide_right",
+      "description": "레이어 패널 = 오른쪽에서 슬라이드 인 시트 (340px 너비). backdrop 어둡게 + 외부 클릭 시 닫힘. L 키 단축키.",
+      "source_url": "Ibis Paint tablet",
+      "applies_to": ["layer_panel"]
+    },
+    {
+      "pattern_id": "pinch_zoom_pan",
+      "description": "2-finger pinch → zoom 0.25×~8×. 2-finger drag → pan. CSS transform 으로 paper 전체를 scale+translate.",
+      "source_url": "Ibis Paint 기본",
+      "applies_to": ["canvas_navigation"]
+    },
+    {
+      "pattern_id": "two_three_finger_tap_undo_redo",
+      "description": "2-finger tap(<250ms, 이동<10px) → undo. 3-finger tap → redo. 제스처 시작 시 lastTapStart 기록, 이동 시 무효화.",
+      "source_url": "Ibis Paint 기본",
+      "applies_to": ["gestures"]
+    },
+    {
+      "pattern_id": "double_tap_fit",
+      "description": "더블탭 → zoom=1, pan=0 으로 복원. Ibis 의 '100% 복원' 버튼 대체로 채택.",
+      "source_url": "우리 편의",
+      "applies_to": ["canvas_navigation"]
+    },
+    {
+      "pattern_id": "stabilizer_ema",
+      "description": "Stroke 샘플 좌표에 지수 이동 평균 적용. α = max(0.05, 1 - stabilizer/12). 0=영향 없음, 10=매우 부드러움.",
+      "source_url": "일반적 스무딩 알고리즘",
+      "applies_to": ["stroke_quality"]
+    },
+    {
+      "pattern_id": "brush_preview_indicator",
+      "description": "현재 색+굵기 원을 캔버스 상단 중앙 또는 우측 상단 corner 에 작게 표시. zoom 반영.",
+      "source_url": "Ibis Paint",
+      "applies_to": ["feedback"]
+    },
+    {
+      "pattern_id": "paper_metaphor",
+      "description": "캔버스는 화면 꽉 채우지 않고 여백(16~40px) + box-shadow drop. 주변 배경은 색상 토큰(--color-bg).",
+      "source_url": "Ibis Paint + 데스크톱 페인트앱 공통",
+      "applies_to": ["canvas_frame"]
+    },
+    {
+      "pattern_id": "bottom_palette_row",
+      "description": "툴바 우측 20% 영역 또는 별도 바에 '현재색 원 + 기본 팔레트 8 + 최근 6~8' 항상 가시. 색상 모달 열기 전 원탭 선택 가능.",
+      "source_url": "Ibis Paint",
+      "applies_to": ["color_access"]
+    }
+  ]
+}
