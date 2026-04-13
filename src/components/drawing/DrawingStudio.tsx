@@ -120,33 +120,35 @@ export function DrawingStudio({ viewerKind = "student", onSaved }: Props) {
     stable.reset();
   }, [stable]);
 
-  // ─── Gestures ────────────────────────────────────────────
-  const handleUndoDeferred = useCallback(() => {
+  // ─── Undo / Redo (단일 정의, 버튼 + 제스처 공용) ───────────
+  //
+  // setLayers 를 통해 shallow-copied 배열을 돌려주기 때문에 이 핸들러가
+  // 불릴 때마다 layers reference 가 바뀌고, 이후 `useEffect(() =>
+  // scheduleCompose(), [layers])` 에 의해 자동으로 재합성이 예약된다.
+  // applyPatch 는 layer.canvas 를 mutation 하지만 이 re-render 경로가
+  // compose 를 다시 트리거하므로 캔버스가 최신 픽셀로 페인트된다.
+  const handleUndo = useCallback(() => {
     const entry = historyRef.current.undo();
     if (!entry) return;
     setLayers((curr) => {
       const l = curr.find((x) => x.id === entry.layerId);
       if (l) applyPatch(l.canvas, entry.before, entry.rect);
-      return curr;
+      return [...curr];
     });
     setCanUndo(historyRef.current.canUndo());
     setCanRedo(historyRef.current.canRedo());
-    scheduleCompose();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleRedoDeferred = useCallback(() => {
+  const handleRedo = useCallback(() => {
     const entry = historyRef.current.redo();
     if (!entry) return;
     setLayers((curr) => {
       const l = curr.find((x) => x.id === entry.layerId);
       if (l) applyPatch(l.canvas, entry.after, entry.rect);
-      return curr;
+      return [...curr];
     });
     setCanUndo(historyRef.current.canUndo());
     setCanRedo(historyRef.current.canRedo());
-    scheduleCompose();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const {
@@ -157,8 +159,8 @@ export function DrawingStudio({ viewerKind = "student", onSaved }: Props) {
     onTouchMove,
     onTouchEnd,
   } = useViewportGestures({
-    onUndo: handleUndoDeferred,
-    onRedo: handleRedoDeferred,
+    onUndo: handleUndo,
+    onRedo: handleRedo,
     cancelActiveStroke,
   });
 
@@ -273,27 +275,6 @@ export function DrawingStudio({ viewerKind = "student", onSaved }: Props) {
     }
     scheduleCompose();
   };
-
-  // ─── Direct button undo/redo (BottomBar 버튼) ────────────
-  const handleUndo = useCallback(() => {
-    const entry = historyRef.current.undo();
-    if (!entry) return;
-    const l = layers.find((x) => x.id === entry.layerId);
-    if (l) applyPatch(l.canvas, entry.before, entry.rect);
-    setCanUndo(historyRef.current.canUndo());
-    setCanRedo(historyRef.current.canRedo());
-    scheduleCompose();
-  }, [layers, scheduleCompose]);
-
-  const handleRedo = useCallback(() => {
-    const entry = historyRef.current.redo();
-    if (!entry) return;
-    const l = layers.find((x) => x.id === entry.layerId);
-    if (l) applyPatch(l.canvas, entry.after, entry.rect);
-    setCanUndo(historyRef.current.canUndo());
-    setCanRedo(historyRef.current.canRedo());
-    scheduleCompose();
-  }, [layers, scheduleCompose]);
 
   // ─── Layer ops ───────────────────────────────────────────
   const addLayer = useCallback(() => {
