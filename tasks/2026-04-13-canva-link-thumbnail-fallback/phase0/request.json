@@ -1,0 +1,21 @@
+{
+  "type": "feature",
+  "slug": "canva-link-thumbnail-fallback",
+  "task_id": "2026-04-13-canva-link-thumbnail-fallback",
+  "change_type": "enhancement",
+  "motivation": "보드에 붙여넣은 Canva 링크 카드에서 썸네일이 표시되지 않음. 원인: `resolveCanvaEmbedUrl` 의 oEmbed 엔드포인트(api.canva.com + www.canva.com) 가 drift/마이그레이션 중이라 응답이 null — linkImage 가 DB에 null로 저장되고 CardAttachments 의 canRenderCanvaEmbed 게이트 통과 실패 → 일반 텍스트 링크 프리뷰로 폴백. canva-publish-polish task 에서 AC4 로 deferred 된 항목.",
+  "user_story": "교사로서 보드에 Canva 디자인 URL(canva.com 또는 canva.link)을 붙여넣으면, oEmbed 가 실패하더라도 내 Canva Connect 계정이 연결되어 있으면 썸네일이 카드에 표시되고 CanvaEmbedSlot 의 라이브 모드 토글이 활성화된다.",
+  "success_metric": "(1) Canva 링크 paste 시 oEmbed 실패 → 교사 CanvaConnectAccount 토큰 있으면 `GET /rest/v1/designs/{id}` 호출로 thumbnail.url 획득. (2) 15분 TTL 문제 회피 위해 thumbnail PNG 을 Blob 에 다운로드+재업로드 후 그 URL을 Card.linkImage 에 저장 (영구). (3) 토큰 없거나 Connect 실패 시 현재 동작(텍스트 링크) 유지. (4) 기존 linkImage=null 카드 백필 정책 결정 (phase2 strategist). (5) Galaxy Tab S6 Lite 3초 내 썸네일 가시화.",
+  "affected_surfaces": [
+    "src/lib/canva.ts (resolveCanvaEmbedUrl 의 fallback 추가, thumbnail 다운로드+업로드 헬퍼)",
+    "src/app/api/cards/route.ts (POST — accessToken 전달)",
+    "src/app/api/cards/[id]/route.ts (PATCH — accessToken 전달)",
+    "scripts/ 또는 /api/admin/ (선택 — 기존 카드 백필)"
+  ],
+  "created_at": "2026-04-13T23:50:00+09:00",
+  "dependencies": {
+    "blocks": [],
+    "blocked_by": ["2026-04-13-canva-publish-polish phase11 (완료 후 진입 권장)"],
+    "related_memory": ["project_canva_app_state.md"]
+  }
+}
