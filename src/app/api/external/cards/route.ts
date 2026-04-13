@@ -24,7 +24,7 @@ import { checkAll as rateLimitCheck } from "@/lib/rate-limit";
 import { uploadPngFromDataUrl, BlobUploadError } from "@/lib/blob";
 import { requireProTier, TierRequiredError } from "@/lib/tier";
 import { externalErrorResponse } from "@/lib/external-errors";
-import { extractCanvaDesignId } from "@/lib/canva";
+import { extractCanvaDesignId, isCanvaDesignUrl } from "@/lib/canva";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -195,12 +195,27 @@ export async function POST(req: Request) {
     return externalErrorResponse("internal");
   }
 
-  // [10+11] Atomically (best-effort): create the card first with null
-  // imageUrl so we can key the blob path by cardId, then upload, then
-  // update. On upload failure, we delete the empty card to avoid orphans.
+  // [9.7] If canvaDesignUrl was supplied, require it to be a real Canva
+  // design URL — otherwise an attacker who can publish via this endpoint
+  // could plant a card whose href points anywhere (clickjacking).
+  if (input.canvaDesignUrl && !isCanvaDesignUrl(input.canvaDesignUrl)) {
+    return externalErrorResponse(
+      "invalid_data_url",
+      "canvaDesignUrl must be a canva.com design URL"
+    );
+  }
   const canvaDesignId = input.canvaDesignUrl
     ? extractCanvaDesignId(input.canvaDesignUrl)
     : null;
+  // Reject Canva URLs we recognize as design pages but cannot extract an
+  // id from (e.g. canva.link short-links pre-resolve). Caller should
+  // resolve before posting; we don't take the resolution cost here.
+  if (input.canvaDesignUrl && !canvaDesignId) {
+    return externalErrorResponse(
+      "invalid_data_url",
+      "canvaDesignUrl: could not extract design id (resolve canva.link first)"
+    );
+  }
   const card = await db.card.create({
     data: {
       boardId: board.id,
