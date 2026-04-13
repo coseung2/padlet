@@ -162,7 +162,7 @@ export const CanvaEmbedSlot = memo(function CanvaEmbedSlot({
   const embedSrc = useMemo(() => {
     return (
       buildCanvaEmbedSrc(linkUrl) ??
-      `https://www.canva.com/design/${designId}/view?embed`
+      `https://www.canva.com/design/${designId}/watch?embed`
     );
   }, [linkUrl, designId]);
   const shouldRenderIframe = active && inView;
