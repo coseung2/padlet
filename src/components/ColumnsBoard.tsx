@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { AddCardButton } from "./AddCardButton";
 import { AddCardModal, type AddCardData } from "./AddCardModal";
-import { CardAttachments } from "./CardAttachments";
+import { CardBody } from "./cards/CardBody";
 import { ContextMenu } from "./ContextMenu";
 import { EditCardModal } from "./EditCardModal";
 import { ExportModal } from "./ExportModal";
@@ -418,9 +418,7 @@ export function ColumnsBoard({
                       onDragStart={(e) => handleDragStart(e, c.id)}
                       onDragEnd={handleDragEnd}
                     >
-                      <CardAttachments imageUrl={c.imageUrl} linkUrl={c.linkUrl} linkTitle={c.linkTitle} linkDesc={c.linkDesc} linkImage={c.linkImage} videoUrl={c.videoUrl} />
-                      <h4 className="padlet-card-title">{c.title}</h4>
-                      <p className="padlet-card-content">{c.content}</p>
+                      <CardBody card={c} titleAs="h4" />
                       {canModify && (
                         <div className="card-ctx-menu">
                           <ContextMenu

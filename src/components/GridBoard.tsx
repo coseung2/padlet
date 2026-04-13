@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AddCardButton } from "./AddCardButton";
-import { CardAttachments } from "./CardAttachments";
+import { CardBody } from "./cards/CardBody";
 import type { CardData } from "./DraggableCard";
 
 type Props = {
@@ -86,9 +86,7 @@ export function GridBoard({ boardId, initialCards, currentUserId, currentRole }:
             style={{ backgroundColor: c.color ?? undefined }}
             aria-label={c.title}
           >
-            <CardAttachments imageUrl={c.imageUrl} linkUrl={c.linkUrl} linkTitle={c.linkTitle} linkDesc={c.linkDesc} linkImage={c.linkImage} videoUrl={c.videoUrl} />
-            <h3 className="padlet-card-title">{c.title}</h3>
-            <p className="padlet-card-content">{c.content}</p>
+            <CardBody card={c} />
             {(currentRole === "owner" || (currentRole === "editor" && c.authorId === currentUserId)) && (
               <button
                 type="button"

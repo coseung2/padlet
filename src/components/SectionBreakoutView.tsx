@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CardAttachments } from "./CardAttachments";
+import { CardBody } from "./cards/CardBody";
 
 type CardLike = {
   id: string;
@@ -12,6 +12,10 @@ type CardLike = {
   linkDesc: string | null;
   linkImage: string | null;
   videoUrl: string | null;
+  externalAuthorName?: string | null;
+  studentAuthorName?: string | null;
+  authorName?: string | null;
+  createdAt?: string | null;
 };
 
 type Props = {
@@ -84,16 +88,7 @@ export function SectionBreakoutView({
               className="column-card"
               style={{ backgroundColor: c.color ?? undefined }}
             >
-              <CardAttachments
-                imageUrl={c.imageUrl}
-                linkUrl={c.linkUrl}
-                linkTitle={c.linkTitle}
-                linkDesc={c.linkDesc}
-                linkImage={c.linkImage}
-                videoUrl={c.videoUrl}
-              />
-              <h4 className="padlet-card-title">{c.title}</h4>
-              <p className="padlet-card-content">{c.content}</p>
+              <CardBody card={c} titleAs="h4" />
             </article>
           ))}
         </div>

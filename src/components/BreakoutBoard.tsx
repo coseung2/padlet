@@ -16,7 +16,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AddCardButton } from "./AddCardButton";
 import { AddCardModal, type AddCardData } from "./AddCardModal";
-import { CardAttachments } from "./CardAttachments";
+import { CardBody } from "./cards/CardBody";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
 import { EditCardModal } from "./EditCardModal";
 import type { CardData } from "./DraggableCard";
@@ -383,16 +383,7 @@ export function BreakoutBoard({
                       className="column-card"
                       style={{ backgroundColor: c.color ?? undefined, minWidth: 220 }}
                     >
-                      <CardAttachments
-                        imageUrl={c.imageUrl}
-                        linkUrl={c.linkUrl}
-                        linkTitle={c.linkTitle}
-                        linkDesc={c.linkDesc}
-                        linkImage={c.linkImage}
-                        videoUrl={c.videoUrl}
-                      />
-                      <h4 className="padlet-card-title">{c.title}</h4>
-                      <p className="padlet-card-content">{c.content}</p>
+                      <CardBody card={c} titleAs="h4" />
                       {canEdit && (
                         <div className="card-ctx-menu">
                           <ContextMenu items={cardMenuItems(c, true)} />
@@ -489,16 +480,7 @@ export function BreakoutBoard({
                           className="column-card"
                           style={{ backgroundColor: c.color ?? undefined }}
                         >
-                          <CardAttachments
-                            imageUrl={c.imageUrl}
-                            linkUrl={c.linkUrl}
-                            linkTitle={c.linkTitle}
-                            linkDesc={c.linkDesc}
-                            linkImage={c.linkImage}
-                            videoUrl={c.videoUrl}
-                          />
-                          <h4 className="padlet-card-title">{c.title}</h4>
-                          <p className="padlet-card-content">{c.content}</p>
+                          <CardBody card={c} titleAs="h4" />
                           {canEdit && (
                             <div className="card-ctx-menu">
                               <ContextMenu items={cardMenuItems(c, false)} />
