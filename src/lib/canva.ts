@@ -428,7 +428,11 @@ export function buildCanvaEmbedSrc(rawUrl: string): string | null {
     const pathPrefix = shareToken
       ? `/design/${designId}/${shareToken}/view`
       : `/design/${designId}/view`;
-    return `https://www.canva.com${pathPrefix}?embed&meta`;
+    // `?embed` is the only flag Canva documents publicly. `&meta` was a
+    // legacy internal flag that occasionally triggers state-deserialize
+    // errors on "공개 보기" share designs (reported: "Expected object
+    // value for key D, found undefined at path .Bj.A"). Keep URL minimal.
+    return `https://www.canva.com${pathPrefix}?embed`;
   } catch {
     return null;
   }
