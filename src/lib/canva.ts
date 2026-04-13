@@ -406,11 +406,20 @@ export function extractCanvaDesignId(rawUrl: string): string | null {
 }
 
 /**
- * Build the iframe src for a canva.com design URL. Canva "공개 보기" links
- * carry a share token in the path (`/design/{designId}/{shareToken}/view`)
- * and without it the embed renders Canva's login gate instead of the
- * actual design. We strip the query string (utm_*, utlId, etc.) and append
- * `?embed&meta` while preserving the share token segment when present.
+ * Build the iframe src for a canva.com design URL.
+ *
+ * Canva exposes two share surfaces that users can paste as "공개 보기 링크":
+ *   - `/design/{id}/{shareToken}/view`   — interactive gallery (scroll pages)
+ *   - `/design/{id}/{shareToken}/watch`  — presentation / slide player
+ *
+ * Only `/watch` is officially meant to be embedded. `/view` in an iframe
+ * occasionally throws a client-side state-deserialize error
+ * ("Expected object value for key D, found undefined at path .Bj.A") and
+ * renders blank. We normalise BOTH surfaces to `/watch?embed` so
+ * pasting a "공개 보기" link still produces a working inline preview.
+ *
+ * We also preserve the share-token path segment — without it Canva treats
+ * the request as an unauthenticated peek and shows its login gate.
  *
  * Returns null for URLs we don't recognise as canva design pages.
  */
@@ -421,17 +430,17 @@ export function buildCanvaEmbedSrc(rawUrl: string): string | null {
     const host = u.hostname.toLowerCase();
     if (host !== "canva.com" && host !== "www.canva.com") return null;
 
-    // Accept either /design/{id}/view or /design/{id}/{shareToken}/view.
-    const m = u.pathname.match(/\/design\/([A-Za-z0-9_-]+)(?:\/([A-Za-z0-9_-]+))?\/view/);
+    // Accept /design/{id}/view, /design/{id}/watch, or the full share form
+    // /design/{id}/{shareToken}/(view|watch). We only branch on the
+    // captured shareToken below; the trailing surface name is discarded.
+    const m = u.pathname.match(
+      /\/design\/([A-Za-z0-9_-]+)(?:\/([A-Za-z0-9_-]+))?\/(?:view|watch)/
+    );
     if (!m) return null;
     const [, designId, shareToken] = m;
     const pathPrefix = shareToken
-      ? `/design/${designId}/${shareToken}/view`
-      : `/design/${designId}/view`;
-    // `?embed` is the only flag Canva documents publicly. `&meta` was a
-    // legacy internal flag that occasionally triggers state-deserialize
-    // errors on "공개 보기" share designs (reported: "Expected object
-    // value for key D, found undefined at path .Bj.A"). Keep URL minimal.
+      ? `/design/${designId}/${shareToken}/watch`
+      : `/design/${designId}/watch`;
     return `https://www.canva.com${pathPrefix}?embed`;
   } catch {
     return null;
