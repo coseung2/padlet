@@ -405,6 +405,35 @@ export function extractCanvaDesignId(rawUrl: string): string | null {
   }
 }
 
+/**
+ * Build the iframe src for a canva.com design URL. Canva "공개 보기" links
+ * carry a share token in the path (`/design/{designId}/{shareToken}/view`)
+ * and without it the embed renders Canva's login gate instead of the
+ * actual design. We strip the query string (utm_*, utlId, etc.) and append
+ * `?embed&meta` while preserving the share token segment when present.
+ *
+ * Returns null for URLs we don't recognise as canva design pages.
+ */
+export function buildCanvaEmbedSrc(rawUrl: string): string | null {
+  if (!rawUrl) return null;
+  try {
+    const u = new URL(rawUrl);
+    const host = u.hostname.toLowerCase();
+    if (host !== "canva.com" && host !== "www.canva.com") return null;
+
+    // Accept either /design/{id}/view or /design/{id}/{shareToken}/view.
+    const m = u.pathname.match(/\/design\/([A-Za-z0-9_-]+)(?:\/([A-Za-z0-9_-]+))?\/view/);
+    if (!m) return null;
+    const [, designId, shareToken] = m;
+    const pathPrefix = shareToken
+      ? `/design/${designId}/${shareToken}/view`
+      : `/design/${designId}/view`;
+    return `https://www.canva.com${pathPrefix}?embed&meta`;
+  } catch {
+    return null;
+  }
+}
+
 // Async resolver — may do 1 short-link HEAD plus 1 oEmbed fetch.
 // Returns null on any failure so callers can fall back to the link-preview
 // path without a throw.

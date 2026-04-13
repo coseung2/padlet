@@ -19,11 +19,13 @@ import {
   memo,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
   type MouseEvent,
 } from "react";
+import { buildCanvaEmbedSrc } from "@/lib/canva";
 import {
   useIframeBudget,
   useLastEviction,
@@ -154,7 +156,15 @@ export const CanvaEmbedSlot = memo(function CanvaEmbedSlot({
   }
 
   const title = linkTitle || "Canva design";
-  const embedSrc = `https://www.canva.com/design/${designId}/view?embed&meta`;
+  // Derive embed src from the original linkUrl so public "공개 보기" share
+  // tokens (path segment between designId and /view) are preserved. Falls
+  // back to the bare designId form for legacy rows / private designs.
+  const embedSrc = useMemo(() => {
+    return (
+      buildCanvaEmbedSrc(linkUrl) ??
+      `https://www.canva.com/design/${designId}/view?embed&meta`
+    );
+  }, [linkUrl, designId]);
   const shouldRenderIframe = active && inView;
 
   return (
