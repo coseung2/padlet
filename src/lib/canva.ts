@@ -1,14 +1,17 @@
 /**
  * Canva Connect API helpers.
  * Docs: https://www.canva.dev/docs/connect/
+ *
+ * Tokens and the transient PKCE verifier are persisted in
+ * CanvaConnectAccount (Prisma) so the teacher's connection survives Vercel
+ * Function cold starts. Earlier in-memory Maps (tokenStore / pkceStore)
+ * silently logged teachers out whenever a new container handled a request.
  */
+import { db } from "./db";
 
 const CANVA_API = "https://api.canva.com/rest/v1";
 const CANVA_AUTH = "https://www.canva.com/api/oauth/authorize";
 const CANVA_TOKEN = `${CANVA_API}/oauth/token`;
-
-// In-memory token store (per mock user). In production, use DB.
-const tokenStore = new Map<string, { accessToken: string; refreshToken: string; expiresAt: number }>();
 
 export function getCanvaClientId() {
   return process.env.CANVA_CLIENT_ID ?? "";
@@ -36,14 +39,20 @@ async function generateCodeChallenge(verifier: string): Promise<string> {
   return Buffer.from(digest).toString("base64url");
 }
 
-// Store code verifiers per session
-const pkceStore = new Map<string, string>();
-
 /* ── OAuth flow ── */
 export async function buildAuthorizationUrl(userId: string): Promise<string> {
   const verifier = generateCodeVerifier();
   const challenge = await generateCodeChallenge(verifier);
-  pkceStore.set(userId, verifier);
+
+  // Persist the verifier (upsert — teacher may restart the flow without
+  // finishing the previous one). accessToken/refreshToken are NOT cleared so
+  // a mid-flow re-authorize doesn't log the user out of an already-working
+  // session; they're only rewritten on successful exchangeCode.
+  await db.canvaConnectAccount.upsert({
+    where: { userId },
+    create: { userId, pkceVerifier: verifier },
+    update: { pkceVerifier: verifier },
+  });
 
   const params = new URLSearchParams({
     response_type: "code",
@@ -59,9 +68,9 @@ export async function buildAuthorizationUrl(userId: string): Promise<string> {
 }
 
 export async function exchangeCode(userId: string, code: string): Promise<boolean> {
-  const verifier = pkceStore.get(userId);
+  const row = await db.canvaConnectAccount.findUnique({ where: { userId } });
+  const verifier = row?.pkceVerifier;
   if (!verifier) return false;
-  pkceStore.delete(userId);
 
   const basic = Buffer.from(`${getCanvaClientId()}:${getCanvaClientSecret()}`).toString("base64");
 
@@ -85,17 +94,21 @@ export async function exchangeCode(userId: string, code: string): Promise<boolea
   }
 
   const data = await res.json();
-  tokenStore.set(userId, {
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token,
-    expiresAt: Date.now() + data.expires_in * 1000,
+  await db.canvaConnectAccount.update({
+    where: { userId },
+    data: {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      expiresAt: new Date(Date.now() + data.expires_in * 1000),
+      pkceVerifier: null,
+    },
   });
   return true;
 }
 
 async function refreshAccessToken(userId: string): Promise<string | null> {
-  const stored = tokenStore.get(userId);
-  if (!stored) return null;
+  const row = await db.canvaConnectAccount.findUnique({ where: { userId } });
+  if (!row?.refreshToken) return null;
 
   const basic = Buffer.from(`${getCanvaClientId()}:${getCanvaClientSecret()}`).toString("base64");
 
@@ -107,37 +120,49 @@ async function refreshAccessToken(userId: string): Promise<string | null> {
     },
     body: new URLSearchParams({
       grant_type: "refresh_token",
-      refresh_token: stored.refreshToken,
+      refresh_token: row.refreshToken,
     }),
   });
 
   if (!res.ok) {
-    tokenStore.delete(userId);
+    // Refresh failed (likely revoked / expired). Clear tokens so the next
+    // request surfaces canva_not_connected and prompts re-authorize.
+    await db.canvaConnectAccount.update({
+      where: { userId },
+      data: { accessToken: null, refreshToken: null, expiresAt: null },
+    });
     return null;
   }
 
   const data = await res.json();
-  tokenStore.set(userId, {
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token,
-    expiresAt: Date.now() + data.expires_in * 1000,
+  await db.canvaConnectAccount.update({
+    where: { userId },
+    data: {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      expiresAt: new Date(Date.now() + data.expires_in * 1000),
+    },
   });
   return data.access_token;
 }
 
 export async function getAccessToken(userId: string): Promise<string | null> {
-  const stored = tokenStore.get(userId);
-  if (!stored) return null;
+  const row = await db.canvaConnectAccount.findUnique({ where: { userId } });
+  if (!row?.accessToken || !row.expiresAt) return null;
 
-  // Refresh if expiring within 5 minutes
-  if (stored.expiresAt - Date.now() < 5 * 60 * 1000) {
+  // Refresh if expiring within 5 minutes.
+  if (row.expiresAt.getTime() - Date.now() < 5 * 60 * 1000) {
     return refreshAccessToken(userId);
   }
-  return stored.accessToken;
+  return row.accessToken;
 }
 
-export function isCanvaConnected(userId: string): boolean {
-  return tokenStore.has(userId);
+export async function isCanvaConnected(userId: string): Promise<boolean> {
+  const row = await db.canvaConnectAccount.findUnique({
+    where: { userId },
+    select: { accessToken: true },
+  });
+  return !!row?.accessToken;
 }
 
 /* ── API calls ── */

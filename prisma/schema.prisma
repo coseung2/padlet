@@ -33,6 +33,28 @@ model User {
   externalTokens        ExternalAccessToken[]
   templatesOwned        BreakoutTemplate[]    @relation("TemplateOwner")
   issuedParentInvites   ParentInviteCode[]    @relation("TeacherInvite")
+  canvaConnect          CanvaConnectAccount?
+}
+
+// ──── Canva Connect API token store ────
+// Canva as an IdP — teachers OAuth into their Canva account so we can call
+// Canva's REST API on their behalf (e.g. list designs, export PDF). Storing
+// tokens in DB (not in-memory Map) so Vercel Function cold starts don't
+// silently log the teacher out between requests.
+//
+// `pkceVerifier` holds the transient verifier during the authorize → callback
+// round-trip. It's cleared on successful exchangeCode. For a long-idle user
+// whose refresh token has also expired we simply require re-authorize.
+model CanvaConnectAccount {
+  userId        String    @id
+  accessToken   String?
+  refreshToken  String?
+  expiresAt     DateTime?
+  pkceVerifier  String?
+  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model ExternalAccessToken {
