@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   try {
     const user = await getCurrentUser();
 
-    if (!isCanvaConnected(user.id)) {
+    if (!(await isCanvaConnected(user.id))) {
       return NextResponse.json({ error: "canva_not_connected" }, { status: 401 });
     }
 
