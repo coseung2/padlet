@@ -175,7 +175,12 @@ export function CanvaFolderModal({ sectionTitle, onImport, onClose }: Props) {
                   />
                   {d.thumbnail && (
                     <div className="export-design-thumb optimized-img-wrap">
-                      <OptimizedImage src={d.thumbnail.url} alt="" sizes="160px" />
+                      {/* unoptimized: Canva returns auth-gated /screen URLs for
+                          some designs which fail through next/image's server-
+                          side optimizer (400). Direct browser fetch rides the
+                          user's canva.com session cookies and usually succeeds;
+                          if not, OptimizedImage's onError shows a placeholder. */}
+                      <OptimizedImage src={d.thumbnail.url} alt="" sizes="160px" unoptimized />
                     </div>
                   )}
                   <div className="export-design-info">

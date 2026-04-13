@@ -5,7 +5,7 @@ import Draggable, {
   type DraggableData,
   type DraggableEvent,
 } from "react-draggable";
-import { CardAttachments } from "./CardAttachments";
+import { CardBody } from "./cards/CardBody";
 
 export type CardData = {
   id: string;
@@ -26,6 +26,9 @@ export type CardData = {
   sectionId?: string | null;
   authorId: string;
   createdAt?: string;
+  externalAuthorName?: string | null;
+  studentAuthorName?: string | null;
+  authorName?: string | null;
 };
 
 type Props = {
@@ -61,9 +64,7 @@ export function DraggableCard({
         }}
         aria-label={card.title}
       >
-        <CardAttachments imageUrl={card.imageUrl} linkUrl={card.linkUrl} linkTitle={card.linkTitle} linkDesc={card.linkDesc} linkImage={card.linkImage} videoUrl={card.videoUrl} />
-        <h3 className="padlet-card-title">{card.title}</h3>
-        <p className="padlet-card-content">{card.content}</p>
+        <CardBody card={card} />
       </article>
     );
   }
@@ -93,9 +94,7 @@ export function DraggableCard({
         }}
         aria-label={card.title}
       >
-        <CardAttachments imageUrl={card.imageUrl} linkUrl={card.linkUrl} linkTitle={card.linkTitle} linkDesc={card.linkDesc} linkImage={card.linkImage} videoUrl={card.videoUrl} />
-        <h3 className="padlet-card-title">{card.title}</h3>
-        <p className="padlet-card-content">{card.content}</p>
+        <CardBody card={card} />
         {canDelete && (
           <button
             type="button"

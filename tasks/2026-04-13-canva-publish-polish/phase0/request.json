@@ -1,0 +1,16 @@
+{
+  "type": "feature",
+  "slug": "canva-publish-polish",
+  "task_id": "2026-04-13-canva-publish-polish",
+  "change_type": "enhancement",
+  "motivation": "Canva Content Publisher 앱으로 학생이 '지금 게시'에 성공(200 OK)하지만, 생성된 카드에 작성자 표시가 없고(DB에는 studentAuthorId/externalAuthorName 저장됨), 게시 방식이 PNG export → Blob 업로드라 멀티페이지 디자인이 한 장만 담기고 Canva 편집 업데이트가 반영되지 않음. 사용자 의도는 Canva design URL을 oEmbed로 라이브 임베드해 기존 /api/cards `isCanvaDesignUrl` 경로와 통합(Option B).",
+  "user_story": "학생으로서 Canva 에디터에서 'Aura-board로 게시'를 누르면 내 이름이 표시된 라이브 임베드 카드가 학급 보드에 생기고, Canva에서 디자인을 수정하면 보드 카드에도 그대로 반영된다.",
+  "success_metric": "(1) 학생 OAuth 게시 후 카드 UI에 작성자명(externalAuthorName 또는 studentAuthorId→student.name)이 표시된다. (2) /api/external/cards Option B 경로로 생성된 카드는 Canva design URL을 imageUrl이 아닌 embedUrl/oEmbed 필드로 저장해 기존 isCanvaDesignUrl iframe 렌더링을 재사용한다. (3) Canva에서 디자인 수정 후 보드에서 카드를 다시 로드하면 최신 내용이 보인다(수동 새로고침 허용). (4) Galaxy Tab S6 Lite 기준 카드 로드 후 3초 내 iframe 가시화.",
+  "affected_surfaces": [
+    "/api/external/cards",
+    "components/cards/* (카드 렌더링 컴포넌트 — 작성자 표시 영역)",
+    "components/cards/CanvaEmbedCard 또는 동등 (isCanvaDesignUrl 분기)",
+    "학급 보드 `/board/[boardId]` 카드 표시"
+  ],
+  "created_at": "2026-04-13T22:30:00+09:00"
+}

@@ -1,0 +1,16 @@
+prisma/schema.prisma
+prisma/migrations/20260413_add_card_canva_design_id/migration.sql
+src/app/api/external/cards/route.ts
+src/app/board/[id]/page.tsx
+src/app/board/[id]/s/[sectionId]/page.tsx
+src/components/BreakoutBoard.tsx
+src/components/ColumnsBoard.tsx
+src/components/DraggableCard.tsx
+src/components/GridBoard.tsx
+src/components/SectionBreakoutView.tsx
+src/components/StreamBoard.tsx
+src/components/cards/CardAuthorFooter.tsx
+src/components/cards/CardBody.tsx
+src/lib/card-author.ts
+src/lib/__tests__/card-author.test.ts
+src/styles/card.css

@@ -1,0 +1,35 @@
+{
+  "task_id": "2026-04-13-canva-publish-polish",
+  "patterns": [
+    {
+      "pattern_id": "author-footer-compact",
+      "description": "카드 하단에 작은 text-xs muted color로 '작성자 · 날짜' 한 줄. 카드 주 콘텐츠 시선을 방해하지 않으면서 귀속은 보장. Padlet/Notion/Slack thread 공통.",
+      "source_url": "기존 Aura-board 카드 컴포넌트 관례 + Padlet 관찰(간접)",
+      "applicability": "externalAuthorName 또는 studentAuthorId→student.name 노출용. 이미지/임베드 카드에도 동일 영역 유지."
+    },
+    {
+      "pattern_id": "author-overlay-corner",
+      "description": "임베드/이미지 카드의 우하단에 반투명 배경 + 아바타 + 이름 pill. 콘텐츠 영역을 많이 잠식하지 않고 풍부한 매체에 귀속을 겹쳐 표시.",
+      "source_url": "Figma 커뮤니티 카드 관찰, Instagram/Behance 포스트 관찰(간접)",
+      "applicability": "Canva 임베드 iframe 위에 겹치는 경우. z-index·pointer-events 관리 필요."
+    },
+    {
+      "pattern_id": "oembed-rich-iframe",
+      "description": "oEmbed rich type 응답의 html 필드를 cross-domain iframe으로 렌더링. width/height 제공, author_name 선택적. Canva view_url을 iframe src로 직접 사용해도 브라우저에서 렌더(공식 oEmbed 엔드포인트 접근 차단 시 대안).",
+      "source_url": "https://oembed.com/ + https://www.canva.dev/docs/connect/api-reference/designs/get-design/",
+      "applicability": "Option B 핵심 렌더 경로. 기존 Aura-board isCanvaDesignUrl 분기에 이미 iframe 렌더링 로직 존재 → 재사용."
+    },
+    {
+      "pattern_id": "ephemeral-url-refresh",
+      "description": "외부 서비스가 제공하는 URL이 단기 TTL(Canva view_url 30일, thumbnail 15분)일 때, 원본 식별자(design_id)만 영속 저장하고 렌더링 직전에 서버에서 URL 재발급. 사용자에게는 'URL 만료 — 다시 불러오기' 에러 상태로 보이지 않도록 lazy refresh.",
+      "source_url": "https://www.canva.dev/docs/connect/api-reference/designs/get-design/",
+      "applicability": "Option B에서 카드 DB에 design_id + view_url 둘 다 저장하되 만료 임박 시 재조회. OAuth 토큰 재사용 필요(student OAuthToken 영속)."
+    },
+    {
+      "pattern_id": "manual-refresh-button",
+      "description": "'Canva에서 수정했어요?' 같은 명시적 새로고침 CTA. 자동 폴링 대신 사용자 트리거로 최신 반영. 실시간 협업 보드에서 리소스 절약.",
+      "source_url": "Figma 임베드 분석 + 일반 외부 임베드 UX 관례",
+      "applicability": "success_metric (3) '수동 새로고침 허용' 요구와 직결. 카드 호버 시 refresh 아이콘 노출."
+    }
+  ]
+}

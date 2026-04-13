@@ -24,6 +24,7 @@ import { checkAll as rateLimitCheck } from "@/lib/rate-limit";
 import { uploadPngFromDataUrl, BlobUploadError } from "@/lib/blob";
 import { requireProTier, TierRequiredError } from "@/lib/tier";
 import { externalErrorResponse } from "@/lib/external-errors";
+import { extractCanvaDesignId, isCanvaDesignUrl, getAccessToken, canvaGetDesign } from "@/lib/canva";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -45,6 +46,9 @@ const BodySchema = z
       .string()
       .regex(/^data:image\/png;base64,/, "imageDataUrl must be a data:image/png;base64, URL"),
     sectionId: z.string().min(1).max(40).nullable().optional(),
+    // Canva design URL of the source — when supplied, the card is wired
+    // for CanvaEmbedSlot's thumbnail+live toggle UX.
+    canvaDesignUrl: z.string().url().max(500).optional(),
   })
   .strict();
 
@@ -191,9 +195,27 @@ export async function POST(req: Request) {
     return externalErrorResponse("internal");
   }
 
-  // [10+11] Atomically (best-effort): create the card first with null
-  // imageUrl so we can key the blob path by cardId, then upload, then
-  // update. On upload failure, we delete the empty card to avoid orphans.
+  // [9.7] If canvaDesignUrl was supplied, require it to be a real Canva
+  // design URL — otherwise an attacker who can publish via this endpoint
+  // could plant a card whose href points anywhere (clickjacking).
+  if (input.canvaDesignUrl && !isCanvaDesignUrl(input.canvaDesignUrl)) {
+    return externalErrorResponse(
+      "invalid_data_url",
+      "canvaDesignUrl must be a canva.com design URL"
+    );
+  }
+  const canvaDesignId = input.canvaDesignUrl
+    ? extractCanvaDesignId(input.canvaDesignUrl)
+    : null;
+  // Reject Canva URLs we recognize as design pages but cannot extract an
+  // id from (e.g. canva.link short-links pre-resolve). Caller should
+  // resolve before posting; we don't take the resolution cost here.
+  if (input.canvaDesignUrl && !canvaDesignId) {
+    return externalErrorResponse(
+      "invalid_data_url",
+      "canvaDesignUrl: could not extract design id (resolve canva.link first)"
+    );
+  }
   const card = await db.card.create({
     data: {
       boardId: board.id,
@@ -203,6 +225,12 @@ export async function POST(req: Request) {
       content: "",
       imageUrl: null,
       externalAuthorName,
+      canvaDesignId,
+      // When a Canva design URL is supplied, populate linkUrl/linkTitle so
+      // CardAttachments' canRenderCanvaEmbed gate (canvaDesignId &&
+      // linkImage) can fire once linkImage is set to the blob PNG below.
+      linkUrl: input.canvaDesignUrl ?? null,
+      linkTitle: input.canvaDesignUrl ? input.title : null,
       x: 0,
       y: 0,
       width: 240,
@@ -230,9 +258,38 @@ export async function POST(req: Request) {
     return externalErrorResponse("internal");
   }
 
+  // For Canva-published cards, the blob PNG doubles as the thumbnail
+  // (linkImage) so CanvaEmbedSlot activates. For legacy image-only cards,
+  // imageUrl is the only field set.
+  //
+  // Also: if the Canva App sent a bare design URL (no share token), resolve
+  // through Canva Connect using the teacher's token to upgrade linkUrl to
+  // the public "공개 보기" URL that embeds all pages. Best-effort — if the
+  // teacher isn't connected or the design isn't visible to them, we keep
+  // the original URL and the iframe will fall back to the bare form.
+  let finalLinkUrl: string | null = input.canvaDesignUrl ?? null;
+  if (canvaDesignId && finalLinkUrl) {
+    const hasShareToken = /\/design\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\//.test(
+      new URL(finalLinkUrl).pathname
+    );
+    if (!hasShareToken) {
+      try {
+        const token = await getAccessToken(user.id);
+        if (token) {
+          const design = await canvaGetDesign(token, canvaDesignId);
+          if (design.viewUrl) finalLinkUrl = design.viewUrl;
+        }
+      } catch (e) {
+        console.warn("[external/cards] share URL enrichment failed", e);
+      }
+    }
+  }
+
   await db.card.update({
     where: { id: card.id },
-    data: { imageUrl: blobUrl },
+    data: input.canvaDesignUrl
+      ? { linkImage: blobUrl, linkUrl: finalLinkUrl }
+      : { imageUrl: blobUrl },
   });
 
   // Audit: we already touched lastUsedAt in verifyPat; nothing else to do.
