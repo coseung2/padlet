@@ -1,0 +1,62 @@
+{
+  "patterns": [
+    {
+      "pattern_id": "tool_sidebar_left",
+      "description": "좌측 세로 툴바에 브러시/지우개/버킷/스포이트/선택 등 기본 도구 아이콘 5~8개를 상시 노출. 현재 선택된 도구는 강조 배경.",
+      "source_url": "https://ibispaint.com/",
+      "applies_to": ["studio_layout"],
+      "tradeoff": "태블릿 가로모드 전제 — 세로모드에선 하단 바로 자동 전환 필요"
+    },
+    {
+      "pattern_id": "layer_panel_right",
+      "description": "우측 세로 레이어 패널에 레이어 목록(가시성 토글/썸네일/이름) + 상단에 추가/삭제/복제 버튼 + 선택 레이어의 opacity/blend 모드 컨트롤.",
+      "source_url": "https://ibispaint.com/",
+      "applies_to": ["layer_management"],
+      "tradeoff": "레이어 10개 넘으면 스크롤 필요"
+    },
+    {
+      "pattern_id": "top_bar_actions",
+      "description": "상단에 undo/redo/clear/save + 브러시 굵기 + 불투명도 슬라이더. 드로잉 자주 건드리는 것만.",
+      "source_url": "internal convention",
+      "applies_to": ["studio_layout"]
+    },
+    {
+      "pattern_id": "hsv_color_wheel",
+      "description": "색상 버튼 탭 시 HSV 휠(바깥 Hue 링 + 안쪽 SV 사각형) 팝오버. 최근 사용색 6개 고정 표시.",
+      "source_url": "https://ibispaint.com/",
+      "applies_to": ["color_picker"]
+    },
+    {
+      "pattern_id": "pointer_events_stroke",
+      "description": "Pointer Events API 기반 stroke 캡처: pressure → 굵기·투명도 매핑, tiltX/tiltY → 특정 브러시(에어브러시)에서만 활용. pointerType=='pen'만 stroke로 처리해 palm rejection.",
+      "source_url": "https://www.w3.org/TR/pointerevents3/",
+      "applies_to": ["stroke_capture"],
+      "tradeoff": "마우스/손가락 모드 전환 토글 필요 — 펜 없는 환경도 배려"
+    },
+    {
+      "pattern_id": "coalesced_events",
+      "description": "pointermove 이벤트 처리 시 event.getCoalescedEvents() 로 프레임 간 보간 좌표까지 포함해 부드러운 stroke 생성. RAF 내부에서 한 번에 drawPath.",
+      "source_url": "https://www.w3.org/TR/pointerevents3/",
+      "applies_to": ["performance", "stroke_quality"]
+    },
+    {
+      "pattern_id": "layer_dirty_rect_undo",
+      "description": "Undo stack을 레이어 별 변경 bbox + 이전 ImageData 조각만 저장. 50개 스텝 × 평균 200px² patch 정도면 1~2MB 수준으로 메모리 안전.",
+      "source_url": "internal (Krita 참고)",
+      "applies_to": ["undo_redo", "memory"]
+    },
+    {
+      "pattern_id": "seed_compat_save",
+      "description": "저장 시 모든 레이어 합성 PNG를 /api/student-assets 에 멀티파트 POST. isSharedToClass 체크박스는 form에 bool로 전달. StudentAsset 스키마 변경 없음.",
+      "source_url": "internal parent seed (drawpile-schema-stub)",
+      "applies_to": ["persistence"]
+    },
+    {
+      "pattern_id": "drawpile_priority",
+      "description": "NEXT_PUBLIC_DRAWPILE_URL env가 설정돼 있으면 Drawpile iframe을 우선 로드. 스튜디오는 그 경우 탭을 비활성화하거나 '협업 모드 사용 중' 알림만 띄움. 둘 중 하나만 활성.",
+      "source_url": "internal parent seed",
+      "applies_to": ["drawing_board_router"],
+      "tradeoff": "현재 Drawpile 블로커 상태라 실질 효과 없지만 계약은 보존"
+    }
+  ]
+}
