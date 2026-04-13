@@ -49,10 +49,11 @@ import { sampleHex } from "./canvas/Eyedropper";
 import type { BlendMode, Layer, StrokeSample, Tool } from "./canvas/types";
 
 type Props = {
+  viewerKind?: "teacher" | "student" | "none";
   onSaved?: () => void;
 };
 
-export function DrawingStudio({ onSaved }: Props) {
+export function DrawingStudio({ viewerKind = "student", onSaved }: Props) {
   // ─── Layer state ──────────────────────────────────────────
   const [layers, setLayers] = useState<Layer[]>(() => initialStack());
   const [activeLayerId, setActiveLayerId] = useState<string>(
@@ -339,6 +340,12 @@ export function DrawingStudio({ onSaved }: Props) {
   }, []);
 
   // ─── Save ────────────────────────────────────────────────
+  //
+  // 학생: /api/student-assets 에 multipart 업로드 + isSharedToClass
+  //       (반 갤러리에 자동 등장)
+  // 교사/비로그인: StudentAsset 테이블에 쓸 수 없는 계정이므로, 로컬
+  //       파일 다운로드로 폴백. 이 경우 "반 갤러리에 공유" 체크박스는
+  //       SaveDialog 에서 noop — UI 상에서 힌트가 필요하면 표시.
   const handleSave = async ({
     title,
     shared,
@@ -354,21 +361,34 @@ export function DrawingStudio({ onSaved }: Props) {
         flat.toBlob((b) => resolve(b), "image/png")
       );
       if (!blob) throw new Error("PNG 변환 실패");
-      const form = new FormData();
-      form.append("file", new File([blob], `${title}.png`, { type: "image/png" }));
-      form.append("title", title);
-      form.append("source", "drawing-studio");
-      if (shared) form.append("isSharedToClass", "true");
-      const res = await fetch("/api/student-assets", {
-        method: "POST",
-        body: form,
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.error ?? `HTTP ${res.status}`);
+
+      if (viewerKind === "student") {
+        const form = new FormData();
+        form.append("file", new File([blob], `${title}.png`, { type: "image/png" }));
+        form.append("title", title);
+        form.append("source", "drawing-studio");
+        if (shared) form.append("isSharedToClass", "true");
+        const res = await fetch("/api/student-assets", {
+          method: "POST",
+          body: form,
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body?.error ?? `HTTP ${res.status}`);
+        }
+        onSaved?.();
+      } else {
+        // Teacher / anonymous — download locally.
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${title}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
       }
       setSaveOpen(false);
-      onSaved?.();
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : "저장 실패");
     } finally {
@@ -477,6 +497,7 @@ export function DrawingStudio({ onSaved }: Props) {
         <SaveDialog
           busy={saving}
           error={saveError}
+          mode={viewerKind === "student" ? "library" : "download"}
           onCancel={() => setSaveOpen(false)}
           onSubmit={handleSave}
         />

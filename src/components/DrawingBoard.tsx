@@ -101,21 +101,11 @@ export function DrawingBoard({
                 className="drawing-iframe"
                 sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
               />
-            ) : viewerKind === "student" ? (
-              // 브라우저 내장 스튜디오 (solo). Drawpile 미배포일 때 활성.
-              <DrawingStudio onSaved={loadShared} />
             ) : (
-              <div className="drawing-placeholder">
-                <div className="placeholder-icon" aria-hidden>
-                  🎨
-                </div>
-                <h3>학생만 그릴 수 있어요</h3>
-                <p>학생 계정으로 로그인하면 작업실이 열립니다.</p>
-                <p className="muted">
-                  실시간 협업 Drawpile 서버 배포 상태:{" "}
-                  <code>BLOCKERS.md</code>
-                </p>
-              </div>
+              // 브라우저 내장 스튜디오 — 학생/교사/비로그인 모두 렌더.
+              // 저장 경로는 viewerKind에 따라 분기: 학생은 /api/student-assets
+              // 로 업로드(+ 반 공유), 교사는 로컬 PNG 다운로드로 폴백.
+              <DrawingStudio viewerKind={viewerKind} onSaved={loadShared} />
             )
           ) : (
             <div className="drawing-gallery-wrap">
