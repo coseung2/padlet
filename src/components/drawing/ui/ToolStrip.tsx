@@ -20,19 +20,16 @@ export const TOOLS: ToolDef[] = [
   { id: "eyedropper", label: "스포이트", icon: "💉" },
 ];
 
-export function Toolbar({
+/** 가로 스크롤 가능한 도구 스트립 — BottomBar 중앙에 위치. */
+export function ToolStrip({
   tool,
-  color,
   onToolChange,
-  onColorClick,
 }: {
   tool: Tool;
-  color: string;
   onToolChange: (t: Tool) => void;
-  onColorClick: () => void;
 }) {
   return (
-    <div className="ds-toolbar" role="toolbar" aria-label="도구">
+    <div className="ds-tool-strip" role="toolbar" aria-label="도구">
       {TOOLS.map((t) => (
         <button
           key={t.id}
@@ -46,15 +43,6 @@ export function Toolbar({
           <span aria-hidden="true">{t.icon}</span>
         </button>
       ))}
-      <div className="ds-toolbar-sep" aria-hidden="true" />
-      <button
-        type="button"
-        className="ds-color-swatch"
-        aria-label={`현재 색 ${color}`}
-        title={`색 선택: ${color}`}
-        onClick={onColorClick}
-        style={{ background: color }}
-      />
     </div>
   );
 }
