@@ -1,0 +1,115 @@
+{
+  "type": "feature",
+  "slug": "parent-class-invite-v2",
+  "task_id": "2026-04-15-parent-class-invite-v2",
+  "change_type": "feature_revision",
+  "refinement": true,
+  "parent_seed_id": "seed_37b35654542f",
+  "seed_id": "seed_6d7077aac472",
+  "inbox_absorbed": {
+    "path": "INBOX/2026-04-13-parent-class-invite-refine/",
+    "files": [
+      "MANIFEST.md",
+      "seed.yaml",
+      "decisions.md",
+      "handoff_note.md",
+      "AMENDMENT_2026-04-13_link-lifetime.md",
+      "context_links.md",
+      "request.json"
+    ],
+    "absorbed_at": "2026-04-15T10:00:00+09:00"
+  },
+  "supersedes": {
+    "previous_task_id": "2026-04-12-parent-viewer-access",
+    "previous_seed_id": "seed_37b35654542f",
+    "migration_strategy_claimed_by_inbox": "complete_discard_immediate_transition",
+    "migration_strategy_reality_check": "v1 IS deployed in production (prisma/migrations/20260412_add_parent_viewer applied to Supabase; ParentInviteCode/ParentChildLink/ParentSession tables live; ParentInviteButton component + /api/students/[id]/parent-invites + /api/parent-invites/[id] + /api/parent/redeem-code + /parent/(app)/* routes shipped). INBOX premise of '미배포, 마이그레이션 불요' is factually incorrect. Decision escalated to phase2 USER-REVIEW."
+  },
+  "motivation": "학생별 개별 코드 발급·전달 모델은 N명 학생당 교사가 코드 생성·전달 3N 클릭을 수행해야 하며, 학부모 신원 검증이 매직링크 소유에만 의존해 사칭 방어 레이어가 얇다. 학급 단위 단일 초대 코드 + 학부모 셀프매칭 + 교사 승인 게이트로 전환하면 교사 운영 부담이 학생 수 → 1 승인 클릭 수준으로 감소하고, 승인 게이트가 추가 사칭 차단 레이어를 제공한다.",
+  "user_story": "교사로서 학급 초대 코드 1개로 모든 학부모를 초대하고, 학부모가 학급 명단에서 자녀를 셀프매칭한 신청을 승인 인박스에서 1클릭으로 승인하면 해당 학부모의 자녀 열람 액세스가 활성화된다.",
+  "success_metric": "N명 학생 학급에서 학부모 100% 온보딩 달성에 소요되는 교사 클릭이 v1(N × 3) → v2(N × 1)로 감소. 학급 코드 brute-force 방어(IP 5회/15분 + 코드 50회/일 + 학급 100회/일)로 타 학부모·타 학생 PII 노출 0건 유지. pending → active 평균 SLA ≤ 24h (비강제).",
+  "affected_surfaces": [
+    "prisma/schema.prisma",
+    "prisma/migrations/{timestamp}_parent_class_invite_v2/",
+    "src/app/teacher/[classroomId]/parent-access/page.tsx",
+    "src/components/teacher/ParentAccessTab/InviteCodeSection.tsx",
+    "src/components/teacher/ParentAccessTab/ApprovalInboxSection.tsx",
+    "src/components/teacher/ParentAccessTab/LinkedParentsSection.tsx",
+    "src/app/parent/onboard/signup/page.tsx",
+    "src/app/parent/onboard/match/code/page.tsx",
+    "src/app/parent/onboard/match/select/page.tsx",
+    "src/app/parent/onboard/pending/page.tsx",
+    "src/app/parent/onboard/rejected/page.tsx",
+    "src/app/parent/(authed-preActive)/",
+    "src/app/parent/(authed-active)/",
+    "src/app/api/class-invite-codes/route.ts",
+    "src/app/api/class-invite-codes/[codeId]/rotate/route.ts",
+    "src/app/api/parent/signup/route.ts",
+    "src/app/api/parent/match/code/route.ts",
+    "src/app/api/parent/match/students/route.ts",
+    "src/app/api/parent/match/request/route.ts",
+    "src/app/api/parent/approvals/[linkId]/approve/route.ts",
+    "src/app/api/parent/approvals/[linkId]/reject/route.ts",
+    "src/lib/parent-auth-only.ts",
+    "src/lib/parent-scope.ts",
+    "src/lib/rate-limit-parent.ts",
+    "src/lib/cron/expire-pending-links.ts",
+    "src/emails/parent-rejected-wrong-child.tsx",
+    "src/emails/parent-rejected-not-parent.tsx",
+    "src/emails/parent-rejected-other.tsx",
+    "src/emails/parent-auto-expired.tsx",
+    "src/emails/parent-code-rotated.tsx",
+    "src/emails/parent-classroom-deleted.tsx",
+    "src/emails/teacher-reminder-d3.tsx",
+    "src/emails/teacher-warning-d6.tsx",
+    "src/emails/teacher-summary-d7.tsx",
+    "vercel.json"
+  ],
+  "retired_surfaces": [
+    "src/components/ParentInviteButton.tsx (학생 카드 드롭다운의 '학부모 초대' 진입점, D-35)",
+    "src/app/api/students/[id]/parent-invites/route.ts (v1 학생별 발급, 410 Gone 전환 후보)",
+    "src/app/api/parent-invites/[id]/route.ts (v1 revoke/reissue, 410 Gone 전환 후보)",
+    "src/app/api/parent/redeem-code/route.ts (v1 코드 교환, v2 /api/parent/match/code로 대체)"
+  ],
+  "context_refs": [
+    "INBOX/2026-04-13-parent-class-invite-refine/seed.yaml",
+    "INBOX/2026-04-13-parent-class-invite-refine/decisions.md",
+    "INBOX/2026-04-13-parent-class-invite-refine/handoff_note.md",
+    "INBOX/2026-04-13-parent-class-invite-refine/AMENDMENT_2026-04-13_link-lifetime.md",
+    "INBOX/2026-04-13-parent-class-invite-refine/MANIFEST.md",
+    "docs/architecture.md",
+    "docs/design-system.md",
+    "docs/coding-principles-karpathy.md",
+    "prisma/schema.prisma",
+    "prisma/migrations/20260412_add_parent_viewer/",
+    "tasks/2026-04-12-parent-viewer-access/phase10/deploy_log.md"
+  ],
+  "user_preconfirmed": {
+    "approval_sla": "권고 24h / 자동 만료 7d / 에스컬레이션 없음 + D+3·D+6 리마인더",
+    "rejection_reasons": ["wrong_child", "not_parent", "other"],
+    "masked_name_format": "김○○ (성 1자 + ○○)",
+    "migration_strategy": "없음 (단, 실제 배포 여부는 phase2 USER-REVIEW 블로커)"
+  },
+  "role_constraints": {
+    "forbidden_roles": ["owner", "editor", "viewer"],
+    "allowed_roles": ["teacher", "student", "parent"],
+    "note": "owner/editor/viewer mock 역할 의존 금지 — 별도 정리 task로 분리됨"
+  },
+  "entrypoint_tasks": [
+    "PV-13 셀프매칭 UI·API",
+    "PV-14 교사 승인 인박스 UI",
+    "PV-15 Vercel Cron + 이메일 스케줄",
+    "PV-16 ClassInviteCode 회전",
+    "PV-17 Classroom 삭제 cascade revoke (AMENDMENT)"
+  ],
+  "out_of_scope_v2": [
+    "교사 자유 메시지 입력 (거부 이메일 커스텀 문구)",
+    "에스컬레이션 경로 (1인 개발자 운영)",
+    "학부모 앱 네이티브 (웹 모바일만)",
+    "부/모 합산 권한 통합",
+    "Kakao/Google OAuth 학부모 (v2+)",
+    "사칭 감지 SOP 고도화 (운영 단계 P2 파킹)",
+    "owner/editor/viewer 역할 의존 기능 (별도 task)"
+  ],
+  "created_at": "2026-04-15T10:00:00+09:00"
+}
