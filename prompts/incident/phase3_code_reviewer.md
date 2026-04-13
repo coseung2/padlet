@@ -22,10 +22,15 @@
 1. stale 마커 제거: `rm -f phase3/REVIEW_OK.marker`
 2. `/review` 실행 — staff engineer 관점
 3. `/codex` 실행 — cross-model 2차 의견
-4. 판정:
-   - **둘 다 PASS** → `touch phase3/REVIEW_OK.marker`
+4. **Karpathy 4 원칙 감사** (`docs/coding-principles-karpathy.md`):
+   - [ ] 가정 명시됐나? (phase1/diagnosis.md 에 근본 원인 기록)
+   - [ ] diff 가 최소 변경인가? (버그 수정 외 코드 손대지 않음)
+   - [ ] 변경된 모든 줄이 diagnosis.md 의 수정 방향에 직접 매핑되는가?
+   - [ ] 회귀 테스트가 버그 재현 → 통과 형태인가? (Goal-Driven)
+5. 판정:
+   - **셋 다 PASS (review + codex + karpathy)** → `touch phase3/REVIEW_OK.marker`
    - **하나라도 FAIL** → 마커 없음, phase2로 반려
-5. 긴급 단축(`severity == critical`) 시 `/codex`를 `/review` 단독으로 대체 가능 (`SHORT_CIRCUIT.md`에 사유 기록)
+6. 긴급 단축(`severity == critical`) 시 `/codex`를 `/review` 단독으로 대체 가능 (`SHORT_CIRCUIT.md`에 사유 기록). Karpathy 감사는 단축 불가.
 
 ## gstack 스킬
 

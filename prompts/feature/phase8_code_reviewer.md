@@ -23,9 +23,14 @@ staff 엔지니어 관점 코드 리뷰. 프로덕션 버그 탐색 + 자동 수
 1. stale 마커 제거: `rm -f phase8/REVIEW_OK.marker`
 2. `/review` 실행 — staff engineer 관점, production bug 탐색, 명백한 수정은 자동 적용
 3. `design_doc.md` 준수 여부 확인 (스코프 드리프트 감지)
-4. 보안 민감 영역(auth, file upload, DB write, 외부 API)이 변경됐으면 `/cso` 실행
-5. (선택) `/codex` 2차 의견 — cross-model 검증
-6. 판정:
+4. **Karpathy 4 원칙 감사** (`docs/coding-principles-karpathy.md`):
+   - [ ] Think Before Coding — 가정이 phase3/design_doc.md 에 명시돼 있나?
+   - [ ] Simplicity First — 과설계/투기적 추상화가 없는가? 요청 범위 내에서만 구현?
+   - [ ] Surgical Changes — diff 의 모든 변경이 사용자 요청으로 추적 가능한가? 인접 코드 "개선" 여부?
+   - [ ] Goal-Driven Execution — 각 변경에 검증 기준(테스트/수용기준) 매칭?
+5. 보안 민감 영역(auth, file upload, DB write, 외부 API)이 변경됐으면 `/cso` 실행
+6. (선택) `/codex` 2차 의견 — cross-model 검증
+7. 판정:
    - **전체 PASS** → `touch phase8/REVIEW_OK.marker`
    - **FAIL** → 마커 생성 금지, phase7로 반려
 

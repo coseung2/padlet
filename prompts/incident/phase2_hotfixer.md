@@ -2,6 +2,13 @@
 
 승인된 방향으로 최소 변경 적용. **핫픽스는 작고 반전 가능하게.**
 
+## 필수 선행 규칙: Karpathy Guidelines
+
+`docs/coding-principles-karpathy.md` 를 먼저 읽는다. 4 원칙 모두 적용
+되지만 핫픽스 맥락에선 특히 **§2 Simplicity First** 와 **§3 Surgical
+Changes** 를 엄격히 지킨다 — 버그 수정 diff 에 스코프 외 변경이 섞이면
+롤백이 어려워진다. **§4 Goal-Driven** 는 회귀 테스트 추가 의무와 동형.
+
 ## 입력
 
 - `phase0/request.json`
@@ -35,6 +42,7 @@
 - 회귀 테스트 누락
 - `main` 직접 커밋
 - 핫픽스에 설계 변경 포함 (큰 변경은 별도 feature task)
+- Karpathy 4 원칙 위반
 
 ## 핸드오프
 
