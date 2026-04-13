@@ -81,6 +81,17 @@ export const CanvaEmbedSlot = memo(function CanvaEmbedSlot({
     }
   }, [active]);
 
+  // Fallback timeout: some Canva designs (/view share surface on certain
+  // document/poster types) throw a state-deserialize error inside the
+  // iframe and never fire onLoad/onError on the parent. If we don't hear
+  // back within 8 seconds, treat it as a silent failure and surface the
+  // link-preview so the card is never blank.
+  useEffect(() => {
+    if (!active || iframeLoaded || iframeFailed) return;
+    const t = window.setTimeout(() => setIframeFailed(true), 8000);
+    return () => window.clearTimeout(t);
+  }, [active, iframeLoaded, iframeFailed]);
+
   // When THIS slot is the one evicted by LRU overflow, show a brief toast
   // on its header. Other slots ignore the eviction event.
   useEffect(() => {
@@ -162,7 +173,7 @@ export const CanvaEmbedSlot = memo(function CanvaEmbedSlot({
   const embedSrc = useMemo(() => {
     return (
       buildCanvaEmbedSrc(linkUrl) ??
-      `https://www.canva.com/design/${designId}/watch?embed`
+      `https://www.canva.com/design/${designId}/view?embed&meta`
     );
   }, [linkUrl, designId]);
   const shouldRenderIframe = active && inView;
