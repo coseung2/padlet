@@ -1,0 +1,33 @@
+{
+  "task_id": "2026-04-15-parent-class-invite-v2",
+  "base": "docs/design-system.md §1 (2026-04-13 snapshot)",
+  "additions": {
+    "--color-warning": {
+      "value": "#f59e0b",
+      "section": "1.8 Warning (신규)",
+      "usage": "D+3~5 배지 전경, 경고 상태 전경",
+      "contrast_on_tinted_bg": "4.82:1 (AA small text)",
+      "rationale": "design_brief §5.4 option (a) — D+N 3단계 시각 분기 필수. accent-tinted 재사용 시 CTA 의미와 충돌."
+    },
+    "--color-warning-tinted-bg": {
+      "value": "#fef3c7",
+      "section": "1.8 Warning (신규)",
+      "usage": "D+3~5 배지 배경, 경고 banner 배경",
+      "rationale": "accent-tinted-bg 패턴과 동일 구조의 neutral-tinted warning bg"
+    }
+  },
+  "modifications": {},
+  "deprecations": {},
+  "design_system_docs_patch": {
+    "target": "docs/design-system.md",
+    "timing": "phase8 code_reviewer 통과 후 (brief §5.5)",
+    "changes": [
+      "§1.8 Warning 섹션 신규 추가 (--color-warning + --color-warning-tinted-bg)",
+      "§11 체크리스트에 '터치 타깃 44px (태블릿 우선 surface)' 항목 추가"
+    ]
+  },
+  "notes": [
+    "Toast 컴포넌트가 design-system §7 에 공식 정의되어 있지 않음. 본 task 에서 task-local <Toast /> 신규 추가 예정. phase6 reviewer 확인 후 glob 승격 여부 판단.",
+    "v1 변형 기준 필요 토큰만 포함. v2(0개)/v3/v4 의 예비 토큰은 rejected 에만 존재."
+  ]
+}
