@@ -27,7 +27,10 @@ type Props = {
   onClose: () => void;
 };
 
-export function CreateBoardModal({ classrooms, userTier = "free", onClose }: Props) {
+export function CreateBoardModal({ classrooms, userTier = "pro", onClose }: Props) {
+  // Default matches backend tier.ts: solo-teacher deployment defaults to Pro
+  // unless FREE_USER_IDS env explicitly lists this user. The old "free"
+  // default made every breakout template look locked even for Pro users.
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState<"layout" | "classroom" | "breakout">("layout");
