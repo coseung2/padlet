@@ -42,15 +42,23 @@ const BodySchema = z
   .object({
     boardId: z.string().min(1).max(40),
     title: z.string().min(1).max(200),
+    // imageDataUrl is OPTIONAL — the Canva App's "Aura-board에 게시" button
+    // path posts only {canvaDesignUrl}; thumbnail is fetched server-side via
+    // Canva Connect. When imageDataUrl is present (legacy Content Publisher
+    // path), it's used as the card thumbnail/image.
     imageDataUrl: z
       .string()
-      .regex(/^data:image\/png;base64,/, "imageDataUrl must be a data:image/png;base64, URL"),
+      .regex(/^data:image\/png;base64,/, "imageDataUrl must be a data:image/png;base64, URL")
+      .optional(),
     sectionId: z.string().min(1).max(40).nullable().optional(),
     // Canva design URL of the source — when supplied, the card is wired
     // for CanvaEmbedSlot's thumbnail+live toggle UX.
     canvaDesignUrl: z.string().url().max(500).optional(),
   })
-  .strict();
+  .strict()
+  .refine((b) => b.imageDataUrl || b.canvaDesignUrl, {
+    message: "Either imageDataUrl or canvaDesignUrl must be provided",
+  });
 
 export async function POST(req: Request) {
   // [1] Content-Length hard guard (before body parse).
@@ -114,9 +122,14 @@ export async function POST(req: Request) {
   // 4MB body can yield ~3MB PNG. We recheck the decoded buffer in blob.ts,
   // but a quick length check here saves a decode round-trip for obvious
   // violations beyond content-length (e.g. chunked requests).
-  const approxBytes = Math.floor((input.imageDataUrl.length - "data:image/png;base64,".length) * 0.75);
-  if (approxBytes > MAX_BODY_BYTES) {
-    return externalErrorResponse("payload_too_large");
+  // Skip when imageDataUrl is absent (Canva "게시" button path — no PNG).
+  if (input.imageDataUrl) {
+    const approxBytes = Math.floor(
+      (input.imageDataUrl.length - "data:image/png;base64,".length) * 0.75
+    );
+    if (approxBytes > MAX_BODY_BYTES) {
+      return externalErrorResponse("payload_too_large");
+    }
   }
 
   // [7] scopeBoardIds allowlist check.
@@ -241,54 +254,65 @@ export async function POST(req: Request) {
     select: { id: true },
   });
 
-  let blobUrl: string;
-  try {
-    const res = await uploadPngFromDataUrl(
-      input.imageDataUrl,
-      `external-cards/${board.id}/${card.id}.png`
-    );
-    blobUrl = res.url;
-  } catch (e) {
-    // Rollback empty card.
-    await db.card.delete({ where: { id: card.id } }).catch(() => void 0);
-    if (e instanceof BlobUploadError) {
-      return externalErrorResponse("blob_upload_failed");
+  // Image path:
+  //   (a) imageDataUrl provided → upload to Blob → use as card image/linkImage.
+  //   (b) imageDataUrl absent, canvaDesignUrl present → fetch thumbnail from
+  //       Canva Connect (teacher's token) and store the remote URL as linkImage.
+  //       If Connect fails, linkImage stays null and the card renders with a
+  //       placeholder until a backfill runs.
+  let blobUrl: string | null = null;
+  if (input.imageDataUrl) {
+    try {
+      const res = await uploadPngFromDataUrl(
+        input.imageDataUrl,
+        `external-cards/${board.id}/${card.id}.png`
+      );
+      blobUrl = res.url;
+    } catch (e) {
+      await db.card.delete({ where: { id: card.id } }).catch(() => void 0);
+      if (e instanceof BlobUploadError) {
+        return externalErrorResponse("blob_upload_failed");
+      }
+      console.error("[POST /api/external/cards] upload", e);
+      return externalErrorResponse("internal");
     }
-    console.error("[POST /api/external/cards] upload", e);
-    return externalErrorResponse("internal");
   }
 
-  // For Canva-published cards, the blob PNG doubles as the thumbnail
-  // (linkImage) so CanvaEmbedSlot activates. For legacy image-only cards,
-  // imageUrl is the only field set.
-  //
-  // Also: if the Canva App sent a bare design URL (no share token), resolve
-  // through Canva Connect using the teacher's token to upgrade linkUrl to
-  // the public "공개 보기" URL that embeds all pages. Best-effort — if the
-  // teacher isn't connected or the design isn't visible to them, we keep
-  // the original URL and the iframe will fall back to the bare form.
+  // Resolve share URL + thumbnail via teacher's Canva Connect — best-effort.
+  // Triggers in two cases:
+  //   - bare canvaDesignUrl without share token → upgrade to public view URL
+  //   - no imageDataUrl (게시 button path) → need thumbnail from Canva API
   let finalLinkUrl: string | null = input.canvaDesignUrl ?? null;
+  let remoteThumbnailUrl: string | null = null;
   if (canvaDesignId && finalLinkUrl) {
     const hasShareToken = /\/design\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\//.test(
       new URL(finalLinkUrl).pathname
     );
-    if (!hasShareToken) {
+    const needThumbnail = !blobUrl;
+    if (!hasShareToken || needThumbnail) {
       try {
         const token = await getAccessToken(user.id);
         if (token) {
           const design = await canvaGetDesign(token, canvaDesignId);
-          if (design.viewUrl) finalLinkUrl = design.viewUrl;
+          if (!hasShareToken && design.viewUrl) finalLinkUrl = design.viewUrl;
+          if (needThumbnail && design.thumbnail?.url) {
+            remoteThumbnailUrl = design.thumbnail.url;
+          }
         }
       } catch (e) {
-        console.warn("[external/cards] share URL enrichment failed", e);
+        console.warn("[external/cards] Canva Connect enrichment failed", e);
       }
     }
   }
 
+  // For Canva-published cards, the blob PNG (or remote thumbnail) doubles as
+  // the thumbnail (linkImage) so CanvaEmbedSlot activates. For legacy
+  // image-only cards, imageUrl is the only field set.
+  const linkImage = blobUrl ?? remoteThumbnailUrl;
   await db.card.update({
     where: { id: card.id },
     data: input.canvaDesignUrl
-      ? { linkImage: blobUrl, linkUrl: finalLinkUrl }
+      ? { linkImage, linkUrl: finalLinkUrl }
       : { imageUrl: blobUrl },
   });
 
