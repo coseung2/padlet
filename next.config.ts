@@ -26,6 +26,10 @@ const nextConfig: NextConfig = {
       // YouTube thumbnails (used for video preview posters)
       { protocol: "https", hostname: "i.ytimg.com", pathname: "/**" },
       { protocol: "https", hostname: "img.youtube.com", pathname: "/**" },
+      // Vercel Blob — Canva publisher PNGs and other uploaded assets.
+      // Each Blob store gets a unique <prefix>.public.blob.vercel-storage.com
+      // host, so wildcard the subdomain.
+      { protocol: "https", hostname: "**.public.blob.vercel-storage.com", pathname: "/**" },
     ],
     // Device size variants used to build the srcset for responsive images.
     // Galaxy Tab S6 Lite viewport (1500×2000 CSS, DPR 2) is covered by
