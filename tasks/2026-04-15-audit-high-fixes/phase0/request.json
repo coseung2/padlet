@@ -1,0 +1,22 @@
+{
+  "type": "incident",
+  "task_id": "2026-04-15-audit-high-fixes",
+  "trigger": "Karpathy audit (2026-04-14) HIGH 2건 즉시 처리",
+  "source": "tasks/2026-04-14-karpathy-audit/audit_report.md",
+  "items": [
+    {
+      "id": "HIGH-A",
+      "file": "src/lib/auth.ts:32-43",
+      "symptom": "학생 QR 로그인 후 뒤로가기 시 로그인 정보 사라지고 owner 뷰어/에디터로 둔갑",
+      "root_cause": "production 환경에서 NextAuth 세션 + `as` 쿠키 모두 없으면 mock owner(u_owner)로 silent fallback. 학생/학부모 별도 쿠키 시스템 무시"
+    },
+    {
+      "id": "HIGH-B",
+      "file": "src/components/drawing/DrawingStudio.tsx:341-343",
+      "symptom": "모든 레이어(배경 포함) 비가시 상태로 저장 시 투명 PNG silently 업로드",
+      "root_cause": "flatten() 가 visible 레이어만 그리는데 호출부에 가드 없음"
+    }
+  ],
+  "skipped_phases": ["phase1_diagnosis"],
+  "skipped_reason": "audit_report.md 가 이미 phase1 진단 산출물 역할 — 근본 원인 + 재현 조건 + 권고안 모두 명시"
+}

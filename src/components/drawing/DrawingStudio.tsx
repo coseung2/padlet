@@ -338,6 +338,12 @@ export function DrawingStudio({ viewerKind = "student", onSaved }: Props) {
     setSaving(true);
     setSaveError(null);
     try {
+      // Guard against silently exporting a transparent PNG when every layer
+      // (including the white "배경" layer) is hidden — flatten() honours
+      // visibility and would otherwise produce blank output without warning.
+      if (!layers.some((l) => l.visible)) {
+        throw new Error("표시된 레이어가 없어요. 레이어를 켜고 다시 저장하세요.");
+      }
       const flat = flatten(layers);
       const blob = await new Promise<Blob | null>((resolve) =>
         flat.toBlob((b) => resolve(b), "image/png")
