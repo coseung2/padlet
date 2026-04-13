@@ -24,7 +24,11 @@ import { checkAll as rateLimitCheck } from "@/lib/rate-limit";
 import { uploadPngFromDataUrl, BlobUploadError } from "@/lib/blob";
 import { requireProTier, TierRequiredError } from "@/lib/tier";
 import { externalErrorResponse } from "@/lib/external-errors";
-import { extractCanvaDesignId, isCanvaDesignUrl, getAccessToken, canvaGetDesign } from "@/lib/canva";
+import {
+  extractCanvaDesignId,
+  isCanvaDesignUrl,
+  resolveCanvaEmbedUrl,
+} from "@/lib/canva";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -278,30 +282,19 @@ export async function POST(req: Request) {
     }
   }
 
-  // Resolve share URL + thumbnail via teacher's Canva Connect — best-effort.
-  // Triggers in two cases:
-  //   - bare canvaDesignUrl without share token → upgrade to public view URL
-  //   - no imageDataUrl (게시 button path) → need thumbnail from Canva API
+  // Standard flow: resolve thumbnail via Canva's public oEmbed endpoint
+  // (no teacher Connect token required — works for any design with public
+  // view share enabled). linkUrl stays the bare /design/{id}/view form;
+  // CanvaEmbedSlot's buildCanvaEmbedSrc already produces a working iframe
+  // src from that.
   let finalLinkUrl: string | null = input.canvaDesignUrl ?? null;
   let remoteThumbnailUrl: string | null = null;
-  if (canvaDesignId && finalLinkUrl) {
-    const hasShareToken = /\/design\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\//.test(
-      new URL(finalLinkUrl).pathname
-    );
-    const needThumbnail = !blobUrl;
-    if (!hasShareToken || needThumbnail) {
-      try {
-        const token = await getAccessToken(user.id);
-        if (token) {
-          const design = await canvaGetDesign(token, canvaDesignId);
-          if (!hasShareToken && design.viewUrl) finalLinkUrl = design.viewUrl;
-          if (needThumbnail && design.thumbnail?.url) {
-            remoteThumbnailUrl = design.thumbnail.url;
-          }
-        }
-      } catch (e) {
-        console.warn("[external/cards] Canva Connect enrichment failed", e);
-      }
+  if (finalLinkUrl && !blobUrl) {
+    try {
+      const embed = await resolveCanvaEmbedUrl(finalLinkUrl);
+      if (embed?.thumbnailUrl) remoteThumbnailUrl = embed.thumbnailUrl;
+    } catch (e) {
+      console.warn("[external/cards] oEmbed resolution failed", e);
     }
   }
 
