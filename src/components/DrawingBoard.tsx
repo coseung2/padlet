@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { StudentLibrary } from "./StudentLibrary";
+import { DrawingStudio } from "./drawing/DrawingStudio";
 
 type Asset = {
   id: string;
@@ -93,21 +94,26 @@ export function DrawingBoard({
         <div role="tabpanel" className="drawing-panel">
           {tab === "studio" ? (
             DRAWPILE_URL ? (
+              // parent seed path — Drawpile 서버 realtime collab.
               <iframe
                 src={DRAWPILE_URL}
                 title="그림보드 작업실"
                 className="drawing-iframe"
                 sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
               />
+            ) : viewerKind === "student" ? (
+              // 브라우저 내장 스튜디오 (solo). Drawpile 미배포일 때 활성.
+              <DrawingStudio onSaved={loadShared} />
             ) : (
               <div className="drawing-placeholder">
                 <div className="placeholder-icon" aria-hidden>
                   🎨
                 </div>
-                <h3>그림보드 서버 미배포</h3>
-                <p>Drawpile 서버가 아직 준비되지 않았어요.</p>
+                <h3>학생만 그릴 수 있어요</h3>
+                <p>학생 계정으로 로그인하면 작업실이 열립니다.</p>
                 <p className="muted">
-                  운영자: <code>BLOCKERS.md</code> 의 배포 체크리스트 참조.
+                  실시간 협업 Drawpile 서버 배포 상태:{" "}
+                  <code>BLOCKERS.md</code>
                 </p>
               </div>
             )

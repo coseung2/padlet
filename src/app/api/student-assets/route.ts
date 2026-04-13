@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { randomBytes } from "crypto";
+import { put } from "@vercel/blob";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentStudent } from "@/lib/student-auth";
@@ -43,17 +45,42 @@ export async function POST(req: Request) {
       );
     }
 
+    const source = ((form.get("source") as string | null) ?? "upload").slice(0, 20);
+    const isSharedToClass = form.get("isSharedToClass") === "true";
+
     const ext = file.name.includes(".")
       ? file.name.split(".").pop()!.toLowerCase()
       : file.type.split("/")[1] ?? "png";
     // sanitize — only alnum extension
     const safeExt = /^[a-z0-9]+$/.test(ext) ? ext : "png";
-    const filename = `asset-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${safeExt}`;
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(uploadDir, { recursive: true });
+    const filename = `asset-${Date.now()}-${randomBytes(3).toString("hex")}.${safeExt}`;
+    const pathname = `student-assets/${student.id}/${filename}`;
     const buffer = Buffer.from(await file.arrayBuffer());
-    await writeFile(path.join(uploadDir, filename), buffer);
-    const fileUrl = `/uploads/${filename}`;
+
+    // Prefer Vercel Blob — fs writes are ephemeral on Lambda. Fall back to
+    // public/uploads/ only for local dev without BLOB_READ_WRITE_TOKEN.
+    let fileUrl: string;
+    const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+    if (blobToken) {
+      try {
+        const res = await put(pathname, buffer, {
+          access: "public",
+          contentType: file.type,
+          token: blobToken,
+          multipart: true,
+          addRandomSuffix: false,
+        });
+        fileUrl = res.url;
+      } catch (e) {
+        console.error("[POST /api/student-assets] blob put failed:", e);
+        return NextResponse.json({ error: "Blob upload failed" }, { status: 500 });
+      }
+    } else {
+      const uploadDir = path.join(process.cwd(), "public", "uploads");
+      await mkdir(uploadDir, { recursive: true });
+      await writeFile(path.join(uploadDir, filename), buffer);
+      fileUrl = `/uploads/${filename}`;
+    }
 
     const asset = await db.studentAsset.create({
       data: {
@@ -64,7 +91,8 @@ export async function POST(req: Request) {
         thumbnailUrl: fileUrl, // same file for now; later a resized variant
         format: file.type,
         sizeBytes: file.size,
-        source: "upload",
+        source,
+        isSharedToClass,
       },
     });
 
