@@ -23,11 +23,11 @@ type SearchParams = Promise<{
   state?: string;
   code_challenge?: string;
   code_challenge_method?: string;
-  // Forwarded from the Canva app (requestAuthorization queryParams) —
-  // a getCanvaUserToken() JWT that lets /api/oauth/consent link the
-  // student to the Canva user id on approval. Safe to log since the JWT
-  // is short-lived + signed.
-  canva_token?: string;
+  // Short HMAC-signed nonce that carries a verified Canva user id so
+  // /api/oauth/consent can create a CanvaAppLink row. The Canva app
+  // obtains the nonce via POST /api/external/link-start before calling
+  // requestAuthorization and includes it via queryParams.link_nonce.
+  link_nonce?: string;
 }>;
 
 export const metadata = { title: "Aura-board 앱 권한 요청" };
@@ -51,8 +51,8 @@ export default async function AuthorizePage({
 }) {
   const q = await searchParams;
   console.log("[oauth/authorize] incoming query keys:", Object.keys(q), {
-    hasCanvaToken: Boolean(q.canva_token),
-    canvaTokenLen: q.canva_token?.length ?? 0,
+    hasLinkNonce: Boolean(q.link_nonce),
+    linkNonceLen: q.link_nonce?.length ?? 0,
   });
 
   // [1] Response type must be "code".
@@ -131,8 +131,8 @@ export default async function AuthorizePage({
           name="code_challenge_method"
           value={q.code_challenge_method ?? "S256"}
         />
-        {q.canva_token && (
-          <input type="hidden" name="canva_token" value={q.canva_token} />
+        {q.link_nonce && (
+          <input type="hidden" name="link_nonce" value={q.link_nonce} />
         )}
 
         <div className="oauth-header">

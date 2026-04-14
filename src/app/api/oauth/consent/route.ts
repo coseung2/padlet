@@ -14,7 +14,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentStudent } from "@/lib/student-auth";
 import { issueAuthCode } from "@/lib/oauth-server";
-import { verifyCanvaToken, looksLikeCanvaJwt } from "@/lib/canva-jwt";
+import { verifyLinkNonce } from "@/lib/canva-link-nonce";
 
 export const runtime = "nodejs";
 export const maxDuration = 10;
@@ -69,40 +69,35 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid_decision" }, { status: 400 });
   }
 
-  // If the Canva app forwarded a getCanvaUserToken() JWT through the
-  // authorize flow, bind the resulting Canva user id to this student now.
-  // Subsequent /api/external/* calls from the Canva app can then pass the
-  // JWT as Bearer and be resolved to this student without any cookie.
-  const canvaToken = String(form.get("canva_token") ?? "").trim();
+  // If the Canva app passed a link_nonce (short HMAC token it obtained
+  // from /api/external/link-start before requestAuthorization), use it to
+  // upsert the CanvaAppLink binding this student to the Canva user id.
+  // The nonce is much shorter than the raw Canva JWT so Canva's SDK
+  // actually forwards it through requestAuthorization.queryParams.
+  const linkNonce = String(form.get("link_nonce") ?? "").trim();
   console.log("[oauth/consent]", {
     studentId: student.id,
     clientId,
-    hasCanvaToken: Boolean(canvaToken),
-    canvaTokenLen: canvaToken.length,
+    hasLinkNonce: Boolean(linkNonce),
+    linkNonceLen: linkNonce.length,
     allFormKeys: Array.from(form.keys()),
   });
-  if (canvaToken && looksLikeCanvaJwt(canvaToken)) {
-    try {
-      const claims = await verifyCanvaToken(canvaToken);
-      console.log("[oauth/consent] linking canvaUserId:", claims.canvaUserId);
+  if (linkNonce) {
+    const payload = verifyLinkNonce(linkNonce);
+    if (payload) {
+      console.log("[oauth/consent] linking canvaUserId:", payload.canvaUserId);
       await db.canvaAppLink.upsert({
-        where: { canvaUserId: claims.canvaUserId },
+        where: { canvaUserId: payload.canvaUserId },
         create: {
-          canvaUserId: claims.canvaUserId,
+          canvaUserId: payload.canvaUserId,
           studentId: student.id,
           scope,
         },
         update: { studentId: student.id, scope },
       });
-    } catch (e) {
-      // Non-fatal — still issue the auth code; app can retry the link flow.
-      console.warn("[oauth/consent] Canva JWT link skipped:", e);
+    } else {
+      console.warn("[oauth/consent] link_nonce invalid or expired");
     }
-  } else if (canvaToken) {
-    console.warn(
-      "[oauth/consent] canva_token present but shape invalid",
-      canvaToken.slice(0, 32),
-    );
   }
 
   const code = await issueAuthCode({
