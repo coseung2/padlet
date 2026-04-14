@@ -162,38 +162,40 @@ export async function POST(req: Request) {
     }
 
     // ── Assignment branch (AB-1) ─────────────────────────────────────────
+    // Board-first flow: classroomId optional at creation. When absent the
+    // board is created empty (0 slots); teacher attaches a classroom later
+    // from the in-board FAB, which calls `/api/boards/[id]/roster-sync` to
+    // populate slots. Consistent with how every other layout is created.
     if (input.layout === "assignment") {
-      if (!input.classroomId) {
-        return NextResponse.json({ error: "classroom_required" }, { status: 400 });
-      }
-      const classroom = await db.classroom.findUnique({
-        where: { id: input.classroomId },
-        include: {
-          students: { orderBy: [{ number: "asc" }, { createdAt: "asc" }] },
-        },
-      });
-      if (!classroom) {
-        return NextResponse.json({ error: "classroom_not_found" }, { status: 404 });
-      }
-      if (classroom.teacherId !== user.id) {
-        return NextResponse.json({ error: "not_classroom_teacher" }, { status: 403 });
-      }
-      const roster = classroom.students;
-      if (roster.length === 0) {
-        return NextResponse.json({ error: "empty_classroom" }, { status: 400 });
-      }
-      if (roster.length > ASSIGNMENT_MAX_SLOTS) {
-        return NextResponse.json(
-          { error: "classroom_too_large", max: ASSIGNMENT_MAX_SLOTS, actual: roster.length },
-          { status: 400 }
-        );
-      }
-      const missingNumber = roster.filter((s) => s.number == null).map((s) => s.id);
-      if (missingNumber.length > 0) {
-        return NextResponse.json(
-          { error: "student_missing_number", studentIds: missingNumber },
-          { status: 400 }
-        );
+      let classroom: { id: string; students: { id: string; number: number | null; name: string }[] } | null = null;
+      if (input.classroomId) {
+        const c = await db.classroom.findUnique({
+          where: { id: input.classroomId },
+          include: {
+            students: { orderBy: [{ number: "asc" }, { createdAt: "asc" }] },
+          },
+        });
+        if (!c) {
+          return NextResponse.json({ error: "classroom_not_found" }, { status: 404 });
+        }
+        if (c.teacherId !== user.id) {
+          return NextResponse.json({ error: "not_classroom_teacher" }, { status: 403 });
+        }
+        const roster = c.students;
+        if (roster.length > ASSIGNMENT_MAX_SLOTS) {
+          return NextResponse.json(
+            { error: "classroom_too_large", max: ASSIGNMENT_MAX_SLOTS, actual: roster.length },
+            { status: 400 }
+          );
+        }
+        const missingNumber = roster.filter((s) => s.number == null).map((s) => s.id);
+        if (missingNumber.length > 0) {
+          return NextResponse.json(
+            { error: "student_missing_number", studentIds: missingNumber },
+            { status: 400 }
+          );
+        }
+        classroom = c;
       }
 
       const board = await db.$transaction(async (tx) => {
@@ -203,44 +205,46 @@ export async function POST(req: Request) {
             slug,
             layout: "assignment",
             description: input.description,
-            classroomId: classroom.id,
+            classroomId: classroom?.id ?? null,
             assignmentGuideText: input.assignmentGuideText ?? "",
             assignmentAllowLate: input.assignmentAllowLate ?? true,
             assignmentDeadline: input.assignmentDeadline ? new Date(input.assignmentDeadline) : null,
             members: { create: { userId: user.id, role: "owner" } },
           },
         });
-        for (const s of roster) {
-          const n = s.number as number; // guaranteed non-null by missingNumber check
-          const col = (n - 1) % 5;
-          const row = Math.floor((n - 1) / 5);
-          const card = await tx.card.create({
-            data: {
-              boardId: createdBoard.id,
-              authorId: user.id,
-              studentAuthorId: s.id,
-              externalAuthorName: s.name,
-              title: "",
-              content: "",
-              x: col * ASSIGN_CARD_W,
-              y: row * ASSIGN_CARD_H,
-              width: ASSIGN_CARD_W,
-              height: ASSIGN_CARD_H,
-            },
-          });
-          await tx.assignmentSlot.create({
-            data: {
-              boardId: createdBoard.id,
-              studentId: s.id,
-              slotNumber: n,
-              cardId: card.id,
-            },
-          });
+        if (classroom) {
+          for (const s of classroom.students) {
+            const n = s.number as number;
+            const col = (n - 1) % 5;
+            const row = Math.floor((n - 1) / 5);
+            const card = await tx.card.create({
+              data: {
+                boardId: createdBoard.id,
+                authorId: user.id,
+                studentAuthorId: s.id,
+                externalAuthorName: s.name,
+                title: "",
+                content: "",
+                x: col * ASSIGN_CARD_W,
+                y: row * ASSIGN_CARD_H,
+                width: ASSIGN_CARD_W,
+                height: ASSIGN_CARD_H,
+              },
+            });
+            await tx.assignmentSlot.create({
+              data: {
+                boardId: createdBoard.id,
+                studentId: s.id,
+                slotNumber: n,
+                cardId: card.id,
+              },
+            });
+          }
         }
         return createdBoard;
       });
 
-      return NextResponse.json({ board, slots: roster.length });
+      return NextResponse.json({ board, slots: classroom?.students.length ?? 0 });
     }
 
     // ── Non-breakout layouts (unchanged) ────────────────────────────────

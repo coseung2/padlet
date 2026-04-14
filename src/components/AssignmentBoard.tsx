@@ -6,12 +6,21 @@ import type { AssignmentSlotDTO, AssignmentBoardDTO } from "@/types/assignment";
 import { AssignmentGridView } from "./assignment/AssignmentGridView";
 import { AssignmentFullscreenModal } from "./assignment/AssignmentFullscreenModal";
 import { AssignmentStudentView } from "./assignment/AssignmentStudentView";
+import {
+  AttachClassroomModal,
+  type ClassroomOption,
+} from "./assignment/AttachClassroomModal";
 
 type Props = {
   viewer: "teacher" | "student";
   board: AssignmentBoardDTO;
   initialSlots: AssignmentSlotDTO[];
   canStudentSubmit?: boolean;
+  // Teacher-only props for the attach-classroom FAB. When the board is
+  // created empty (no classroomId), the teacher uses this FAB to bind a
+  // classroom and bulk-generate slots in one call.
+  teacherClassrooms?: ClassroomOption[];
+  boundClassroom?: { id: string; name: string; studentCount: number } | null;
 };
 
 /**
@@ -19,11 +28,27 @@ type Props = {
  * flow to use AssignmentSlot. Same file path so `src/app/board/[id]/page.tsx`
  * import stays stable.
  */
-export function AssignmentBoard({ viewer, board, initialSlots, canStudentSubmit }: Props) {
+export function AssignmentBoard({
+  viewer,
+  board,
+  initialSlots,
+  canStudentSubmit,
+  teacherClassrooms,
+  boundClassroom,
+}: Props) {
   const router = useRouter();
   const [slots, setSlots] = useState<AssignmentSlotDTO[]>(initialSlots);
   const [openSlotId, setOpenSlotId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [attachOpen, setAttachOpen] = useState(false);
+
+  const attachMode: "attach" | "sync" = boundClassroom ? "sync" : "attach";
+  const newStudentCount = boundClassroom
+    ? Math.max(0, boundClassroom.studentCount - slots.length)
+    : 0;
+  const fabVisible =
+    viewer === "teacher" &&
+    (attachMode === "attach" || newStudentCount > 0);
 
   const orderedSlots = useMemo(
     () => [...slots].sort((a, b) => a.slotNumber - b.slotNumber),
@@ -138,7 +163,11 @@ export function AssignmentBoard({ viewer, board, initialSlots, canStudentSubmit 
           </section>
         )}
         {error && <div className="assign-inline-error">{error}</div>}
-        <AssignmentGridView slots={orderedSlots} onOpen={openSlotAndStampView} />
+        <AssignmentGridView
+          slots={orderedSlots}
+          onOpen={openSlotAndStampView}
+          isClassroomAttached={!!boundClassroom}
+        />
       </div>
       {openSlot && (
         <AssignmentFullscreenModal
@@ -150,6 +179,26 @@ export function AssignmentBoard({ viewer, board, initialSlots, canStudentSubmit 
           onNext={() => navigateBy(1)}
           onReturn={handleReturn}
           onReview={handleReview}
+        />
+      )}
+      {fabVisible && (
+        <button
+          type="button"
+          className="assign-fab"
+          aria-label={attachMode === "attach" ? "학급 배당하기" : "새 학생 동기화"}
+          onClick={() => setAttachOpen(true)}
+        >
+          {attachMode === "attach" ? "학급 배당" : `+${newStudentCount}`}
+        </button>
+      )}
+      {attachOpen && (
+        <AttachClassroomModal
+          boardId={board.id}
+          mode={attachMode}
+          classrooms={teacherClassrooms ?? []}
+          boundClassroomName={boundClassroom?.name ?? null}
+          newStudentCount={newStudentCount}
+          onClose={() => setAttachOpen(false)}
         />
       )}
     </div>
