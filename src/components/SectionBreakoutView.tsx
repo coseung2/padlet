@@ -1,5 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import { CardBody } from "./cards/CardBody";
+import { CardDetailModal } from "./cards/CardDetailModal";
+import type { CardData } from "./DraggableCard";
 
 type CardLike = {
   id: string;
@@ -39,6 +44,7 @@ export function SectionBreakoutView({
   shareManagementHref,
   autoJoinWarning,
 }: Props) {
+  const [openCard, setOpenCard] = useState<CardLike | null>(null);
   return (
     <main className="board-page">
       <header className="board-header">
@@ -84,15 +90,28 @@ export function SectionBreakoutView({
           {cards.map((c) => (
             <article
               key={c.id}
-              role="listitem"
-              className="column-card"
+              role="listitem button"
+              className="column-card is-clickable"
               style={{ backgroundColor: c.color ?? undefined }}
+              tabIndex={0}
+              onClick={() => setOpenCard(c)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setOpenCard(c);
+                }
+              }}
             >
               <CardBody card={c} titleAs="h4" />
             </article>
           ))}
         </div>
       )}
+
+      <CardDetailModal
+        card={openCard ? (openCard as unknown as CardData) : null}
+        onClose={() => setOpenCard(null)}
+      />
     </main>
   );
 }

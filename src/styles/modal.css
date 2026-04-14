@@ -25,6 +25,37 @@
   animation: modalIn 200ms ease;
 }
 
+/* Card detail lightbox — wider than the add/edit modal to host Canva
+   iframe + long content comfortably on tablet+desktop. */
+.card-detail-modal {
+  width: 880px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 48px);
+}
+
+.card-detail-body {
+  padding: 16px 24px 24px;
+}
+
+.card-detail-content {
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+.padlet-card.is-clickable,
+.stream-card.is-clickable,
+.grid-card.is-clickable,
+.column-card.is-clickable {
+  cursor: pointer;
+  outline-offset: 2px;
+}
+.padlet-card.is-clickable:focus-visible,
+.stream-card.is-clickable:focus-visible,
+.grid-card.is-clickable:focus-visible,
+.column-card.is-clickable:focus-visible {
+  outline: 2px solid var(--color-primary, #097fe8);
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

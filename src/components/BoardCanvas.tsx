@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { DraggableCard, type CardData } from "./DraggableCard";
 import { AddCardButton } from "./AddCardButton";
+import { CardDetailModal } from "./cards/CardDetailModal";
 
 type Role = "owner" | "editor" | "viewer";
 
@@ -20,6 +21,7 @@ export function BoardCanvas({
   currentRole,
 }: Props) {
   const [cards, setCards] = useState<CardData[]>(initialCards);
+  const [openCard, setOpenCard] = useState<CardData | null>(null);
   const [, startTransition] = useTransition();
   const canEdit = currentRole === "owner" || currentRole === "editor";
 
@@ -157,10 +159,12 @@ export function BoardCanvas({
             }
             onPositionChange={(x, y) => handlePositionChange(c.id, x, y)}
             onDelete={() => handleDelete(c.id)}
+            onOpen={() => setOpenCard(c)}
           />
         ))}
       </div>
       {canEdit && <AddCardButton onAdd={handleAdd} />}
+      <CardDetailModal card={openCard} onClose={() => setOpenCard(null)} />
     </div>
   );
 }

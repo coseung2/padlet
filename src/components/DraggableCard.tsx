@@ -37,6 +37,7 @@ type Props = {
   canDelete: boolean;
   onPositionChange: (x: number, y: number) => void;
   onDelete: () => void;
+  onOpen: () => void;
 };
 
 export function DraggableCard({
@@ -45,6 +46,7 @@ export function DraggableCard({
   canDelete,
   onPositionChange,
   onDelete,
+  onOpen,
 }: Props) {
   const nodeRef = useRef<HTMLElement>(null);
 
@@ -53,7 +55,7 @@ export function DraggableCard({
     return (
       <article
         ref={nodeRef}
-        className="padlet-card is-static"
+        className="padlet-card is-static is-clickable"
         style={{
           position: "absolute",
           left: card.x,
@@ -63,6 +65,15 @@ export function DraggableCard({
           backgroundColor: card.color ?? undefined,
         }}
         aria-label={card.title}
+        onClick={onOpen}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onOpen();
+          }
+        }}
+        tabIndex={0}
+        role="button"
       >
         <CardBody card={card} />
       </article>
@@ -74,8 +85,12 @@ export function DraggableCard({
       nodeRef={nodeRef as React.RefObject<HTMLElement>}
       position={{ x: card.x, y: card.y }}
       onStop={(_e: DraggableEvent, data: DraggableData) => {
+        // Drag — commit the new position. No drag (data.x/y unchanged) =
+        // click; open the detail modal instead.
         if (data.x !== card.x || data.y !== card.y) {
           onPositionChange(data.x, data.y);
+        } else {
+          onOpen();
         }
       }}
       cancel=".padlet-card-delete"
@@ -83,7 +98,7 @@ export function DraggableCard({
     >
       <article
         ref={nodeRef}
-        className="padlet-card is-draggable"
+        className="padlet-card is-draggable is-clickable"
         style={{
           position: "absolute",
           left: 0,
@@ -104,6 +119,7 @@ export function DraggableCard({
                 onDelete();
               }
             }}
+            onMouseDown={(e) => e.stopPropagation()}
             className="padlet-card-delete"
             aria-label={`${card.title} 카드 삭제`}
           >
