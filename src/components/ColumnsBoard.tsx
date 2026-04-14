@@ -487,7 +487,12 @@ export function ColumnsBoard({
         />
       )}
 
-      <CardDetailModal card={openCard} onClose={() => setOpenCard(null)} />
+      <CardDetailModal
+        card={openCard}
+        onClose={() => setOpenCard(null)}
+        cards={cards}
+        onChange={setOpenCard}
+      />
 
       {panelState && (() => {
         const section = sections.find((s) => s.id === panelState.sectionId);

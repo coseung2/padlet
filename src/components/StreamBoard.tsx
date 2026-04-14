@@ -121,7 +121,12 @@ export function StreamBoard({ boardId, initialCards, currentUserId, currentRole 
         ))}
       </div>
       {canEdit && <AddCardButton onAdd={handleAdd} />}
-      <CardDetailModal card={openCard} onClose={() => setOpenCard(null)} />
+      <CardDetailModal
+        card={openCard}
+        onClose={() => setOpenCard(null)}
+        cards={cards}
+        onChange={setOpenCard}
+      />
     </div>
   );
 }
