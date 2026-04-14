@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CardAttachments } from "../CardAttachments";
 import { CardAuthorFooter } from "./CardAuthorFooter";
+import { extractCanvaDesignId } from "@/lib/canva";
 import type { CardData } from "../DraggableCard";
 
 type Props = {
@@ -75,6 +76,11 @@ export function CardDetailModal({ card, onClose, cards, onChange }: Props) {
 
   if (!card) return null;
 
+  const canvaId = card.linkUrl ? extractCanvaDesignId(card.linkUrl) : null;
+  const canvaWatchUrl = canvaId
+    ? `https://www.canva.com/design/${canvaId}/watch`
+    : null;
+
   const hasMedia =
     Boolean(card.imageUrl) ||
     Boolean(card.linkImage) ||
@@ -113,6 +119,17 @@ export function CardDetailModal({ card, onClose, cards, onChange }: Props) {
         >
           {isFullscreen ? "⤫" : "⛶"}
         </button>
+        {canvaWatchUrl && (
+          <a
+            href={canvaWatchUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="card-detail-watch-overlay"
+            title="Canva 에서 발표 모드로 열기 (애니메이션 포함)"
+          >
+            ▶ 발표 모드
+          </a>
+        )}
         {cards && cards.length > 1 && navIndex >= 0 && (
           <>
             <button
@@ -151,16 +168,34 @@ export function CardDetailModal({ card, onClose, cards, onChange }: Props) {
             {card.content && (
               <p className="card-detail-content">{card.content}</p>
             )}
-            {card.linkUrl && (
-              <a
-                href={card.linkUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="card-detail-link"
-              >
-                🔗 원본 열기
-              </a>
-            )}
+            {card.linkUrl && (() => {
+              const canvaId = extractCanvaDesignId(card.linkUrl);
+              const canvaWatchUrl = canvaId
+                ? `https://www.canva.com/design/${canvaId}/watch`
+                : null;
+              return (
+                <>
+                  {canvaWatchUrl && (
+                    <a
+                      href={canvaWatchUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="card-detail-link card-detail-watch"
+                    >
+                      ▶ Canva 에서 발표 보기 (애니메이션)
+                    </a>
+                  )}
+                  <a
+                    href={card.linkUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="card-detail-link"
+                  >
+                    🔗 원본 열기
+                  </a>
+                </>
+              );
+            })()}
             <CardAuthorFooter
               externalAuthorName={card.externalAuthorName}
               studentAuthorName={card.studentAuthorName}
