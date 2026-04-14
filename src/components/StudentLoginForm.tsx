@@ -10,11 +10,11 @@ export function StudentLoginForm() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // ?from=... allows flows like /student/canva-pair to bounce through login
-  // and return to the intended page. Restricted to same-origin relative
-  // paths to prevent open-redirect.
+  // ?from=... / ?return=... allow flows like /student/canva-pair and
+  // /oauth/authorize to bounce through login and return to the intended
+  // page. Restricted to same-origin relative paths to prevent open-redirect.
   function safeReturnTarget(): string {
-    const raw = searchParams.get("from");
+    const raw = searchParams.get("from") ?? searchParams.get("return");
     if (!raw) return "/student";
     if (raw.startsWith("/") && !raw.startsWith("//")) return raw;
     return "/student";

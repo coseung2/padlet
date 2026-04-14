@@ -23,6 +23,11 @@ type SearchParams = Promise<{
   state?: string;
   code_challenge?: string;
   code_challenge_method?: string;
+  // Forwarded from the Canva app (requestAuthorization queryParams) —
+  // a getCanvaUserToken() JWT that lets /api/oauth/consent link the
+  // student to the Canva user id on approval. Safe to log since the JWT
+  // is short-lived + signed.
+  canva_token?: string;
 }>;
 
 export const metadata = { title: "Aura-board 앱 권한 요청" };
@@ -122,6 +127,9 @@ export default async function AuthorizePage({
           name="code_challenge_method"
           value={q.code_challenge_method ?? "S256"}
         />
+        {q.canva_token && (
+          <input type="hidden" name="canva_token" value={q.canva_token} />
+        )}
 
         <div className="oauth-header">
           <div className="oauth-app-icon" aria-hidden="true">🎨</div>

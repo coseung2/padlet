@@ -152,6 +152,7 @@ model Student {
   oauthAuthCodes      OAuthAuthCode[]
   oauthAccessTokens   OAuthAccessToken[]
   oauthRefreshTokens  OAuthRefreshToken[]
+  canvaAppLink        CanvaAppLink?
 
   @@unique([classroomId, number])
   @@index([classroomId])
@@ -829,4 +830,20 @@ model OAuthRefreshToken {
   @@index([tokenPrefix])
   @@index([studentId])
   @@index([expiresAt])
+}
+
+// Maps a Canva user (per the Canva Apps SDK's getCanvaUserToken JWT `sub`
+// claim) to one of our Student rows. Populated during OAuth consent when
+// the student authorizes the Canva app. Backend uses this table to resolve
+// Canva JWT Bearer tokens to an Aura-board student for external/* routes.
+model CanvaAppLink {
+  canvaUserId String   @id
+  studentId   String   @unique
+  scope       String   @default("cards:write")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
 }
