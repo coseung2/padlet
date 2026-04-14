@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { StudentLibrary } from "./StudentLibrary";
 import { DrawingStudio } from "./drawing/DrawingStudio";
+import { CanvasSizePicker } from "./drawing/CanvasSizePicker";
+import type { CanvasSize } from "./drawing/canvas/LayerStack";
 
 type Asset = {
   id: string;
@@ -40,6 +42,11 @@ export function DrawingBoard({
   const [sharedAssets, setSharedAssets] = useState<Asset[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(false);
   const [galleryError, setGalleryError] = useState<string | null>(null);
+  // Canvas size is chosen once per studio session via the picker gate.
+  // Null means "picker is open, studio not yet mounted". Persisted only
+  // for the lifetime of this component — picking a new size via the "새
+  // 캔버스" control resets to null.
+  const [canvasSize, setCanvasSize] = useState<CanvasSize | null>(null);
 
   const loadShared = useCallback(async () => {
     if (!classroomId) return;
@@ -101,11 +108,18 @@ export function DrawingBoard({
                 className="drawing-iframe"
                 sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
               />
-            ) : (
+            ) : canvasSize ? (
               // 브라우저 내장 스튜디오 — 학생/교사/비로그인 모두 렌더.
               // 저장 경로는 viewerKind에 따라 분기: 학생은 /api/student-assets
               // 로 업로드(+ 반 공유), 교사는 로컬 PNG 다운로드로 폴백.
-              <DrawingStudio viewerKind={viewerKind} onSaved={loadShared} />
+              <DrawingStudio
+                viewerKind={viewerKind}
+                onSaved={loadShared}
+                canvasSize={canvasSize}
+                classroomId={classroomId}
+              />
+            ) : (
+              <CanvasSizePicker onPick={(s) => setCanvasSize(s)} />
             )
           ) : (
             <div className="drawing-gallery-wrap">
