@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { AddCardButton } from "./AddCardButton";
 import { AddCardModal, type AddCardData } from "./AddCardModal";
 import { CardBody } from "./cards/CardBody";
+import { CardDetailModal } from "./cards/CardDetailModal";
 import { ContextMenu } from "./ContextMenu";
 import { EditCardModal } from "./EditCardModal";
 import { ExportModal } from "./ExportModal";
@@ -41,6 +42,7 @@ export function ColumnsBoard({
   );
   const [overSectionId, setOverSectionId] = useState<string | null>(null);
   const [editingCard, setEditingCard] = useState<CardData | null>(null);
+  const [openCard, setOpenCard] = useState<CardData | null>(null);
   const [panelState, setPanelState] = useState<{
     sectionId: string;
     tab: PanelTab;
@@ -412,15 +414,24 @@ export function ColumnsBoard({
                   return (
                     <article
                       key={c.id}
-                      className="column-card"
+                      className="column-card is-clickable"
                       style={{ backgroundColor: c.color ?? undefined }}
                       draggable={canEdit}
                       onDragStart={(e) => handleDragStart(e, c.id)}
                       onDragEnd={handleDragEnd}
+                      onClick={() => setOpenCard(c)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setOpenCard(c);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
                     >
                       <CardBody card={c} titleAs="h4" />
                       {canModify && (
-                        <div className="card-ctx-menu">
+                        <div className="card-ctx-menu" onClick={(e) => e.stopPropagation()}>
                           <ContextMenu
                             items={[
                               { label: "수정", icon: "✏️", onClick: () => setEditingCard(c) },
@@ -475,6 +486,8 @@ export function ColumnsBoard({
           onClose={() => setEditingCard(null)}
         />
       )}
+
+      <CardDetailModal card={openCard} onClose={() => setOpenCard(null)} />
 
       {panelState && (() => {
         const section = sections.find((s) => s.id === panelState.sectionId);

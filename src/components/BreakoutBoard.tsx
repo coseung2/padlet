@@ -17,6 +17,7 @@ import Link from "next/link";
 import { AddCardButton } from "./AddCardButton";
 import { AddCardModal, type AddCardData } from "./AddCardModal";
 import { CardBody } from "./cards/CardBody";
+import { CardDetailModal } from "./cards/CardDetailModal";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
 import { EditCardModal } from "./EditCardModal";
 import type { CardData } from "./DraggableCard";
@@ -87,6 +88,7 @@ export function BreakoutBoard({
   const [memberships, setMemberships] =
     useState<BreakoutMembershipData[]>(initialMemberships);
   const [editingCard, setEditingCard] = useState<CardData | null>(null);
+  const [openCard, setOpenCard] = useState<CardData | null>(null);
   const [addForSection, setAddForSection] = useState<string | null>(null);
   const [copying, setCopying] = useState<string | null>(null);
   const [managerOpen, setManagerOpen] = useState(false);
@@ -380,12 +382,21 @@ export function BreakoutBoard({
                   {sectionCards.map((c) => (
                     <article
                       key={c.id}
-                      className="column-card"
+                      className="column-card is-clickable"
                       style={{ backgroundColor: c.color ?? undefined, minWidth: 220 }}
+                      onClick={() => setOpenCard(c)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setOpenCard(c);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
                     >
                       <CardBody card={c} titleAs="h4" />
                       {canEdit && (
-                        <div className="card-ctx-menu">
+                        <div className="card-ctx-menu" onClick={(e) => e.stopPropagation()}>
                           <ContextMenu items={cardMenuItems(c, true)} />
                         </div>
                       )}
@@ -477,12 +488,21 @@ export function BreakoutBoard({
                       {sectionCards.map((c) => (
                         <article
                           key={c.id}
-                          className="column-card"
+                          className="column-card is-clickable"
                           style={{ backgroundColor: c.color ?? undefined }}
+                          onClick={() => setOpenCard(c)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setOpenCard(c);
+                            }
+                          }}
+                          tabIndex={0}
+                          role="button"
                         >
                           <CardBody card={c} titleAs="h4" />
                           {canEdit && (
-                            <div className="card-ctx-menu">
+                            <div className="card-ctx-menu" onClick={(e) => e.stopPropagation()}>
                               <ContextMenu items={cardMenuItems(c, false)} />
                             </div>
                           )}
@@ -552,6 +572,8 @@ export function BreakoutBoard({
           onClose={() => setEditingCard(null)}
         />
       )}
+
+      <CardDetailModal card={openCard} onClose={() => setOpenCard(null)} />
     </div>
   );
 }

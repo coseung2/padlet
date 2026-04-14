@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AddCardButton } from "./AddCardButton";
 import { CardBody } from "./cards/CardBody";
+import { CardDetailModal } from "./cards/CardDetailModal";
 import type { CardData } from "./DraggableCard";
 
 type Props = {
@@ -16,6 +17,7 @@ export function StreamBoard({ boardId, initialCards, currentUserId, currentRole 
   const [cards, setCards] = useState<CardData[]>(
     [...initialCards].sort((a, b) => a.order - b.order)
   );
+  const [openCard, setOpenCard] = useState<CardData | null>(null);
   const canEdit = currentRole === "owner" || currentRole === "editor";
 
   async function handleAdd(data: {
@@ -82,9 +84,18 @@ export function StreamBoard({ boardId, initialCards, currentUserId, currentRole 
         {cards.map((c, i) => (
           <article
             key={c.id}
-            className="stream-card"
+            className="stream-card is-clickable"
             style={{ backgroundColor: c.color ?? undefined }}
             aria-label={c.title}
+            onClick={() => setOpenCard(c)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setOpenCard(c);
+              }
+            }}
+            tabIndex={0}
+            role="button"
           >
             <div className="stream-card-meta">
               <span className="stream-card-number">#{i + 1}</span>
@@ -96,7 +107,8 @@ export function StreamBoard({ boardId, initialCards, currentUserId, currentRole 
             {(currentRole === "owner" || (currentRole === "editor" && c.authorId === currentUserId)) && (
               <button
                 type="button"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   if (window.confirm(`"${c.title}" 카드를 삭제할까요?`)) handleDelete(c.id);
                 }}
                 className="padlet-card-delete"
@@ -109,6 +121,7 @@ export function StreamBoard({ boardId, initialCards, currentUserId, currentRole 
         ))}
       </div>
       {canEdit && <AddCardButton onAdd={handleAdd} />}
+      <CardDetailModal card={openCard} onClose={() => setOpenCard(null)} />
     </div>
   );
 }

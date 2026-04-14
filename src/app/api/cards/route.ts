@@ -85,7 +85,18 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({ card });
+    // Mirror the server-side cardProps mapping (board/[id]/page.tsx:209) so
+    // the client can drop the response straight into state and keep the
+    // CardAuthorFooter populated without a page reload.
+    return NextResponse.json({
+      card: {
+        ...card,
+        createdAt: card.createdAt.toISOString(),
+        authorName: user.name,
+        studentAuthorName: null,
+        externalAuthorName: card.externalAuthorName,
+      },
+    });
   } catch (e) {
     if (e instanceof ForbiddenError) {
       return NextResponse.json({ error: e.message }, { status: 403 });
