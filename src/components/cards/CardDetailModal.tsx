@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CardAttachments } from "../CardAttachments";
 import { CardAuthorFooter } from "./CardAuthorFooter";
 import type { CardData } from "../DraggableCard";
@@ -8,16 +8,38 @@ import type { CardData } from "../DraggableCard";
 type Props = {
   card: CardData | null;
   onClose: () => void;
+  /** Optional: cards list + setter for prev/next navigation. */
+  cards?: CardData[];
+  onChange?: (card: CardData) => void;
 };
 
-export function CardDetailModal({ card, onClose }: Props) {
+export function CardDetailModal({ card, onClose, cards, onChange }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const navIndex = useMemo(() => {
+    if (!card || !cards || cards.length === 0) return -1;
+    return cards.findIndex((c) => c.id === card.id);
+  }, [card, cards]);
+
+  const goPrev = useCallback(() => {
+    if (!cards || navIndex < 0) return;
+    const next = cards[(navIndex - 1 + cards.length) % cards.length];
+    if (next) onChange?.(next);
+  }, [cards, navIndex, onChange]);
+
+  const goNext = useCallback(() => {
+    if (!cards || navIndex < 0) return;
+    const next = cards[(navIndex + 1) % cards.length];
+    if (next) onChange?.(next);
+  }, [cards, navIndex, onChange]);
 
   useEffect(() => {
     if (!card) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape" && !document.fullscreenElement) onClose();
+      else if (e.key === "ArrowLeft") goPrev();
+      else if (e.key === "ArrowRight") goNext();
     }
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
@@ -25,7 +47,7 @@ export function CardDetailModal({ card, onClose }: Props) {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [card, onClose]);
+  }, [card, onClose, goPrev, goNext]);
 
   // Sync local state with the browser's fullscreen lifecycle so exiting
   // via F11/ESC flips the button back without an extra click.
@@ -89,6 +111,26 @@ export function CardDetailModal({ card, onClose }: Props) {
         >
           {isFullscreen ? "⤫" : "⛶"}
         </button>
+        {cards && cards.length > 1 && navIndex >= 0 && (
+          <>
+            <button
+              type="button"
+              className="card-detail-nav card-detail-nav-prev"
+              onClick={goPrev}
+              aria-label="이전 카드"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              className="card-detail-nav card-detail-nav-next"
+              onClick={goNext}
+              aria-label="다음 카드"
+            >
+              ›
+            </button>
+          </>
+        )}
         <div className="card-detail-body">
           {hasMedia && (
             <section className="card-detail-media" aria-label="첨부">

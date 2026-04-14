@@ -164,7 +164,12 @@ export function BoardCanvas({
         ))}
       </div>
       {canEdit && <AddCardButton onAdd={handleAdd} />}
-      <CardDetailModal card={openCard} onClose={() => setOpenCard(null)} />
+      <CardDetailModal
+        card={openCard}
+        onClose={() => setOpenCard(null)}
+        cards={cards}
+        onChange={setOpenCard}
+      />
     </div>
   );
 }
