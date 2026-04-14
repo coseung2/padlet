@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>v1 — Notion Minimal</title>
+<style>
+  :root{
+    --color-bg:#f6f5f4; --color-surface:#fff; --color-surface-alt:rgba(0,0,0,.05);
+    --color-text:rgba(0,0,0,.95); --color-text-muted:#615d59; --color-text-faint:#a39e98;
+    --color-accent:#0075de; --color-accent-tinted-bg:#f2f9ff; --color-accent-tinted-text:#097fe8;
+    --color-border:rgba(0,0,0,.1); --color-border-hover:rgba(0,0,0,.15);
+    --color-danger:#c62828;
+    --color-status-submitted-bg:#f2f9ff; --color-status-submitted-text:#1565c0;
+    --color-status-reviewed-bg:#e8f5e9; --color-status-reviewed-text:#2e7d32;
+    --color-status-returned-bg:#ffebee;
+    --radius-card:12px; --radius-btn:4px; --radius-pill:9999px;
+    font-family:Inter,system-ui,sans-serif;
+  }
+  body{background:var(--color-bg);color:var(--color-text);margin:0;padding:24px}
+  .board-header{font-size:26px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px}
+  .guide{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-card);padding:16px 20px;margin-bottom:20px;max-width:960px}
+  .guide-label{font-size:12px;font-weight:600;color:var(--color-text-muted);letter-spacing:.125px;margin-bottom:6px}
+  .guide-body{font-size:15px;line-height:1.5}
+  .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;max-width:960px}
+  .slot{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-card);padding:10px;display:flex;flex-direction:column;gap:8px;cursor:pointer;transition:border-color 80ms}
+  .slot:hover{border-color:var(--color-border-hover)}
+  .slot-head{display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:600;letter-spacing:.1px;color:var(--color-text-muted)}
+  .slot-name{font-size:13px;font-weight:600;color:var(--color-text);letter-spacing:normal}
+  .thumb{aspect-ratio:4/3;border-radius:8px;background:var(--color-surface-alt);display:flex;align-items:center;justify-content:center;color:var(--color-text-faint);font-size:24px;font-weight:700}
+  .thumb.submitted{background:linear-gradient(135deg,#d6eaff,#b0d4ff);color:#1565c0;font-size:11px}
+  .thumb.reviewed{background:linear-gradient(135deg,#d4efd9,#a8d9b2);color:#2e7d32;font-size:11px}
+  .badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:var(--radius-pill);font-size:12px;font-weight:600;letter-spacing:.125px}
+  .badge--submitted{background:var(--color-status-submitted-bg);color:var(--color-status-submitted-text)}
+  .badge--reviewed{background:var(--color-status-reviewed-bg);color:var(--color-status-reviewed-text)}
+  .badge--returned{background:var(--color-status-returned-bg);color:var(--color-danger)}
+  .badge--assigned{background:var(--color-surface-alt);color:var(--color-text-muted)}
+</style></head>
+<body>
+  <div class="board-header">3월 독서 감상문</div>
+  <div class="guide">
+    <div class="guide-label">안내</div>
+    <div class="guide-body">각자 읽은 책 중 가장 인상 깊었던 한 권을 골라 감상문을 작성해 주세요. 마감: 4월 20일 18:00</div>
+  </div>
+  <div class="grid">
+    <!-- 샘플 9개 -->
+    <div class="slot"><div class="slot-head"><span>1번</span><span class="badge badge--reviewed">확인됨</span></div><div class="thumb reviewed">책 표지</div><div class="slot-name">김철수</div></div>
+    <div class="slot"><div class="slot-head"><span>2번</span><span class="badge badge--submitted">제출</span></div><div class="thumb submitted">감상문</div><div class="slot-name">이영희</div></div>
+    <div class="slot"><div class="slot-head"><span>3번</span><span class="badge badge--returned">반려 !</span></div><div class="thumb submitted">책</div><div class="slot-name">박민수</div></div>
+    <div class="slot"><div class="slot-head"><span>4번</span><span class="badge badge--assigned">미제출</span></div><div class="thumb">4</div><div class="slot-name">최지우</div></div>
+    <div class="slot"><div class="slot-head"><span>5번</span><span class="badge badge--submitted">제출</span></div><div class="thumb submitted">글</div><div class="slot-name">정다은</div></div>
+    <div class="slot"><div class="slot-head"><span>6번</span><span class="badge badge--assigned">미제출</span></div><div class="thumb">6</div><div class="slot-name">강현우</div></div>
+    <div class="slot"><div class="slot-head"><span>7번</span><span class="badge badge--reviewed">확인됨</span></div><div class="thumb reviewed">표지</div><div class="slot-name">윤서연</div></div>
+    <div class="slot"><div class="slot-head"><span>8번</span><span class="badge badge--assigned">미제출</span></div><div class="thumb">8</div><div class="slot-name">장민호</div></div>
+    <div class="slot"><div class="slot-head"><span>9번</span><span class="badge badge--submitted">제출</span></div><div class="thumb submitted">글</div><div class="slot-name">오하늘</div></div>
+  </div>
+</body></html>

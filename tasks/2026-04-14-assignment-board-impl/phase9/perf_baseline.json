@@ -1,0 +1,20 @@
+{
+  "measurement_pending": true,
+  "reason": "Galaxy Tab S6 Lite device/emulation not available in this harness run; AC-14 perf budget must be validated on physical tablet or chrome-devtools mobile trace before production cutover.",
+  "budget_from_phase2_AC14": {
+    "dom_node_count_max": 180,
+    "tti_ms_max": 3000,
+    "scroll_fps_min": 45,
+    "long_tasks_per_sec_max": 2,
+    "js_heap_mb_max": 80,
+    "thumb_first_byte_p50_ms_max": 200
+  },
+  "static_signals": {
+    "memo_on_grid": "AssignmentGridView wrapped in React.memo — single-slot updates don't re-render siblings.",
+    "css_grid_layout": "grid-template-columns: repeat(5, minmax(0,1fr)) — browser handles layout; no React re-position.",
+    "lazy_images": "slot <img loading=\"lazy\" width=160 height=120> — layout stable, network opportunistic.",
+    "no_subscriptions_v1": "realtime publish is no-op; clients use router.refresh() — zero long-running JS.",
+    "reduced_motion": "prefers-reduced-motion disables .assign-slot / .assign-modal transitions."
+  },
+  "followup_task": "research/device-perf-verify (after Galaxy Tab S6 Lite in hand)"
+}

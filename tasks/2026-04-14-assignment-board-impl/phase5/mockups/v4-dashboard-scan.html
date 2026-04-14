@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>v4 — Dashboard Scan</title>
+<style>
+  :root{
+    --color-bg:#f6f5f4; --color-surface:#fff; --color-surface-alt:rgba(0,0,0,.05);
+    --color-text:rgba(0,0,0,.95); --color-text-muted:#615d59; --color-text-faint:#a39e98;
+    --color-accent:#0075de; --color-border:rgba(0,0,0,.1);
+    --radius-card:12px; --radius-pill:9999px;
+    font-family:Inter,system-ui,sans-serif;
+  }
+  body{background:var(--color-bg);color:var(--color-text);margin:0;padding:24px}
+  .board-header{font-size:26px;font-weight:700;letter-spacing:-0.5px}
+  .summary{display:flex;gap:10px;margin:12px 0 16px;max-width:960px}
+  .stat{flex:1;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-card);padding:10px 14px}
+  .stat-label{font-size:11px;color:var(--color-text-muted);font-weight:600;letter-spacing:.1px;margin-bottom:4px}
+  .stat-val{font-size:22px;font-weight:700}
+  .stat.sub .stat-val{color:#1565c0}
+  .stat.rev .stat-val{color:#2e7d32}
+  .stat.ret .stat-val{color:#c62828}
+  .stat.ass .stat-val{color:var(--color-text-muted)}
+  .guide{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-card);padding:14px 18px;margin-bottom:16px;max-width:960px;font-size:14px}
+  .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;max-width:960px}
+  .slot{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-card);overflow:hidden;cursor:pointer;display:flex;flex-direction:column}
+  .status-bar{height:4px}
+  .slot[data-s=submitted] .status-bar{background:#1565c0}
+  .slot[data-s=reviewed] .status-bar{background:#2e7d32}
+  .slot[data-s=returned] .status-bar{background:#c62828}
+  .slot[data-s=assigned] .status-bar{background:#d0cfcd}
+  .body{padding:10px;display:flex;flex-direction:column;gap:6px}
+  .thumb{aspect-ratio:4/3;border-radius:8px;background:var(--color-surface-alt);display:flex;align-items:center;justify-content:center;color:var(--color-text-faint);font-size:22px;font-weight:700}
+  .thumb.has-img{background:linear-gradient(135deg,#d6eaff,#b0d4ff);color:#1565c0;font-size:12px}
+  .meta{display:flex;justify-content:space-between;font-size:12px}
+  .name{font-weight:600}
+  .num{color:var(--color-text-faint);font-weight:600}
+</style></head>
+<body>
+  <div class="board-header">3월 독서 감상문</div>
+  <div class="summary">
+    <div class="stat ass"><div class="stat-label">미제출</div><div class="stat-val">14</div></div>
+    <div class="stat sub"><div class="stat-label">제출</div><div class="stat-val">10</div></div>
+    <div class="stat rev"><div class="stat-label">확인됨</div><div class="stat-val">5</div></div>
+    <div class="stat ret"><div class="stat-label">반려</div><div class="stat-val">1</div></div>
+  </div>
+  <div class="guide">각자 읽은 책 중 가장 인상 깊었던 한 권을 골라 감상문을 작성해 주세요. 마감: 4월 20일 18:00</div>
+  <div class="grid">
+    <div class="slot" data-s="reviewed"><div class="status-bar"></div><div class="body"><div class="thumb has-img">표지</div><div class="meta"><span class="num">1</span><span class="name">김철수</span></div></div></div>
+    <div class="slot" data-s="submitted"><div class="status-bar"></div><div class="body"><div class="thumb has-img">글</div><div class="meta"><span class="num">2</span><span class="name">이영희</span></div></div></div>
+    <div class="slot" data-s="returned"><div class="status-bar"></div><div class="body"><div class="thumb has-img">책</div><div class="meta"><span class="num">3</span><span class="name">박민수</span></div></div></div>
+    <div class="slot" data-s="assigned"><div class="status-bar"></div><div class="body"><div class="thumb">4</div><div class="meta"><span class="num">4</span><span class="name">최지우</span></div></div></div>
+    <div class="slot" data-s="submitted"><div class="status-bar"></div><div class="body"><div class="thumb has-img">글</div><div class="meta"><span class="num">5</span><span class="name">정다은</span></div></div></div>
+    <div class="slot" data-s="assigned"><div class="status-bar"></div><div class="body"><div class="thumb">6</div><div class="meta"><span class="num">6</span><span class="name">강현우</span></div></div></div>
+    <div class="slot" data-s="reviewed"><div class="status-bar"></div><div class="body"><div class="thumb has-img">책</div><div class="meta"><span class="num">7</span><span class="name">윤서연</span></div></div></div>
+    <div class="slot" data-s="assigned"><div class="status-bar"></div><div class="body"><div class="thumb">8</div><div class="meta"><span class="num">8</span><span class="name">장민호</span></div></div></div>
+    <div class="slot" data-s="submitted"><div class="status-bar"></div><div class="body"><div class="thumb has-img">글</div><div class="meta"><span class="num">9</span><span class="name">오하늘</span></div></div></div>
+  </div>
+</body></html>
