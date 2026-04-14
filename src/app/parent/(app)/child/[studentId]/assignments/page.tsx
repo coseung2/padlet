@@ -11,6 +11,9 @@ const STATUS_KR: Record<string, string> = {
   submitted: "제출됨",
   reviewed: "검토 완료",
   returned: "반려",
+  assigned: "미제출",
+  viewed: "확인중",
+  orphaned: "삭제됨",
   pending_approval: "승인 대기",
   approved: "승인",
   rejected: "거절",
@@ -35,11 +38,26 @@ export default async function ChildAssignmentsPage({
     return <EmptyState message="자녀 정보를 불러올 수 없습니다." />;
   }
 
-  const submissions = await db.submission.findMany({
+  // AB-1: AssignmentSlot-backed rows take precedence — they carry the
+  // returnReason + submissionStatus that Submission alone can't express.
+  const slotRows = await db.assignmentSlot.findMany({
+    where: { studentId: student.id },
+    orderBy: { createdAt: "desc" },
+    include: {
+      board: { select: { id: true, title: true, slug: true } },
+      submission: {
+        select: { content: true, feedback: true, grade: true, linkUrl: true },
+      },
+    },
+  });
+  const slotBoardIds = new Set(slotRows.map((r) => r.boardId));
+
+  const legacy = await db.submission.findMany({
     where: {
       board: {
         classroomId: student.classroomId,
         accessMode: "classroom",
+        id: { notIn: Array.from(slotBoardIds) },
       },
       applicantName: student.name,
       ...(student.number != null ? { applicantNumber: student.number } : {}),
@@ -57,7 +75,40 @@ export default async function ChildAssignmentsPage({
     },
   });
 
-  if (submissions.length === 0) {
+  type Row = {
+    key: string;
+    title: string;
+    status: string;
+    content: string | null;
+    feedback: string | null;
+    grade: string | null;
+    returnReason: string | null;
+    createdAt: Date;
+  };
+  const merged: Row[] = [
+    ...slotRows.map((r): Row => ({
+      key: `slot-${r.id}`,
+      title: r.board.title,
+      status: r.submissionStatus,
+      content: r.submission?.content ?? null,
+      feedback: r.submission?.feedback ?? null,
+      grade: r.grade ?? r.submission?.grade ?? null,
+      returnReason: r.returnReason ?? null,
+      createdAt: r.createdAt,
+    })),
+    ...legacy.map((s): Row => ({
+      key: `legacy-${s.id}`,
+      title: s.board.title,
+      status: s.status,
+      content: s.content,
+      feedback: s.feedback,
+      grade: s.grade,
+      returnReason: null,
+      createdAt: s.createdAt,
+    })),
+  ].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+
+  if (merged.length === 0) {
     return <EmptyState message="아직 자녀의 숙제 제출 기록이 없습니다." />;
   }
 
@@ -71,9 +122,9 @@ export default async function ChildAssignmentsPage({
         gap: 10,
       }}
     >
-      {submissions.map((s) => (
+      {merged.map((s) => (
         <li
-          key={s.id}
+          key={s.key}
           style={{
             padding: 14,
             background: "var(--color-surface, #fff)",
@@ -90,7 +141,7 @@ export default async function ChildAssignmentsPage({
             }}
           >
             <div style={{ fontWeight: 600, fontSize: 14, minWidth: 0 }}>
-              {s.board.title}
+              {s.title}
             </div>
             <span
               style={{
@@ -105,6 +156,20 @@ export default async function ChildAssignmentsPage({
               {STATUS_KR[s.status] ?? s.status}
             </span>
           </div>
+          {s.returnReason ? (
+            <p
+              style={{
+                margin: "8px 0 0",
+                padding: 10,
+                background: "var(--color-status-returned-bg, #ffebee)",
+                borderRadius: 6,
+                fontSize: 13,
+                color: "var(--color-status-returned-text, #c62828)",
+              }}
+            >
+              <strong>반려 사유:</strong> {s.returnReason}
+            </p>
+          ) : null}
           {s.content ? (
             <p style={{ margin: "6px 0 0", fontSize: 13, lineHeight: 1.4 }}>
               {s.content.length > 140 ? `${s.content.slice(0, 140)}…` : s.content}

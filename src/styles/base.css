@@ -31,6 +31,16 @@
   --color-danger: #c62828;
   --color-danger-active: #a01b1b;
 
+  /* Assignment-board semantic status (AB-1).
+     Paired bg+text tokens for pill badges / banners. All WCAG AA or better. */
+  --color-status-submitted-bg: #f2f9ff;
+  --color-status-submitted-text: #1565c0;
+  --color-status-reviewed-bg: #e8f5e9;
+  --color-status-reviewed-text: #2e7d32;
+  --color-status-returned-bg: #ffebee;
+  --color-status-returned-text: #c62828;
+  --color-slot-placeholder: var(--color-surface-alt);
+
   /* Radii */
   --radius-card: 12px;
   --radius-btn: 4px;
