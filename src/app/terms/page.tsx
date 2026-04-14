@@ -33,13 +33,10 @@ export default function TermsPage() {
         <section className="docs-section">
           <h2 className="docs-h2">3. Canva 앱 연동</h2>
           <p className="docs-p">
-            교사가 발급한 개인 액세스 토큰(PAT)을 통해 Canva 앱에서 생성된
-            디자인이 보드에 카드로 게시됩니다. 게시된 카드에는 디자인의 공개
-            미리보기 URL과 썸네일 이미지가 저장됩니다. 교사는 언제든 <Link
-              href="/settings/external-tokens"
-              className="docs-link"
-            >외부 토큰 설정</Link>
-            에서 토큰을 해지할 수 있습니다.
+            학생이 Canva 에디터에서 Aura-board 앱 패널으로 로그인한 뒤
+            생성한 디자인이 보드에 카드로 게시됩니다. 게시된 카드에는
+            디자인의 공개 미리보기 URL과 썸네일 이미지가 저장되며, 로그인
+            세션은 학생 계정 단위로 발급·폐기됩니다.
           </p>
         </section>
 
