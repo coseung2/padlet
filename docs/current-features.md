@@ -9,7 +9,7 @@ Live feature inventory. Update when merging feature tasks.
 | `grid` | 그리드 정렬 |
 | `stream` | 세로 피드 |
 | `columns` | 칼럼(Kanban) |
-| `assignment` | 과제 배부 + 제출 |
+| `assignment` | 과제 배부 + 제출 (AB-1 rewrite 2026-04-14: AssignmentSlot entity — roster-bound 5×6 grid, full-screen review modal, inline return reason, identity-based teacher/student/parent scope) |
 | `quiz` | 실시간 퀴즈 |
 | `plant-roadmap` | 식물 관찰일지 세로 타임라인 (2026-04-12 PJ-1~6, 2026-04-13 v2) |
 | `drawing` | Drawpile 공동 그림판 + 학생 라이브러리 (2026-04-13, **schema + UI stub only** — 서버 배포 대기, `BLOCKERS.md`) |
@@ -101,3 +101,22 @@ Live feature inventory. Update when merging feature tasks.
 - **BR-8 CSV 로스터 import**: `POST /api/breakout/assignments/[id]/roster-import` (multipart) — name/number 헤더 기반 Student upsert, classroom-scoped
 - **BR-9 아카이브**: `PATCH status="archived"` + `/board/[id]/archive` 서버 컴포넌트 — 모둠별 카드 수 / 활동 학생 수 / 최근 활동 / 최종 카드 스냅샷
 - **v2 파킹**: 월드카페 템플릿, 학생 셀프 모둠 이동, 실제 Tier 결제 모델, CSV export
+
+## 과제 게시판 (AB-1) — 2026-04-14
+- **신규 엔티티**: `AssignmentSlot` (boardId, studentId, slotNumber, cardId, submissionStatus, gradingStatus, grade, viewedAt, returnedAt, returnReason). 1 classroom = ≤ 30 slots, `@@unique([boardId, studentId])` + `@@unique([boardId, slotNumber])`.
+- `Board` 확장: `assignmentGuideText`, `assignmentAllowLate`, `assignmentDeadline`.
+- `Submission.assignmentSlotId @unique` nullable FK — legacy event-signup submissions remain valid at NULL.
+- **POST `/api/boards` assignment branch**: classroom 전원(N≤30) AssignmentSlot + 빈 Card 자동 생성 트랜잭션. 가드 — `classroom_required` / `not_classroom_teacher` / `empty_classroom` / `classroom_too_large` / `student_missing_number`.
+- **GET `/api/boards/[id]/assignment-slots`** — viewer-scoped projection (teacher: all; student: own 1; parent: through existing scope).
+- **PATCH `/api/assignment-slots/[id]`** — 교사 전이 (`open`/`return`/`review`/`grade`). State machine in `src/lib/assignment-state.ts`; 24 unit tests.
+- **POST `/api/assignment-slots/[id]/submission`** — 학생 제출/재제출; `canStudentSubmit()` 가드 (deadline + allowLate + gradingStatus).
+- **POST `/api/boards/[id]/reminder`** — 미제출 bulk 뱃지 (5-min per-board cooldown, no email).
+- **POST `/api/boards/[id]/roster-sync`** — 수동 roster 추가 (slotNumber = max+1).
+- **UI rewrite `src/components/AssignmentBoard.tsx`**: Submission+BoardMember 경로 폐기, AssignmentSlot 기반 재작성. 풀스크린 모달(prev/next + 키보드 `←/→` + inline 반려) + 학생 guide 상단 `.assign-return-banner` + 학생 submit card.
+- **Identity-based 권한**: teacher/student/parent 3tier (`project_permission_model` 메모리 정합). `BoardMember.role=editor` 학생용 행 생성 금지.
+- **Parent viewer `/parent/(app)/child/[studentId]/assignments`**: AssignmentSlot-backed rows 우선 — `returnReason` 배너 렌더, `submissionStatus` 라벨(assigned/submitted/viewed/returned/reviewed/orphaned).
+- **Realtime**: `assignmentChannelKey(boardId)` helper + 3 event types; `publish()` v1 no-op (engine 미정). 클라이언트는 `router.refresh()` + `useState` optimistic.
+- **Deferred (phase8/9 문서화)**:
+  - AC-12 WebP 썸네일 파이프라인 — sharp 미도입, `thumbUrl=imageUrl` passthrough (+ `loading="lazy"`, 160×120).
+  - AC-13 Matrix 뷰 owner+desktop 서버 guard — 미구현, 기본 grid만 렌더.
+  - AC-14 Galaxy Tab S6 Lite 실측 — 하드웨어 제약 defer.

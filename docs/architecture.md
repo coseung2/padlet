@@ -26,7 +26,9 @@
 `src/lib/realtime.ts`
 - `boardChannelKey(boardId)` → `board:{boardId}`
 - `sectionChannelKey(boardId, sectionId)` → `board:{boardId}:section:{sectionId}`
+- `assignmentChannelKey(boardId)` → `board:{boardId}:assignment` (AB-1, 2026-04-14)
 - `publish(event)` is a no-op placeholder. Consumers MUST use these helpers so a future engine swap touches only the transport layer.
+- `AssignmentRealtimeEvent` union: `slot.updated` | `slot.returned` | `reminder.issued`.
 
 ## Data model
 
@@ -222,3 +224,31 @@ model BreakoutMembership {
 | peek-others | 전체 group section + teacher-pool |
 | teacher | 항상 full (owner/editor) |
 - 실제 Tier 결제 모델 (User.tier 필드)
+
+## Assignment board (AB-1) — 2026-04-14
+
+**Entity**: `AssignmentSlot` (roster-bound, 1 row per student at creation). See `tasks/2026-04-14-assignment-board-impl/phase3/data_model.md` for the full DSL.
+
+**State machine** (`src/lib/assignment-state.ts` — 24 unit tests):
+
+```
+submissionStatus: assigned → submitted → viewed → {returned,reviewed} ; any → orphaned
+gradingStatus:    not_graded → {graded, released}  (resets to not_graded on returned)
+```
+
+**API surface**:
+
+| Method | Path | Role |
+|---|---|---|
+| POST | `/api/boards` `layout=assignment` | teacher |
+| GET | `/api/boards/[id]/assignment-slots` | teacher (all) / student (own 1) / parent (scope) |
+| PATCH | `/api/assignment-slots/[id]` | teacher — `{transition: open|return|review|grade}` |
+| POST | `/api/assignment-slots/[id]/submission` | student — `canStudentSubmit()` gated |
+| POST | `/api/boards/[id]/reminder` | teacher — 5-min per-board cooldown |
+| POST | `/api/boards/[id]/roster-sync` | teacher — add new students post-creation |
+
+**RBAC**: 3-layer (API guard + DOM filter at server component + RLS scaffold `prisma/migrations/20260414_add_assignment_slot/rls.sql` NOT auto-applied).
+
+**Perf budget** (Galaxy Tab S6 Lite — AC-14, measurement pending hardware): DOM ≤ 180, TTI ≤ 3s, scroll FPS ≥ 45. Design: `memo(AssignmentGridView)`, CSS grid layout, `loading="lazy"` 160×120 img, no realtime subscription loops.
+
+**Deferred**: WebP thumbnail pipeline (sharp), Matrix view server guard (`?view=matrix`).
