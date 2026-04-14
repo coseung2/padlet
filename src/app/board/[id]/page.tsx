@@ -93,13 +93,23 @@ export default async function BoardPage({
         orderBy: { order: "asc" },
       })
     : null;
-  const submissionsPromise = needsAssignmentData
-    ? db.submission.findMany({ where: { boardId: board.id } })
-    : null;
-  const membersPromise = needsAssignmentData
-    ? db.boardMember.findMany({
+  const assignmentSlotsPromise = needsAssignmentData
+    ? db.assignmentSlot.findMany({
         where: { boardId: board.id },
-        include: { user: true },
+        orderBy: { slotNumber: "asc" },
+        include: {
+          student: { select: { id: true, name: true } },
+          card: {
+            select: {
+              id: true,
+              content: true,
+              imageUrl: true,
+              linkUrl: true,
+              updatedAt: true,
+            },
+          },
+          submission: { select: { fileUrl: true } },
+        },
       })
     : null;
   const quizzesPromise = needsQuizData
@@ -136,31 +146,27 @@ export default async function BoardPage({
   const [
     cardsRaw,
     sectionsRaw,
-    submissionsRaw,
-    membersRaw,
     quizzesRaw,
     role,
     breakoutAssignmentRaw,
     breakoutMembershipsRaw,
     rosterStudentsRaw,
+    assignmentSlotsRaw,
   ] = await Promise.all([
     cardsPromise,
     sectionsPromise,
-    submissionsPromise,
-    membersPromise,
     quizzesPromise,
     rolePromise,
     breakoutAssignmentPromise,
     breakoutMembershipsPromise,
     rosterStudentsPromise,
+    assignmentSlotsPromise,
   ]);
   const breakoutMemberships = breakoutMembershipsRaw ?? [];
   const rosterStudents = rosterStudentsRaw ?? [];
 
   const cards = cardsRaw ?? [];
   const sections = sectionsRaw ?? [];
-  const submissions = submissionsRaw ?? [];
-  const members = membersRaw ?? [];
   const quizzes = quizzesRaw ?? [];
 
   // Student viewer fallback when the teacher/NextAuth path didn't grant a role.
@@ -473,32 +479,67 @@ export default async function BoardPage({
           />
         );
       }
-      case "assignment":
+      case "assignment": {
+        const slotRows = assignmentSlotsRaw ?? [];
+        const viewer: "teacher" | "student" =
+          studentViewer ? "student" : "teacher";
+        const slotDTOs = slotRows
+          .filter((row) => viewer === "teacher" || row.studentId === studentViewer?.id)
+          .map((row) => ({
+            id: row.id,
+            slotNumber: row.slotNumber,
+            studentId: row.studentId,
+            studentName: row.student.name,
+            submissionStatus: row.submissionStatus as
+              | "assigned"
+              | "submitted"
+              | "viewed"
+              | "returned"
+              | "reviewed"
+              | "orphaned",
+            gradingStatus: row.gradingStatus as
+              | "not_graded"
+              | "graded"
+              | "released",
+            grade: row.grade,
+            viewedAt: row.viewedAt?.toISOString() ?? null,
+            returnedAt: row.returnedAt?.toISOString() ?? null,
+            returnReason: row.returnReason,
+            card: {
+              id: row.card.id,
+              content: row.card.content,
+              imageUrl: row.card.imageUrl,
+              thumbUrl: row.card.imageUrl,
+              linkUrl: row.card.linkUrl,
+              fileUrl: row.submission?.fileUrl ?? null,
+              updatedAt: row.card.updatedAt.toISOString(),
+            },
+          }));
+        const mySlot = viewer === "student" ? slotDTOs[0] ?? null : null;
+        const canSubmit =
+          viewer === "student" && mySlot
+            ? mySlot.gradingStatus === "not_graded" &&
+              mySlot.submissionStatus !== "orphaned" &&
+              (board!.assignmentDeadline == null ||
+                new Date() <= new Date(board!.assignmentDeadline) ||
+                board!.assignmentAllowLate)
+            : true;
         return (
           <AssignmentBoard
-            boardId={board!.id}
-            description={board!.description}
-            initialSubmissions={submissions.map((sub) => ({
-              id: sub.id,
-              boardId: sub.boardId,
-              userId: sub.userId,
-              content: sub.content,
-              linkUrl: sub.linkUrl,
-              fileUrl: sub.fileUrl,
-              status: sub.status,
-              feedback: sub.feedback,
-              grade: sub.grade,
-              createdAt: sub.createdAt.toISOString(),
-            }))}
-            members={members.map((m) => ({
-              userId: m.userId,
-              userName: m.user.name,
-              role: m.role,
-            }))}
-            currentUserId={effectiveUserId}
-            currentRole={effectiveRole!}
+            viewer={viewer}
+            board={{
+              id: board!.id,
+              slug: board!.slug,
+              title: board!.title,
+              assignmentGuideText: board!.assignmentGuideText ?? "",
+              assignmentAllowLate: board!.assignmentAllowLate,
+              assignmentDeadline: board!.assignmentDeadline?.toISOString() ?? null,
+            }}
+            initialSlots={slotDTOs}
+            canStudentSubmit={canSubmit}
           />
         );
+      }
       case "plant-roadmap":
         return <PlantRoadmapBoard initial={plantJournalInitial!} />;
       case "drawing": {

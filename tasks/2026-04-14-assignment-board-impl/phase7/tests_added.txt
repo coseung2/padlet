@@ -1,0 +1,9 @@
+src/lib/__tests__/assignment-state.test.ts    — 24 passing cases
+  · canStudentSubmit — 7 cases (deadline null/past/future × allowLate × gradingStatus × orphaned)
+  · computeTeacherTransition open — 3 cases (submitted→viewed; viewed idempotent; assigned→invalid)
+  · computeTeacherTransition return — 3 cases (viewed→returned+reset grading+reason; assigned→invalid)
+  · computeTeacherTransition review — 2 cases (viewed→reviewed; assigned→invalid)
+  · computeTeacherTransition grade — 3 cases (submitted→graded with grade; unchanged submission; orphaned→invalid)
+  · computeStudentSubmit — 4 cases (assigned/returned/submitted ok; orphaned blocked)
+
+Runner: plain `npx tsx <file>` (project convention — matches card-author.test.ts). Zero deps on jest/vitest.

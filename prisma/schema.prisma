@@ -153,6 +153,7 @@ model Student {
   oauthAccessTokens   OAuthAccessToken[]
   oauthRefreshTokens  OAuthRefreshToken[]
   canvaAppLink        CanvaAppLink?
+  assignmentSlots     AssignmentSlot[]     @relation("StudentAssignmentSlots")
 
   @@unique([classroomId, number])
   @@index([classroomId])
@@ -197,6 +198,11 @@ model Board {
   askStudentNumber    Boolean   @default(true)
   askContact          Boolean   @default(false)
 
+  // ── Assignment board (AB-1) ────────────────────────────────────────
+  assignmentGuideText String?   @default("")
+  assignmentAllowLate Boolean   @default(true)
+  assignmentDeadline  DateTime?
+
   classroom          Classroom?          @relation("ClassroomBoards", fields: [classroomId], references: [id], onDelete: SetNull)
   members            BoardMember[]
   cards              Card[]
@@ -205,6 +211,7 @@ model Board {
   quizzes            Quiz[]
   studentPlants      StudentPlant[]
   breakoutAssignment BreakoutAssignment?
+  assignmentSlots    AssignmentSlot[]
 }
 
 // Columns/Kanban용 섹션 (grid/stream에선 사용 안 함)
@@ -280,6 +287,7 @@ model Card {
   author           User              @relation(fields: [authorId], references: [id])
   studentAuthor    Student?          @relation("StudentCardAuthor", fields: [studentAuthorId], references: [id], onDelete: SetNull)
   assetAttachments AssetAttachment[] @relation("CardAssetAttachments")
+  assignmentSlot   AssignmentSlot?   @relation("AssignmentSlotCard")
 
   @@index([boardId])
   @@index([sectionId])
@@ -319,6 +327,13 @@ model Submission {
   videoThumbnail   String?
   scoreAvg         Float?
 
+  // ── Assignment-slot linkage (AB-1) ─────────────────────────────────
+  // Nullable for backward-compat with event-signup submissions that never had
+  // a slot. When present, @unique pins one Submission to one slot so student
+  // overwrites happen in-place (no history — decisions Q2).
+  assignmentSlotId String?         @unique
+  assignmentSlot   AssignmentSlot? @relation(fields: [assignmentSlotId], references: [id], onDelete: SetNull)
+
   board   Board              @relation(fields: [boardId], references: [id], onDelete: Cascade)
   user    User?              @relation(fields: [userId], references: [id])
   reviews SubmissionReview[]
@@ -327,6 +342,37 @@ model Submission {
   @@index([userId])
   @@index([boardId, status])
   @@index([ipHash, createdAt])
+}
+
+// ──── Assignment-board (AB-1) ────
+// One row per (boardId, studentId) captured at board creation time. v1 hard-
+// caps count ≤ 30 (Galaxy Tab S6 Lite perf budget). slotNumber is a snapshot
+// of Student.number at creation; Q6 decision — number changes don't propagate.
+model AssignmentSlot {
+  id               String    @id @default(cuid())
+  boardId          String
+  studentId        String
+  slotNumber       Int
+  cardId           String    @unique
+  // submissionStatus: "assigned"|"submitted"|"viewed"|"returned"|"reviewed"|"orphaned"
+  submissionStatus String    @default("assigned")
+  // gradingStatus: "not_graded"|"graded"|"released"
+  gradingStatus    String    @default("not_graded")
+  grade            String?
+  viewedAt         DateTime?
+  returnedAt       DateTime?
+  returnReason     String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  board      Board       @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  student    Student     @relation("StudentAssignmentSlots", fields: [studentId], references: [id], onDelete: Restrict)
+  card       Card        @relation("AssignmentSlotCard", fields: [cardId], references: [id], onDelete: Restrict)
+  submission Submission?
+
+  @@unique([boardId, studentId])
+  @@unique([boardId, slotNumber])
+  @@index([studentId])
 }
 
 // ── Event-signup reviews (ES-1, ES-9) ─────────────────────────────

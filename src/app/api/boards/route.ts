@@ -8,6 +8,15 @@ import {
   cloneStructure,
   groupSectionTitle,
 } from "@/lib/breakout";
+import {
+  ASSIGNMENT_MAX_SLOTS,
+  ASSIGNMENT_GUIDE_TEXT_MAX,
+} from "@/lib/assignment-schemas";
+
+// Grid cell dims — matches Card default width/height; render uses CSS grid so
+// these are stored-only placeholders for future freeform fallback.
+const ASSIGN_CARD_W = 240;
+const ASSIGN_CARD_H = 160;
 
 const CreateBoardSchema = z.object({
   title: z.string().max(200).default(""),
@@ -25,6 +34,10 @@ const CreateBoardSchema = z.object({
   classroomId: z.string().optional(),
   // BR-3: Breakout-specific config (only used when layout === "breakout").
   breakoutConfig: BreakoutConfigSchema.optional(),
+  // AB-1: Assignment-specific fields (only used when layout === "assignment").
+  assignmentGuideText: z.string().max(ASSIGNMENT_GUIDE_TEXT_MAX).optional(),
+  assignmentAllowLate: z.boolean().optional(),
+  assignmentDeadline: z.string().datetime().optional(),
 });
 
 export async function POST(req: Request) {
@@ -146,6 +159,88 @@ export async function POST(req: Request) {
       });
 
       return NextResponse.json({ board });
+    }
+
+    // ── Assignment branch (AB-1) ─────────────────────────────────────────
+    if (input.layout === "assignment") {
+      if (!input.classroomId) {
+        return NextResponse.json({ error: "classroom_required" }, { status: 400 });
+      }
+      const classroom = await db.classroom.findUnique({
+        where: { id: input.classroomId },
+        include: {
+          students: { orderBy: [{ number: "asc" }, { createdAt: "asc" }] },
+        },
+      });
+      if (!classroom) {
+        return NextResponse.json({ error: "classroom_not_found" }, { status: 404 });
+      }
+      if (classroom.teacherId !== user.id) {
+        return NextResponse.json({ error: "not_classroom_teacher" }, { status: 403 });
+      }
+      const roster = classroom.students;
+      if (roster.length === 0) {
+        return NextResponse.json({ error: "empty_classroom" }, { status: 400 });
+      }
+      if (roster.length > ASSIGNMENT_MAX_SLOTS) {
+        return NextResponse.json(
+          { error: "classroom_too_large", max: ASSIGNMENT_MAX_SLOTS, actual: roster.length },
+          { status: 400 }
+        );
+      }
+      const missingNumber = roster.filter((s) => s.number == null).map((s) => s.id);
+      if (missingNumber.length > 0) {
+        return NextResponse.json(
+          { error: "student_missing_number", studentIds: missingNumber },
+          { status: 400 }
+        );
+      }
+
+      const board = await db.$transaction(async (tx) => {
+        const createdBoard = await tx.board.create({
+          data: {
+            title: input.title,
+            slug,
+            layout: "assignment",
+            description: input.description,
+            classroomId: classroom.id,
+            assignmentGuideText: input.assignmentGuideText ?? "",
+            assignmentAllowLate: input.assignmentAllowLate ?? true,
+            assignmentDeadline: input.assignmentDeadline ? new Date(input.assignmentDeadline) : null,
+            members: { create: { userId: user.id, role: "owner" } },
+          },
+        });
+        for (const s of roster) {
+          const n = s.number as number; // guaranteed non-null by missingNumber check
+          const col = (n - 1) % 5;
+          const row = Math.floor((n - 1) / 5);
+          const card = await tx.card.create({
+            data: {
+              boardId: createdBoard.id,
+              authorId: user.id,
+              studentAuthorId: s.id,
+              externalAuthorName: s.name,
+              title: "",
+              content: "",
+              x: col * ASSIGN_CARD_W,
+              y: row * ASSIGN_CARD_H,
+              width: ASSIGN_CARD_W,
+              height: ASSIGN_CARD_H,
+            },
+          });
+          await tx.assignmentSlot.create({
+            data: {
+              boardId: createdBoard.id,
+              studentId: s.id,
+              slotNumber: n,
+              cardId: card.id,
+            },
+          });
+        }
+        return createdBoard;
+      });
+
+      return NextResponse.json({ board, slots: roster.length });
     }
 
     // ── Non-breakout layouts (unchanged) ────────────────────────────────

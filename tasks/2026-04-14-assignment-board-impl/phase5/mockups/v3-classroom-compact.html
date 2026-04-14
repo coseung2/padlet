@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>v3 — Classroom Compact</title>
+<style>
+  :root{
+    --color-bg:#f6f5f4; --color-surface:#fff; --color-surface-alt:rgba(0,0,0,.05);
+    --color-text:rgba(0,0,0,.95); --color-text-muted:#615d59; --color-text-faint:#a39e98;
+    --color-border:rgba(0,0,0,.1);
+    --radius-card:10px;
+    font-family:Inter,system-ui,sans-serif;
+  }
+  body{background:var(--color-bg);color:var(--color-text);margin:0;padding:24px}
+  .board-header{font-size:26px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px}
+  .guide{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-card);padding:12px 16px;margin-bottom:16px;max-width:1040px;font-size:14px;color:var(--color-text-muted)}
+  .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;max-width:1040px}
+  .slot{background:var(--color-surface);border-radius:var(--radius-card);padding:8px;display:flex;flex-direction:column;gap:6px;position:relative;cursor:pointer}
+  .thumb{aspect-ratio:4/3;border-radius:8px;background:var(--color-surface-alt);display:flex;align-items:center;justify-content:center;color:var(--color-text-faint);font-size:20px;font-weight:700;outline:3px solid transparent;outline-offset:-3px;transition:outline-color 80ms}
+  .thumb.has-img{background:#dde9f5}
+  .slot[data-status=submitted] .thumb{outline-color:#1565c0}
+  .slot[data-status=reviewed] .thumb{outline-color:#2e7d32}
+  .slot[data-status=returned] .thumb{outline-color:#c62828}
+  .meta{display:flex;justify-content:space-between;align-items:baseline;font-size:12px}
+  .num{color:var(--color-text-faint);font-weight:600}
+  .name{font-weight:600}
+  .dot{position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%}
+  .slot[data-status=submitted] .dot{background:#1565c0}
+  .slot[data-status=reviewed] .dot{background:#2e7d32}
+  .slot[data-status=returned] .dot{background:#c62828}
+  .slot[data-status=assigned] .dot{background:#d0cfcd}
+</style></head>
+<body>
+  <div class="board-header">3월 독서 감상문</div>
+  <div class="guide">각자 읽은 책 중 가장 인상 깊었던 한 권을 골라 감상문을 작성해 주세요. 마감: 4월 20일.</div>
+  <div class="grid">
+    <div class="slot" data-status="reviewed"><span class="dot"></span><div class="thumb has-img">1</div><div class="meta"><span class="num">1</span><span class="name">김철수</span></div></div>
+    <div class="slot" data-status="submitted"><span class="dot"></span><div class="thumb has-img">2</div><div class="meta"><span class="num">2</span><span class="name">이영희</span></div></div>
+    <div class="slot" data-status="returned"><span class="dot"></span><div class="thumb has-img">3</div><div class="meta"><span class="num">3</span><span class="name">박민수</span></div></div>
+    <div class="slot" data-status="assigned"><span class="dot"></span><div class="thumb">4</div><div class="meta"><span class="num">4</span><span class="name">최지우</span></div></div>
+    <div class="slot" data-status="submitted"><span class="dot"></span><div class="thumb has-img">5</div><div class="meta"><span class="num">5</span><span class="name">정다은</span></div></div>
+    <div class="slot" data-status="assigned"><span class="dot"></span><div class="thumb">6</div><div class="meta"><span class="num">6</span><span class="name">강현우</span></div></div>
+    <div class="slot" data-status="reviewed"><span class="dot"></span><div class="thumb has-img">7</div><div class="meta"><span class="num">7</span><span class="name">윤서연</span></div></div>
+    <div class="slot" data-status="assigned"><span class="dot"></span><div class="thumb">8</div><div class="meta"><span class="num">8</span><span class="name">장민호</span></div></div>
+    <div class="slot" data-status="submitted"><span class="dot"></span><div class="thumb has-img">9</div><div class="meta"><span class="num">9</span><span class="name">오하늘</span></div></div>
+  </div>
+</body></html>

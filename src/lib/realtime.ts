@@ -28,6 +28,33 @@ export function sectionChannelKey(boardId: string, sectionId: string): string {
   return `board:${boardId}:section:${sectionId}`;
 }
 
+/** Assignment-board (AB-1) per-board event channel. */
+export function assignmentChannelKey(boardId: string): string {
+  if (!boardId) throw new Error("assignmentChannelKey: boardId required");
+  return `board:${boardId}:assignment`;
+}
+
+export type AssignmentRealtimeEvent =
+  | {
+      type: "slot.updated";
+      slotId: string;
+      submissionStatus: string;
+      gradingStatus: string;
+      updatedAt: string;
+    }
+  | {
+      type: "slot.returned";
+      slotId: string;
+      returnReason: string;
+      returnedAt: string;
+    }
+  | {
+      type: "reminder.issued";
+      boardId: string;
+      studentIds: string[];
+      issuedAt: string;
+    };
+
 /**
  * Placeholder publish/subscribe. Intentionally a no-op.
  * When the realtime engine is chosen, replace the body of this module while
