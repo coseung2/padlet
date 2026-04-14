@@ -16,6 +16,7 @@ import { db } from "./db";
 import { verifyPat } from "./external-pat";
 import type { User, Student } from "@prisma/client";
 import { verifyAccessToken } from "./oauth-server";
+import { verifyCanvaToken, looksLikeCanvaJwt } from "./canva-jwt";
 
 export type BearerResult =
   | {
@@ -64,8 +65,47 @@ export async function verifyBearer(authHeader: string | null): Promise<BearerRes
 
   if (token.startsWith("aurapat_")) return patPathway(authHeader);
   if (token.startsWith("aurastu_")) return oauthPathway(token);
+  if (looksLikeCanvaJwt(token)) return canvaJwtPathway(token);
 
   return { ok: false, code: "invalid_token_format" };
+}
+
+async function canvaJwtPathway(token: string): Promise<BearerResult> {
+  // Canva Apps SDK: the app calls getCanvaUserToken() on the client and
+  // sends the JWT to our backend. We verify the signature against Canva's
+  // JWKS, then resolve the Canva user id (`sub`) to a Student via the
+  // CanvaAppLink mapping populated during OAuth consent.
+  let claims;
+  try {
+    claims = await verifyCanvaToken(token);
+  } catch {
+    return { ok: false, code: "invalid_token" };
+  }
+
+  const link = await db.canvaAppLink.findUnique({
+    where: { canvaUserId: claims.canvaUserId },
+    include: {
+      student: { include: { classroom: { include: { teacher: true } } } },
+    },
+  });
+  if (!link || !link.student?.classroom?.teacher) {
+    // Canva JWT valid but the user hasn't linked their Aura-board account
+    // yet. Same error shape as an expired oauth token so callers can just
+    // prompt the student to re-authorize.
+    return { ok: false, code: "orphan" };
+  }
+
+  const scopeList = link.scope.split(/\s+/).filter(Boolean);
+  return {
+    ok: true,
+    kind: "oauth", // downstream RBAC treats canva-jwt the same as oauth.
+    user: link.student.classroom.teacher,
+    tokenId: `canva:${claims.canvaUserId}`,
+    tokenPrefix: claims.canvaUserId.slice(0, 8),
+    scopes: scopeList,
+    scopeBoardIds: [],
+    student: link.student as Student & { classroomId: string },
+  };
 }
 
 async function patPathway(authHeader: string | null): Promise<BearerResult> {

@@ -14,6 +14,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentStudent } from "@/lib/student-auth";
 import { issueAuthCode } from "@/lib/oauth-server";
+import { verifyCanvaToken, looksLikeCanvaJwt } from "@/lib/canva-jwt";
 
 export const runtime = "nodejs";
 export const maxDuration = 10;
@@ -66,6 +67,29 @@ export async function POST(req: Request) {
 
   if (decision !== "allow") {
     return NextResponse.json({ error: "invalid_decision" }, { status: 400 });
+  }
+
+  // If the Canva app forwarded a getCanvaUserToken() JWT through the
+  // authorize flow, bind the resulting Canva user id to this student now.
+  // Subsequent /api/external/* calls from the Canva app can then pass the
+  // JWT as Bearer and be resolved to this student without any cookie.
+  const canvaToken = String(form.get("canva_token") ?? "").trim();
+  if (canvaToken && looksLikeCanvaJwt(canvaToken)) {
+    try {
+      const claims = await verifyCanvaToken(canvaToken);
+      await db.canvaAppLink.upsert({
+        where: { canvaUserId: claims.canvaUserId },
+        create: {
+          canvaUserId: claims.canvaUserId,
+          studentId: student.id,
+          scope,
+        },
+        update: { studentId: student.id, scope },
+      });
+    } catch (e) {
+      // Non-fatal — still issue the auth code; app can retry the link flow.
+      console.warn("[oauth/consent] Canva JWT link skipped:", e);
+    }
   }
 
   const code = await issueAuthCode({
