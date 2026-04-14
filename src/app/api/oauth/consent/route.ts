@@ -86,14 +86,25 @@ export async function POST(req: Request) {
     const payload = verifyLinkNonce(linkNonce);
     if (payload) {
       console.log("[oauth/consent] linking canvaUserId:", payload.canvaUserId);
-      await db.canvaAppLink.upsert({
-        where: { canvaUserId: payload.canvaUserId },
-        create: {
+      // Enforce a 1:1 mapping between Canva user and Aura student — if the
+      // target student is already linked to a different Canva account, or
+      // this Canva account is already linked to a different student, drop
+      // the stale row first so the upsert doesn't trip the unique
+      // constraint on studentId.
+      await db.canvaAppLink.deleteMany({
+        where: {
+          OR: [
+            { studentId: student.id },
+            { canvaUserId: payload.canvaUserId },
+          ],
+        },
+      });
+      await db.canvaAppLink.create({
+        data: {
           canvaUserId: payload.canvaUserId,
           studentId: student.id,
           scope,
         },
-        update: { studentId: student.id, scope },
       });
     } else {
       console.warn("[oauth/consent] link_nonce invalid or expired");
