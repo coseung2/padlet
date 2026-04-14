@@ -16,8 +16,11 @@ import "server-only";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
 const APP_ID = "AAHAAMW43f4";
-const ISSUER = `https://api.canva.com/rest/v1/apps/${APP_ID}`;
-const JWKS_URL = `${ISSUER}/jwks`;
+// JWKS endpoint per https://www.canva.dev/docs/apps/verifying-user-tokens.
+// Canva's current user-token tokens do NOT include an `iss` claim, so we
+// intentionally skip issuer validation and only check signature + audience
+// + standard timing claims.
+const JWKS_URL = `https://api.canva.com/rest/v1/apps/${APP_ID}/jwks`;
 
 // Module-scoped JWKS cache. jose's createRemoteJWKSet memoises fetched keys
 // and refetches on kid miss or after its internal cooldown.
@@ -43,16 +46,24 @@ export type CanvaTokenClaims = {
  */
 export async function verifyCanvaToken(token: string): Promise<CanvaTokenClaims> {
   const { payload } = await jwtVerify(token, getJwks(), {
-    issuer: ISSUER,
     audience: APP_ID,
+    // NOTE: no `issuer` option — Canva's JWTs omit the iss claim.
   });
-  if (typeof payload.sub !== "string" || !payload.sub) {
-    throw new Error("canva_jwt_missing_sub");
+  // Canva uses `userId` (brand-scoped user id) instead of the standard
+  // `sub` claim. Fall back to sub just in case future versions add it.
+  const userId =
+    (typeof payload.userId === "string" && payload.userId) ||
+    (typeof payload.sub === "string" && payload.sub) ||
+    null;
+  if (!userId) {
+    throw new Error("canva_jwt_missing_user_id");
   }
   return {
-    canvaUserId: payload.sub,
+    canvaUserId: userId,
     canvaBrandId:
-      typeof payload.brand_id === "string" ? payload.brand_id : undefined,
+      (typeof payload.brandId === "string" && payload.brandId) ||
+      (typeof payload.brand_id === "string" && payload.brand_id) ||
+      undefined,
     canvaAppId: APP_ID,
   };
 }
