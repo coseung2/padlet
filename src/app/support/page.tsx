@@ -44,14 +44,6 @@ export default function SupportPage() {
             못합니다.
           </p>
 
-          <h3 className="docs-h3">PAT 토큰을 분실했어요</h3>
-          <p className="docs-p">
-            발급 시 한 번만 표시되는 비밀값은 재발급만 가능합니다. <Link
-              href="/settings/external-tokens"
-              className="docs-link"
-            >외부 토큰 설정</Link>
-            에서 새 토큰을 만들고 Canva 앱에 재배포해 주세요.
-          </p>
         </section>
 
         <section className="docs-section">

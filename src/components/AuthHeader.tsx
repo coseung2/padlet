@@ -43,8 +43,7 @@ export function AuthHeader() {
 
 /**
  * Native <details>-based dropdown so teachers can jump to infrequent-but-critical
- * settings (external PAT tokens, Canva app install guide) without hunting across
- * routes. Not a SidePanel — the scope is 2-3 links.
+ * settings (Canva app install guide) without hunting across routes.
  */
 function SettingsMenu() {
   return (
@@ -57,13 +56,6 @@ function SettingsMenu() {
         ⚙
       </summary>
       <div className="auth-settings-panel" role="menu">
-        <Link
-          href="/settings/external-tokens"
-          className="auth-settings-item"
-          role="menuitem"
-        >
-          🔑 외부 API 토큰
-        </Link>
         <Link
           href="/docs/canva-setup"
           className="auth-settings-item"

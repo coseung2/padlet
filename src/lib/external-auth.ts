@@ -1,19 +1,20 @@
 /**
  * Unified bearer-token verification for /api/external/*.
  *
- * Accepts either:
- *   - a teacher PAT (`aurapat_...`) — existing path, proxies to verifyPat,
- *   - a student OAuth access token (`aurastu_...`) issued via /oauth/* —
- *     treats the student's classroom's teacher as the effective PAT owner
- *     so downstream RBAC / membership queries keep working unchanged.
+ * Accepts:
+ *   - a student OAuth access token (`aurastu_...`) issued via
+ *     /api/external/student-login or /api/oauth/* — treats the student's
+ *     classroom's teacher as the effective resource owner so downstream
+ *     RBAC / membership queries keep working unchanged.
+ *   - a Canva Apps SDK JWT (`getCanvaUserToken()`) mapped to a Student via
+ *     `CanvaAppLink`.
  *
- * Returns a discriminated result. Callers branch on `kind` only when they
- * need the raw origin (auditing, scope allowlists); most handlers just
- * consume the normalised `{ user, scopes, scopeBoardIds }` fields.
+ * Teacher PAT (`aurapat_...`) was removed 2026-04-15 — Canva app switched
+ * to per-student scoped tokens and no third-party integrations depend on
+ * teacher PATs.
  */
 import "server-only";
 import { db } from "./db";
-import { verifyPat } from "./external-pat";
 import type { User, Student } from "@prisma/client";
 import { verifyAccessToken } from "./oauth-server";
 import { verifyCanvaToken, looksLikeCanvaJwt } from "./canva-jwt";
@@ -21,27 +22,14 @@ import { verifyCanvaToken, looksLikeCanvaJwt } from "./canva-jwt";
 export type BearerResult =
   | {
       ok: true;
-      kind: "pat";
-      user: User;
-      tokenId: string;
-      tokenPrefix: string;
-      scopes: string[];
-      scopeBoardIds: string[];
-      student: null;
-    }
-  | {
-      ok: true;
       kind: "oauth";
-      // The teacher who owns the student's classroom — used for boardMember
-      // lookups so the existing RBAC code path doesn't need to special-case
-      // student auth.
       user: User;
       tokenId: string;
       tokenPrefix: string;
       scopes: string[];
-      scopeBoardIds: string[]; // always [] for OAuth v1
-      // Student the token is bound to — handlers can use this to enforce
-      // classroom scoping in lieu of the student_session cookie.
+      // Always [] for OAuth — preserved in the shape so downstream board
+      // allowlist checks (`if scopeBoardIds.length > 0 …`) fall through.
+      scopeBoardIds: string[];
       student: Student & { classroomId: string };
     }
   | {
@@ -57,13 +45,10 @@ export type BearerResult =
 
 export async function verifyBearer(authHeader: string | null): Promise<BearerResult> {
   if (!authHeader?.startsWith("Bearer ")) {
-    // verifyPat tolerates missing Bearer prefix; route to it so the existing
-    // error codes (invalid_token_format) are preserved.
-    return patPathway(authHeader);
+    return { ok: false, code: "invalid_token_format" };
   }
   const token = authHeader.slice(7).trim();
 
-  if (token.startsWith("aurapat_")) return patPathway(authHeader);
   if (token.startsWith("aurastu_")) return oauthPathway(token);
   if (looksLikeCanvaJwt(token)) return canvaJwtPathway(token);
 
@@ -89,16 +74,13 @@ async function canvaJwtPathway(token: string): Promise<BearerResult> {
     },
   });
   if (!link || !link.student?.classroom?.teacher) {
-    // Canva JWT valid but the user hasn't linked their Aura-board account
-    // yet. Same error shape as an expired oauth token so callers can just
-    // prompt the student to re-authorize.
     return { ok: false, code: "orphan" };
   }
 
   const scopeList = link.scope.split(/\s+/).filter(Boolean);
   return {
     ok: true,
-    kind: "oauth", // downstream RBAC treats canva-jwt the same as oauth.
+    kind: "oauth",
     user: link.student.classroom.teacher,
     tokenId: `canva:${claims.canvaUserId}`,
     tokenPrefix: claims.canvaUserId.slice(0, 8),
@@ -108,29 +90,10 @@ async function canvaJwtPathway(token: string): Promise<BearerResult> {
   };
 }
 
-async function patPathway(authHeader: string | null): Promise<BearerResult> {
-  const r = await verifyPat(authHeader);
-  if (!r.ok) return { ok: false, code: r.code };
-  return {
-    ok: true,
-    kind: "pat",
-    user: r.value.user,
-    tokenId: r.value.tokenId,
-    tokenPrefix: r.value.tokenPrefix,
-    scopes: r.value.scopes,
-    scopeBoardIds: r.value.scopeBoardIds,
-    student: null,
-  };
-}
-
 async function oauthPathway(plaintext: string): Promise<BearerResult> {
   const r = await verifyAccessToken(plaintext);
   if (!r.ok) return { ok: false, code: r.code };
 
-  // Hydrate student → classroom → teacher. We intentionally take three
-  // queries' worth of latency (one join would be cheaper) because the
-  // existing PAT-centric handlers expect plain `User` / `Student` Prisma
-  // shapes; collapsing them would ripple into every consumer.
   const student = await db.student.findUnique({
     where: { id: r.studentId },
     include: { classroom: { include: { teacher: true } } },
