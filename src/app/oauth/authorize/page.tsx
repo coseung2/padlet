@@ -50,6 +50,10 @@ export default async function AuthorizePage({
   searchParams: SearchParams;
 }) {
   const q = await searchParams;
+  console.log("[oauth/authorize] incoming query keys:", Object.keys(q), {
+    hasCanvaToken: Boolean(q.canva_token),
+    canvaTokenLen: q.canva_token?.length ?? 0,
+  });
 
   // [1] Response type must be "code".
   if (q.response_type !== "code") {

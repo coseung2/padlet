@@ -74,9 +74,17 @@ export async function POST(req: Request) {
   // Subsequent /api/external/* calls from the Canva app can then pass the
   // JWT as Bearer and be resolved to this student without any cookie.
   const canvaToken = String(form.get("canva_token") ?? "").trim();
+  console.log("[oauth/consent]", {
+    studentId: student.id,
+    clientId,
+    hasCanvaToken: Boolean(canvaToken),
+    canvaTokenLen: canvaToken.length,
+    allFormKeys: Array.from(form.keys()),
+  });
   if (canvaToken && looksLikeCanvaJwt(canvaToken)) {
     try {
       const claims = await verifyCanvaToken(canvaToken);
+      console.log("[oauth/consent] linking canvaUserId:", claims.canvaUserId);
       await db.canvaAppLink.upsert({
         where: { canvaUserId: claims.canvaUserId },
         create: {
@@ -90,6 +98,11 @@ export async function POST(req: Request) {
       // Non-fatal — still issue the auth code; app can retry the link flow.
       console.warn("[oauth/consent] Canva JWT link skipped:", e);
     }
+  } else if (canvaToken) {
+    console.warn(
+      "[oauth/consent] canva_token present but shape invalid",
+      canvaToken.slice(0, 32),
+    );
   }
 
   const code = await issueAuthCode({
