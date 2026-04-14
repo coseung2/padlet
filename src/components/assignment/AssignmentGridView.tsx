@@ -8,16 +8,28 @@ type Props = {
   slots: AssignmentSlotDTO[];
   onOpen: (slot: AssignmentSlotDTO) => void;
   busySlotId?: string | null;
+  isClassroomAttached?: boolean;
 };
 
-function AssignmentGridViewImpl({ slots, onOpen, busySlotId }: Props) {
+function AssignmentGridViewImpl({ slots, onOpen, busySlotId, isClassroomAttached }: Props) {
   if (slots.length === 0) {
     return (
       <div className="assign-grid__empty">
-        <p>학급에 학생이 없습니다.</p>
-        <p className="assign-grid__empty-hint">
-          학급에 학생을 추가한 뒤 "로스터 동기화"를 눌러 새 slot을 추가하세요.
-        </p>
+        {isClassroomAttached ? (
+          <>
+            <p>학급에 학생이 없습니다.</p>
+            <p className="assign-grid__empty-hint">
+              학급에 학생을 추가한 뒤 우하단 버튼으로 slot을 동기화하세요.
+            </p>
+          </>
+        ) : (
+          <>
+            <p>아직 학급을 배당하지 않았습니다.</p>
+            <p className="assign-grid__empty-hint">
+              우하단 <strong>학급 배당</strong> 버튼으로 학급을 연결하면 학생 수만큼 slot이 자동 생성됩니다.
+            </p>
+          </>
+        )}
       </div>
     );
   }

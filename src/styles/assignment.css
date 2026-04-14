@@ -933,3 +933,37 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* AB-1 attach/sync FAB (teacher only).
+   Text-labelled rather than `+` icon because the action is semantic
+   ("학급 배당" vs "+N") and the target is uncommon enough that an icon
+   alone would be ambiguous. Reuses .add-card-fab shadow/elevation
+   tokens but widens for the label. */
+.assign-fab {
+  position: fixed;
+  right: 32px;
+  bottom: 32px;
+  min-width: 56px;
+  height: 56px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 9999px;
+  background: var(--color-accent);
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+  cursor: pointer;
+  box-shadow: var(--shadow-accent);
+  transition: background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+  z-index: 30;
+}
+.assign-fab:hover {
+  background: var(--color-accent-active);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-accent-hover);
+}
+.assign-fab:active {
+  transform: scale(0.97);
+}

@@ -411,6 +411,32 @@ export default async function BoardPage({
     );
   }
 
+  // AB-1 attach-classroom FAB: teacher needs the list of their classrooms
+  // (for the initial attach) plus the bound classroom's current headcount
+  // (to compute how many new students need syncing). Only fetch when the
+  // board is actually assignment-layout + viewer is the teacher.
+  const needsAssignmentTeacherMeta =
+    needsAssignmentData && !studentViewer && !!user;
+  const assignTeacherClassrooms = needsAssignmentTeacherMeta
+    ? (await db.classroom.findMany({
+        where: { teacherId: user!.id },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          name: true,
+          _count: { select: { students: true } },
+        },
+      })).map((c) => ({
+        id: c.id,
+        name: c.name,
+        studentCount: c._count.students,
+      }))
+    : undefined;
+  const assignBoundClassroom =
+    assignTeacherClassrooms && board.classroomId
+      ? assignTeacherClassrooms.find((c) => c.id === board.classroomId) ?? null
+      : null;
+
   function renderBoard() {
     const common = {
       boardId: board!.id,
@@ -537,6 +563,8 @@ export default async function BoardPage({
             }}
             initialSlots={slotDTOs}
             canStudentSubmit={canSubmit}
+            teacherClassrooms={assignTeacherClassrooms}
+            boundClassroom={assignBoundClassroom}
           />
         );
       }
