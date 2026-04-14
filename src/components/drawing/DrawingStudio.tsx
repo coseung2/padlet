@@ -43,7 +43,9 @@ import {
   flatten,
   generateThumb,
   initialStack,
+  type CanvasSize,
 } from "./canvas/LayerStack";
+import { AssetInsertModal, type InsertableAsset } from "./AssetInsertModal";
 import {
   beginStroke,
   drawSegment,
@@ -60,13 +62,25 @@ import type { BlendMode, Layer, StrokeSample, Tool } from "./canvas/types";
 type Props = {
   viewerKind?: "teacher" | "student" | "none";
   onSaved?: () => void;
+  /** Canvas dimensions in px. Defaults to the legacy 1200×1600 A4-ish portrait
+      when the parent does not show the size picker. */
+  canvasSize?: CanvasSize;
+  classroomId?: string | null;
 };
 
 const RECENT_KEY = "drawing-studio-recent-colors";
 
-export function DrawingStudio({ viewerKind = "student", onSaved }: Props) {
+export function DrawingStudio({
+  viewerKind = "student",
+  onSaved,
+  canvasSize: canvasSizeProp,
+  classroomId,
+}: Props) {
+  const canvasSize: CanvasSize = canvasSizeProp ?? { w: CANVAS_W, h: CANVAS_H };
+
   // ─── Layer state ─────────────────────────────────────────
-  const [layers, setLayers] = useState<Layer[]>(() => initialStack());
+  const [layers, setLayers] = useState<Layer[]>(() => initialStack(canvasSize));
+  const [assetInsertOpen, setAssetInsertOpen] = useState(false);
   const [activeLayerId, setActiveLayerId] = useState<string>(
     () => layers[layers.length - 1].id
   );
@@ -198,8 +212,8 @@ export function DrawingStudio({ viewerKind = "student", onSaved }: Props) {
   const toSample = useCallback((e: PointerEvent): StrokeSample => {
     const canvas = compositeRef.current!;
     const rect = canvas.getBoundingClientRect();
-    const scaleX = CANVAS_W / rect.width;
-    const scaleY = CANVAS_H / rect.height;
+    const scaleX = canvasSize.w / rect.width;
+    const scaleY = canvasSize.h / rect.height;
     return {
       x: (e.clientX - rect.left) * scaleX,
       y: (e.clientY - rect.top) * scaleY,
@@ -208,7 +222,7 @@ export function DrawingStudio({ viewerKind = "student", onSaved }: Props) {
       tiltY: e.tiltY ?? 0,
       timestamp: e.timeStamp ?? Date.now(),
     };
-  }, []);
+  }, [canvasSize.w, canvasSize.h]);
 
   const onPointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
     if (e.button !== 0) return;
@@ -276,10 +290,52 @@ export function DrawingStudio({ viewerKind = "student", onSaved }: Props) {
     scheduleCompose();
   };
 
+  // ─── Asset insert ────────────────────────────────────────
+  // Stamps an external image (from /api/student-assets shared scope, or a
+  // seeded design asset) onto a fresh layer. Scaled to fit the canvas
+  // while preserving aspect ratio — user can resize with new layer tools
+  // in a future iteration.
+  const insertAsset = useCallback(
+    async (asset: InsertableAsset) => {
+      if (layers.length >= MAX_LAYERS) {
+        return; // silent — panel already shows the cap
+      }
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      try {
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error("image_load_failed"));
+          img.src = asset.fileUrl;
+        });
+      } catch {
+        return;
+      }
+      const name = asset.title ? `에셋 — ${asset.title}` : "에셋";
+      const layer = createLayer({ name, size: canvasSize });
+      const ctx = layer.canvas.getContext("2d");
+      if (!ctx) return;
+      const scale = Math.min(
+        canvasSize.w / img.width,
+        canvasSize.h / img.height,
+        1
+      );
+      const drawW = img.width * scale;
+      const drawH = img.height * scale;
+      const dx = (canvasSize.w - drawW) / 2;
+      const dy = (canvasSize.h - drawH) / 2;
+      ctx.drawImage(img, dx, dy, drawW, drawH);
+      setLayers((c) => [...c, layer]);
+      setActiveLayerId(layer.id);
+      setAssetInsertOpen(false);
+    },
+    [canvasSize, layers.length]
+  );
+
   // ─── Layer ops ───────────────────────────────────────────
   const addLayer = useCallback(() => {
     if (layers.length >= MAX_LAYERS) return;
-    const next = createLayer({ name: `레이어 ${layers.length}` });
+    const next = createLayer({ name: `레이어 ${layers.length}`, size: canvasSize });
     setLayers((c) => [...c, next]);
     setActiveLayerId(next.id);
   }, [layers.length]);
@@ -437,8 +493,8 @@ export function DrawingStudio({ viewerKind = "student", onSaved }: Props) {
           >
             <canvas
               ref={compositeRef}
-              width={CANVAS_W}
-              height={CANVAS_H}
+              width={canvasSize.w}
+              height={canvasSize.h}
               className="ds-canvas"
               style={{ touchAction: "none" }}
               onPointerDown={onPointerDown}
@@ -505,6 +561,24 @@ export function DrawingStudio({ viewerKind = "student", onSaved }: Props) {
           value={color}
           onChange={setColor}
           onClose={() => setColorOpen(false)}
+        />
+      )}
+
+      <button
+        type="button"
+        className="ds-asset-fab"
+        aria-label="에셋 불러오기"
+        title="디자인 에셋 불러오기"
+        onClick={() => setAssetInsertOpen(true)}
+      >
+        🖼️
+      </button>
+
+      {assetInsertOpen && (
+        <AssetInsertModal
+          classroomId={classroomId ?? null}
+          onInsert={insertAsset}
+          onClose={() => setAssetInsertOpen(false)}
         />
       )}
 

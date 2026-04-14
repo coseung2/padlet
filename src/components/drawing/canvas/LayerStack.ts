@@ -1,32 +1,42 @@
 /**
  * 레이어 스택 관리 + 합성.
  *
- * - 각 레이어는 offscreen HTMLCanvasElement(1200x1600).
+ * - 각 레이어는 offscreen HTMLCanvasElement(기본 1200x1600, 사이즈 선택 시
+ *   프리셋).
  * - compose() 는 main canvas에 모든 visible layer 를 blend mode + opacity
  *   적용해 overlay. dirty rect 가 주어지면 그 부분만 재그림.
  * - 레이어 최대 10개. 첫 레이어는 항상 "배경" (흰색 fill 기본).
  */
 import { BLEND_MAP, type Layer, type Rect } from "./types";
 
+// 기본 크기 (하위 호환). 런타임에 size 를 명시하면 그 크기로 레이어가
+// 만들어진다 — DrawingStudio 초기 진입 시 CanvasSizePicker 로 선택.
 export const CANVAS_W = 1200;
 export const CANVAS_H = 1600;
 export const MAX_LAYERS = 10;
 
+export type CanvasSize = { w: number; h: number };
+
 let nextId = 1;
 
-function makeCanvas(w = CANVAS_W, h = CANVAS_H): HTMLCanvasElement {
+function makeCanvas(w: number, h: number): HTMLCanvasElement {
   const c = document.createElement("canvas");
   c.width = w;
   c.height = h;
   return c;
 }
 
-export function createLayer(options?: { name?: string; fillWhite?: boolean }): Layer {
-  const c = makeCanvas();
+export function createLayer(options?: {
+  name?: string;
+  fillWhite?: boolean;
+  size?: CanvasSize;
+}): Layer {
+  const size = options?.size ?? { w: CANVAS_W, h: CANVAS_H };
+  const c = makeCanvas(size.w, size.h);
   if (options?.fillWhite) {
     const ctx = c.getContext("2d")!;
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    ctx.fillRect(0, 0, size.w, size.h);
   }
   return {
     id: `L${nextId++}`,
@@ -40,7 +50,7 @@ export function createLayer(options?: { name?: string; fillWhite?: boolean }): L
 }
 
 export function duplicateLayer(src: Layer): Layer {
-  const c = makeCanvas();
+  const c = makeCanvas(src.canvas.width, src.canvas.height);
   c.getContext("2d")!.drawImage(src.canvas, 0, 0);
   return {
     id: `L${nextId++}`,
@@ -66,11 +76,10 @@ export function compose(
   if (!ctx) return;
 
   if (rect) {
-    // Clamp to canvas bounds.
     const x = Math.max(0, Math.floor(rect.x));
     const y = Math.max(0, Math.floor(rect.y));
-    const w = Math.min(CANVAS_W - x, Math.ceil(rect.w));
-    const h = Math.min(CANVAS_H - y, Math.ceil(rect.h));
+    const w = Math.min(target.width - x, Math.ceil(rect.w));
+    const h = Math.min(target.height - y, Math.ceil(rect.h));
     if (w <= 0 || h <= 0) return;
     ctx.save();
     ctx.beginPath();
@@ -102,12 +111,13 @@ export function compose(
  * Flatten visible layers into a new offscreen canvas. Used at save time to
  * produce the PNG that gets uploaded to /api/student-assets.
  */
-export function flatten(layers: Layer[]): HTMLCanvasElement {
-  const out = makeCanvas();
+export function flatten(layers: Layer[], size?: CanvasSize): HTMLCanvasElement {
+  // 사이즈는 첫 레이어 캔버스 기준(모든 레이어는 같은 크기를 공유한다는
+  // 내부 불변량). 명시 size 가 있으면 그것을 우선.
+  const w = size?.w ?? layers[0]?.canvas.width ?? CANVAS_W;
+  const h = size?.h ?? layers[0]?.canvas.height ?? CANVAS_H;
+  const out = makeCanvas(w, h);
   const ctx = out.getContext("2d")!;
-  // Save path treats invisible layers as unrendered. We DO NOT fill a
-  // background colour here — the bottom layer (usually "배경") already
-  // owns the white paint so flatten matches the on-screen composite.
   for (const layer of layers) {
     if (!layer.visible) continue;
     ctx.save();
@@ -120,8 +130,7 @@ export function flatten(layers: Layer[]): HTMLCanvasElement {
 }
 
 /**
- * Generate a 40x40 thumbnail of a single layer for the panel. The panel
- * calls this at most ~1/sec while the layer is dirty.
+ * Generate a 40x40 thumbnail of a single layer for the panel.
  */
 export function generateThumb(layer: Layer): string {
   const t = makeCanvas(40, 40);
@@ -129,12 +138,8 @@ export function generateThumb(layer: Layer): string {
   return t.toDataURL("image/png");
 }
 
-export function initialStack(): Layer[] {
-  // "배경" layer holds the white paint so erasing the top layer reveals
-  // white (not transparent) in the default flow. Users can delete the
-  // background or toggle its visibility if they want transparent export,
-  // but MVP keeps the mental model simple.
-  const bg = createLayer({ name: "배경", fillWhite: true });
-  const work = createLayer({ name: "레이어 1" });
+export function initialStack(size?: CanvasSize): Layer[] {
+  const bg = createLayer({ name: "배경", fillWhite: true, size });
+  const work = createLayer({ name: "레이어 1", size });
   return [bg, work];
 }

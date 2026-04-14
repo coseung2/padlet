@@ -765,3 +765,39 @@
   .ds-tool-btn { width: 40px; height: 40px; font-size: 18px; }
   .ds-color-swatch-sm { width: 22px; height: 22px; }
 }
+
+/* DrawingStudio asset-insert FAB (left of the Save TopBar button, floats
+   above the canvas). Uses a text emoji so it doesn't require an icon
+   font on the ChromeOS / tablet path. */
+.ds-asset-fab {
+  position: fixed;
+  right: 32px;
+  bottom: 96px; /* stays clear of the BottomBar */
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 22px;
+  cursor: pointer;
+  box-shadow: var(--shadow-card-hover);
+  z-index: 25;
+}
+.ds-asset-fab:hover {
+  transform: translateY(-1px);
+}
+.ds-asset-fab:active {
+  transform: scale(0.96);
+}
+
+/* Size picker + asset-insert modal share the create-board-modal
+   skeleton; override just the picker preview rectangle layout. */
+.canvas-size-picker .layout-option {
+  gap: 6px;
+}
+.asset-insert-modal .drawing-gallery {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 4px;
+}
