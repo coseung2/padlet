@@ -282,44 +282,6 @@
   border-color: var(--color-border-hover);
 }
 
-/* Highlight the watch-mode link in the side panel. */
-.card-detail-watch {
-  background: var(--color-primary, #097fe8);
-  color: white !important;
-  border-color: var(--color-primary, #097fe8);
-  font-weight: 700;
-}
-
-/* Floating "발표 모드" button on top of the media pane — visible during
-   normal modal AND fullscreen so the presenter can launch the
-   Canva-hosted slideshow with one click without opening the side panel. */
-.card-detail-watch-overlay {
-  position: absolute;
-  top: 14px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 3;
-  padding: 8px 14px;
-  border-radius: 999px;
-  background: var(--color-primary, #097fe8);
-  color: white;
-  font-size: 14px;
-  font-weight: 700;
-  text-decoration: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
-  transition: transform 120ms ease, box-shadow 120ms ease, opacity 0.2s ease;
-}
-.card-detail-watch-overlay:hover {
-  transform: translateX(-50%) scale(1.05);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22);
-}
-.card-detail-modal[data-fullscreen="true"] .card-detail-watch-overlay {
-  opacity: 0;
-}
-.card-detail-modal[data-fullscreen="true"]:hover .card-detail-watch-overlay {
-  opacity: 1;
-}
-
 .card-detail-modal[data-has-media="false"] .card-detail-body {
   grid-template-columns: 1fr;
 }
