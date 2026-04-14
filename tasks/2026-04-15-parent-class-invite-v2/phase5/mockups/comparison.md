@@ -1,5 +1,7 @@
 # Mockup Comparison — parent-class-invite-v2 (phase5)
 
+> **업데이트 2026-04-14**: phase9_user_review/decisions.md #1 반영 — 이름 마스킹 전면 제거. 모든 변형에서 자녀 이름은 원본 그대로 노출 가정. 비교 축 "자녀 이름 모르는 부모 지원" 은 마스킹 유무와 무관(시각 탐색/리스트/검색 등 탐색 패턴 자체를 비교). 선택 결과(v1) 불변.
+
 4개 변형의 장단점 요약. phase6 design_reviewer 가 최종 결정 가능하며, 본 designer 의 **self-selection 은 v1 (Inbox-First 2-Column)**. 근거는 §6.
 
 ---

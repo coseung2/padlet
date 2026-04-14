@@ -4,7 +4,8 @@
 - **선택된 변형**: `mockups/v1` (Inbox-First 2-Column · Notion-Calm)
 - **탈락 변형**: `rejected/v2`, `rejected/v3`, `rejected/v4` (감사 이력, 삭제 금지)
 - **작성일**: 2026-04-13
-- **upstream**: phase3/architecture.md · phase3/data_model.md · phase3/api_contract.json · phase4/design_brief.md · docs/design-system.md
+- **upstream**: phase3/architecture.md · phase3/data_model.md · phase3/api_contract.json · phase3_amendment/architecture_amendment.md (마스킹 제거) · phase4/design_brief.md (v2 — 마스킹 제거 반영) · phase9_user_review/decisions.md #1 · docs/design-system.md
+- **재실행 사유**: phase9_user_review/decisions.md #1 (이름 마스킹 전면 제거). 원본 v1 선택/레이아웃/토큰/컴포넌트 구조는 유지, 자녀·급우·학부모 이름 노출을 원본 그대로로 surgical 변경.
 
 ---
 
@@ -46,7 +47,7 @@ phase6 reviewer 가 교사 주 사용 디바이스 가정을 태블릿 우선으
 |---|---|
 | empty | 카드 내부 중앙, Body 15 muted "현재 승인 대기 중인 학부모가 없습니다." + 보조 Caption 12 muted "초대 코드를 학부모에게 공유해 보세요." FilterBar 숨김. |
 | loading | FilterBar disabled, row skeleton 72px × 3 (shimmer). |
-| ready | FilterBar pill `[전체][D+3 이상][D+6 이상]` 상단 고정 (sticky top 8px) + PendingRow × N. 각 row = 좌측 6px 세로 바 (DPlusBadge 색) + 학부모 이메일(축약) + 자녀 정보(반-번호 · maskedName) + DPlusBadge + 상대시각 + `[승인]` `[거부 ▾]`. Row height 72px. |
+| ready | FilterBar pill `[전체][D+3 이상][D+6 이상]` 상단 고정 (sticky top 8px) + PendingRow × N. 각 row = 좌측 6px 세로 바 (DPlusBadge 색) + 학부모 이메일(축약) + 자녀 정보(반-번호 · 자녀 이름 원본) + DPlusBadge + 상대시각 + `[승인]` `[거부 ▾]`. Row height 72px. 이름 노출 규칙: 원본 그대로(마스킹 없음, phase9 decisions #1). |
 | error | 섹션 상단 red-tinted banner + `새로고침` secondary. 기존 rows 는 숨김. |
 | success | 처리된 row fade-out 180ms → `list.filter` 제거 → 상단 카운트 감소 + toast `승인되었습니다` 또는 `거부되었습니다 (사유: {reason})` 2.5s. |
 
@@ -56,7 +57,7 @@ phase6 reviewer 가 교사 주 사용 디바이스 가정을 태블릿 우선으
 |---|---|
 | empty | "아직 연결된 학부모가 없습니다." Body 15 muted. |
 | loading | row skeleton 48px × 3. |
-| ready | LinkedRow × N (pagination 10건/페이지). 각 row = 학부모 이메일 · 자녀 maskedName · 승인일 · `[해제]` destructive small. Row height 48px. `[더 보기]` secondary 하단. |
+| ready | LinkedRow × N (pagination 10건/페이지). 각 row = 학부모 이메일 · 자녀 이름(원본) · 승인일 · `[해제]` destructive small. Row height 48px. `[더 보기]` secondary 하단. |
 | error | banner + `새로고침`. |
 | success | 해제 row fade-out + toast `학부모 연결을 해제했습니다`. |
 
@@ -131,7 +132,7 @@ OnboardingStepper dot variant (P1~P5 표시, P6 숨김)
 |---|---|
 | empty | "아직 학생이 등록되지 않았습니다. 선생님께 문의하세요." + secondary `뒤로`. |
 | loading | Stepper (3/4). 카드 grid skeleton (4×3 데스크탑, 3×4 태블릿, 2×6 모바일). |
-| ready | 학급명 헤더 (Section 15) "3학년 2반" + Body caption "자녀를 선택하세요." + 카드 grid: 각 카드 132×116 (데스크탑)/160×140(태블릿)/계산치(모바일 2열). 카드 내부: Micro `3-2-15` + Subtitle `김O민` + radio (우상단 20×20). 선택 시 `border-color: var(--color-accent)`, `background: var(--color-accent-tinted-bg)`, `box-shadow: var(--shadow-card-hover)`. Sticky bottom Primary `이 학생의 학부모로 신청`. 카드 44×44 탭 타깃 충족 (전체 카드 영역이 타깃). |
+| ready | 학급명 헤더 (Section 15) "3학년 2반" + Body caption "자녀를 선택하세요." + 카드 grid: 각 카드 132×116 (데스크탑)/160×140(태블릿)/계산치(모바일 2열). 카드 내부: Micro `3-2-15` + Subtitle `김보민` (자녀 이름 원본) + radio (우상단 20×20). 선택 시 `border-color: var(--color-accent)`, `background: var(--color-accent-tinted-bg)`, `box-shadow: var(--shadow-card-hover)`. Sticky bottom Primary `이 학생의 학부모로 신청`. 카드 44×44 탭 타깃 충족 (전체 카드 영역이 타깃). |
 | error | 상단 banner 분기: `다시 코드를 입력해 주세요` (ticket 만료) + link `/match/code` · `이미 신청한 학생이 3명입니다. 승인 후 다시 시도해 주세요.` · 일반 로드 실패 + `다시 시도`. |
 | success | (router.push → `/onboard/pending`.) |
 
@@ -242,10 +243,10 @@ OnboardingStepper dot variant (P1~P5 표시, P6 숨김)
 |---|---|---|---|
 | `<DPlusBadge value={n} />` | `src/components/parent-access/DPlusBadge.tsx` | D+N 배지, 3색 분기 (0~2 회색 / 3~5 warning / 6~7 danger). 텍스트는 항상 `D+{n}` 표기. | `aria-label="신청 후 {n}일 경과"`, tooltip, 색 + 텍스트 이중 전달 |
 | `<CodeInput8 value onChange onComplete />` | `src/components/parent/CodeInput8.tsx` | 8칸 input (4-4 분할). Backspace/좌우 화살표 지원, paste 시 자동 분배. | `role="group"` + `aria-label="학급 코드 8자리"`, 각 칸 `aria-label="{n}번째 자리"` |
-| `<StudentPickerCard student selected onSelect />` | `src/components/parent/StudentPickerCard.tsx` | 카드 + radio. 44×44 탭 타깃. | `role="radio"` + `aria-checked` + `aria-label="{grade}-{class}-{number} {maskedName}"` |
+| `<StudentPickerCard student selected onSelect />` | `src/components/parent/StudentPickerCard.tsx` | 카드 + radio. 44×44 탭 타깃. | `role="radio"` + `aria-checked` + `aria-label="{grade}-{class}-{number} {studentName}"` (원본 이름 노출) |
 | `<OnboardingStepper current total variant="dot" />` | `src/components/parent/OnboardingStepper.tsx` | 4단계 dot stepper. P6 에서는 렌더링 스킵. | `role="progressbar"` + `aria-valuenow`/`aria-valuemax`, label 텍스트 `{current} of {total}` |
-| `<PendingRow link onApprove onReject />` | `src/components/parent-access/PendingRow.tsx` | 좌측 6px 세로 바, 학부모 정보, DPlusBadge, 버튼. | `role="listitem"`, 버튼 `aria-label="{maskedName} 학부모 승인/거부"` |
-| `<LinkedRow link onRevoke />` | `src/components/parent-access/LinkedRow.tsx` | 연결된 학부모 row. | `role="listitem"`, 해제 `aria-label="{maskedName} 학부모 연결 해제"` |
+| `<PendingRow link onApprove onReject />` | `src/components/parent-access/PendingRow.tsx` | 좌측 6px 세로 바, 학부모 정보, DPlusBadge, 버튼. | `role="listitem"`, 버튼 `aria-label="{studentName} 학부모 승인/거부"` (원본 이름) |
+| `<LinkedRow link onRevoke />` | `src/components/parent-access/LinkedRow.tsx` | 연결된 학부모 row. | `role="listitem"`, 해제 `aria-label="{studentName} 학부모 연결 해제"` (원본 이름) |
 | `<InviteCodeCard code qrUrl issuedAt usage onCopy onRotate />` | `src/components/parent-access/InviteCodeCard.tsx` | 코드 + QR + 버튼. | copy 성공 200ms in-place feedback, `aria-live="polite"` |
 | `<RotateConfirmModal open onConfirm onCancel pendingCount />` | `src/components/parent-access/RotateConfirmModal.tsx` | S-T4 모달. | focus trap, `role="dialog"` + `aria-modal=true` + `aria-labelledby` |
 | `<ClassroomDeleteModal classroom pendingCount onConfirm onCancel />` | `src/components/classroom/ClassroomDeleteModal.tsx` | S-T5 모달, 학급명 재입력 확인. | focus trap 동일, 입력 불일치 시 `[삭제]` disabled |
@@ -316,7 +317,7 @@ OnboardingStepper dot variant (P1~P5 표시, P6 숨김)
 - [x] §2 화면 상태별 (empty/loading/ready/error/success) 누락 없이 명세 (교사 5 + 학부모 6 + 모달 2 + 이메일 9 공통)
 - [x] §3 사용 토큰 (기존 + 신규 2개) 명시
 - [x] §4 컴포넌트 목록 (신규 10개 task-local + 기존 재사용)
-- [x] 마스킹 규칙 김O민 (성+O+끝) 적용
+- [x] 이름 노출 규칙: 원본 표시 (마스킹 없음 — phase9_user_review/decisions.md #1 + phase3_amendment 반영)
 - [x] Tab S6 Lite 44px 터치 타깃 반영
 - [x] `prefers-reduced-motion` 커버
 - [x] Korean copy 전반 준수
