@@ -58,6 +58,10 @@ const BodySchema = z
     // Canva design URL of the source — when supplied, the card is wired
     // for CanvaEmbedSlot's thumbnail+live toggle UX.
     canvaDesignUrl: z.string().url().max(500).optional(),
+    // Display name the app forwards for author attribution. Used only when
+    // the request has no student_session cookie and no OAuth token (i.e.
+    // pure PAT auth — Canva Content Publisher intent on tablet).
+    authorName: z.string().min(1).max(60).optional(),
   })
   .strict()
   .refine((b) => b.imageDataUrl || b.canvaDesignUrl, {
@@ -168,13 +172,16 @@ export async function POST(req: Request) {
     }
   }
 
-  // [9.5] REQUIRED: student attribution.
+  // [9.5] Author attribution.
   //   - OAuth path: bearer token is already student-scoped → use it directly.
-  //   - PAT path: fall back to the student_session cookie (existing rule).
-  // Either way, the student's classroom must match the target board's.
+  //   - PAT path A: student_session cookie present → classroom-scoped.
+  //   - PAT path B (Canva tablet app): no cookie → rely on PAT scope +
+  //     the explicit `authorName` from the request body. Classroom
+  //     validation is skipped because the PAT itself is the teacher's
+  //     trust anchor.
   let studentAuthorId: string | null = null;
   let externalAuthorName: string | null = null;
-  let studentClassroomId: string;
+  let studentClassroomId: string | null = null;
   try {
     if (kind === "oauth") {
       studentAuthorId = verified.student.id;
@@ -183,29 +190,36 @@ export async function POST(req: Request) {
     } else {
       const { getCurrentStudent } = await import("@/lib/student-auth");
       const student = await getCurrentStudent();
-      if (!student) {
+      if (student) {
+        studentAuthorId = student.id;
+        externalAuthorName = student.name;
+        studentClassroomId = student.classroomId;
+      } else if (input.authorName) {
+        // No cookie (Canva native app context). Trust the PAT + use the
+        // forwarded authorName for display. No classroom match check.
+        externalAuthorName = input.authorName;
+      } else {
         return externalErrorResponse(
           "student_session_required",
-          "Aura 학생 로그인이 필요해요. 학생 계정으로 로그인한 뒤 다시 시도하세요."
+          "학생 이름(authorName) 을 함께 보내거나 학생 세션이 필요합니다."
         );
       }
-      studentAuthorId = student.id;
-      externalAuthorName = student.name;
-      studentClassroomId = student.classroomId;
     }
 
-    const boardForClassroom = await db.board.findUnique({
-      where: { id: board.id },
-      select: { classroomId: true },
-    });
-    if (
-      boardForClassroom?.classroomId &&
-      boardForClassroom.classroomId !== studentClassroomId
-    ) {
-      return externalErrorResponse(
-        "forbidden",
-        "학생의 학급이 보드 학급과 달라요."
-      );
+    if (studentClassroomId !== null) {
+      const boardForClassroom = await db.board.findUnique({
+        where: { id: board.id },
+        select: { classroomId: true },
+      });
+      if (
+        boardForClassroom?.classroomId &&
+        boardForClassroom.classroomId !== studentClassroomId
+      ) {
+        return externalErrorResponse(
+          "forbidden",
+          "학생의 학급이 보드 학급과 달라요."
+        );
+      }
     }
   } catch (e) {
     console.error("[POST /api/external/cards] student auth", e);
