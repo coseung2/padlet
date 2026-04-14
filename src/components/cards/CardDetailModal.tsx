@@ -83,7 +83,9 @@ export function CardDetailModal({ card, onClose, cards, onChange }: Props) {
 
   return (
     <>
-      <div className="modal-backdrop" onClick={onClose} />
+      {!isFullscreen && (
+        <div className="modal-backdrop" onClick={onClose} />
+      )}
       <div
         ref={rootRef}
         className="add-card-modal card-detail-modal"
