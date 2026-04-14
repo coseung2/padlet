@@ -197,6 +197,13 @@
   margin: 0 0 12px;
 }
 
+.docs-h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 16px 0 6px;
+}
+
 .docs-p {
   font-size: 14px;
   line-height: 1.7;
