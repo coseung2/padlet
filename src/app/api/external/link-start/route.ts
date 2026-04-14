@@ -17,6 +17,12 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   const authHeader = req.headers.get("authorization") ?? "";
+  console.log("[external/link-start] hit", {
+    authHead: authHeader.slice(0, 30),
+    authLen: authHeader.length,
+    origin: req.headers.get("origin"),
+    referer: req.headers.get("referer"),
+  });
   if (!authHeader.startsWith("Bearer ")) {
     return NextResponse.json(
       { error: { code: "missing_bearer" } },
