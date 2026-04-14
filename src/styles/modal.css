@@ -25,54 +25,145 @@
   animation: modalIn 200ms ease;
 }
 
-/* Card detail lightbox — near-fullscreen so Canva iframes + images
-   render at readable size. Scales down on small screens via max-width. */
+/* Card detail lightbox — 2-column near-fullscreen layout:
+   left = media (image/iframe, fills pane, contain-fit),
+   right = narrow side panel (title + content + link + author). */
 .card-detail-modal {
   width: min(1400px, calc(100vw - 48px));
   height: calc(100vh - 48px);
   max-width: calc(100vw - 48px);
   max-height: calc(100vh - 48px);
-  display: flex;
-  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
 }
 
-.card-detail-modal .modal-header {
-  flex: 0 0 auto;
+.card-detail-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
 }
 
 .card-detail-body {
-  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  height: 100%;
   min-height: 0;
+}
+
+.card-detail-media {
+  background: #0b0b0d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+  padding: 16px;
+}
+
+/* Make the image/iframe fill the media pane with contain-fit so nothing
+   is cropped. These override the tight link-preview thumb rules that
+   apply inside regular cards. */
+.card-detail-media .card-link-preview {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card-detail-media .card-link-preview:hover {
+  box-shadow: none;
+}
+.card-detail-media .card-link-preview-image {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card-detail-media .card-link-preview-image img,
+.card-detail-media .card-attachment-image,
+.card-detail-media .card-link-preview-image .optimized-img-wrap img,
+.card-detail-media img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.card-detail-media .card-link-preview-body {
+  display: none;
+}
+.card-detail-media .card-canva-slot {
+  width: 100%;
+  height: 100%;
+}
+.card-detail-media .card-canva-slot-frame,
+.card-detail-media iframe {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.card-detail-side {
+  border-left: 1px solid var(--color-border);
+  padding: 24px 20px 20px;
   overflow-y: auto;
-  padding: 16px 24px 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
+  background: var(--color-surface);
+}
+
+.card-detail-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 32px 0 0; /* room for close button */
 }
 
 .card-detail-content {
   white-space: pre-wrap;
-  line-height: 1.65;
-  font-size: 1.05rem;
+  line-height: 1.6;
+  font-size: 0.95rem;
   margin: 0;
+  color: var(--color-text);
 }
 
-/* Canva slot in the detail modal fills most of the viewport vertically
-   so the iframe player is actually usable. */
-.card-detail-body .card-canva-slot {
-  flex: 1 1 auto;
-  min-height: 60vh;
+.card-detail-link {
+  font-size: 0.875rem;
+  color: var(--color-primary, #097fe8);
+  text-decoration: none;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  align-self: flex-start;
 }
-.card-detail-body .card-canva-slot-frame {
-  height: 100%;
-  min-height: 60vh;
+.card-detail-link:hover {
+  border-color: var(--color-border-hover);
 }
 
-.card-detail-body img.card-link-preview-image,
-.card-detail-body .card-attachment-image {
-  max-height: 70vh;
-  width: auto;
-  max-width: 100%;
+.card-detail-modal[data-has-media="false"] .card-detail-body {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 900px) {
+  .card-detail-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: 55vh 1fr;
+  }
+  .card-detail-side {
+    border-left: 0;
+    border-top: 1px solid var(--color-border);
+  }
 }
 
 .padlet-card.is-clickable,

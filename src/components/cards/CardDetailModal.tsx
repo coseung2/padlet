@@ -26,6 +26,12 @@ export function CardDetailModal({ card, onClose }: Props) {
 
   if (!card) return null;
 
+  const hasMedia =
+    Boolean(card.imageUrl) ||
+    Boolean(card.linkImage) ||
+    Boolean(card.videoUrl) ||
+    Boolean(card.linkUrl);
+
   return (
     <>
       <div className="modal-backdrop" onClick={onClose} />
@@ -34,32 +40,52 @@ export function CardDetailModal({ card, onClose }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label={card.title}
+        data-has-media={hasMedia ? "true" : "false"}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="modal-header">
-          <h2 className="modal-title">{card.title}</h2>
-          <button type="button" className="modal-close" onClick={onClose} aria-label="닫기">
-            ×
-          </button>
-        </div>
-        <div className="modal-body card-detail-body">
-          <CardAttachments
-            imageUrl={card.imageUrl}
-            linkUrl={card.linkUrl}
-            linkTitle={card.linkTitle}
-            linkDesc={card.linkDesc}
-            linkImage={card.linkImage}
-            videoUrl={card.videoUrl}
-          />
-          {card.content && (
-            <p className="padlet-card-content card-detail-content">{card.content}</p>
+        <button
+          type="button"
+          className="modal-close card-detail-close"
+          onClick={onClose}
+          aria-label="닫기"
+        >
+          ×
+        </button>
+        <div className="card-detail-body">
+          {hasMedia && (
+            <section className="card-detail-media" aria-label="첨부">
+              <CardAttachments
+                imageUrl={card.imageUrl}
+                linkUrl={card.linkUrl}
+                linkTitle={card.linkTitle}
+                linkDesc={card.linkDesc}
+                linkImage={card.linkImage}
+                videoUrl={card.videoUrl}
+              />
+            </section>
           )}
-          <CardAuthorFooter
-            externalAuthorName={card.externalAuthorName}
-            studentAuthorName={card.studentAuthorName}
-            authorName={card.authorName}
-            createdAt={card.createdAt}
-          />
+          <aside className="card-detail-side">
+            <h2 className="card-detail-title">{card.title}</h2>
+            {card.content && (
+              <p className="card-detail-content">{card.content}</p>
+            )}
+            {card.linkUrl && (
+              <a
+                href={card.linkUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="card-detail-link"
+              >
+                🔗 원본 열기
+              </a>
+            )}
+            <CardAuthorFooter
+              externalAuthorName={card.externalAuthorName}
+              studentAuthorName={card.studentAuthorName}
+              authorName={card.authorName}
+              createdAt={card.createdAt}
+            />
+          </aside>
         </div>
       </div>
     </>
