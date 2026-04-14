@@ -44,6 +44,48 @@
   z-index: 2;
 }
 
+/* Fullscreen toggle — bottom-right for presentation mode. */
+.card-detail-fullscreen {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  z-index: 3;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border, #e2e2ea);
+  background: var(--color-surface, white);
+  color: var(--color-text, #111);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.card-detail-fullscreen:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* When entering the browser fullscreen, the modal becomes the root
+   element — strip all width/height caps so it genuinely fills the screen. */
+.card-detail-modal[data-fullscreen="true"] {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  border-radius: 0;
+}
+.card-detail-modal[data-fullscreen="true"] .card-detail-body {
+  grid-template-columns: 1fr 340px;
+}
+.card-detail-modal[data-fullscreen="true"] .card-detail-media .card-canva-slot-frame {
+  min-height: calc(100vh - 48px);
+}
+
 .card-detail-body {
   display: grid;
   grid-template-columns: 1fr 340px;
