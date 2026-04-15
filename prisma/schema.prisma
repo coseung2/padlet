@@ -134,6 +134,7 @@ model Student {
   oauthRefreshTokens  OAuthRefreshToken[]
   canvaAppLink        CanvaAppLink?
   assignmentSlots     AssignmentSlot[]     @relation("StudentAssignmentSlots")
+  cardAuthors         CardAuthor[]         @relation("StudentCardAuthors")
 
   @@unique([classroomId, number])
   @@index([classroomId])
@@ -272,6 +273,7 @@ model Card {
   studentAuthor    Student?          @relation("StudentCardAuthor", fields: [studentAuthorId], references: [id], onDelete: SetNull)
   assetAttachments AssetAttachment[] @relation("CardAssetAttachments")
   assignmentSlot   AssignmentSlot?   @relation("AssignmentSlotCard")
+  authors          CardAuthor[]
 
   @@index([boardId])
   @@index([sectionId])
@@ -583,6 +585,27 @@ model StudentAsset {
   @@index([studentId])
   @@index([classroomId])
   @@index([classroomId, isSharedToClass])
+}
+
+// CardAuthor = N:N join row between Card and Student, with a denormalised
+// displayName so author names survive student rename/soft-delete. Order
+// enforces a stable primary author (order=0) which Card.studentAuthorId +
+// Card.externalAuthorName mirror for backward-compatibility. See
+// tasks/2026-04-15-card-author-multi/phase3/design_doc.md §1.
+model CardAuthor {
+  id          String   @id @default(cuid())
+  cardId      String
+  studentId   String?
+  displayName String
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  card    Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  student Student? @relation("StudentCardAuthors", fields: [studentId], references: [id], onDelete: SetNull)
+
+  @@unique([cardId, studentId])
+  @@index([cardId, order])
+  @@index([studentId])
 }
 
 // AssetAttachment = join row linking a StudentAsset to a Card or

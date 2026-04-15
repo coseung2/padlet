@@ -30,6 +30,15 @@ export type CardData = {
   externalAuthorName?: string | null;
   studentAuthorName?: string | null;
   authorName?: string | null;
+  /** CardAuthor join rows. When empty, CardAuthorFooter falls back to the
+   *  legacy pickAuthorName(external, student, author) chain. Sorted
+   *  ascending by .order — primary is index 0. */
+  authors?: Array<{
+    id: string;
+    studentId: string | null;
+    displayName: string;
+    order: number;
+  }>;
 };
 
 type Props = {

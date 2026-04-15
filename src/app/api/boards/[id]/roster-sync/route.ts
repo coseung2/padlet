@@ -149,6 +149,14 @@ export async function POST(
           cardId: card.id,
         },
       });
+      await tx.cardAuthor.create({
+        data: {
+          cardId: card.id,
+          studentId: s.id,
+          displayName: s.name,
+          order: 0,
+        },
+      });
       added.push({
         id: newSlot.id,
         slotNumber: n,

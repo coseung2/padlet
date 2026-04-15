@@ -1,9 +1,14 @@
 "use client";
 
 import { memo } from "react";
-import { pickAuthorName, formatRelativeKo } from "@/lib/card-author";
+import {
+  formatAuthorList,
+  formatRelativeKo,
+  type AuthorLike,
+} from "@/lib/card-author";
 
 type Props = {
+  authors?: AuthorLike[] | null;
   externalAuthorName?: string | null;
   studentAuthorName?: string | null;
   authorName?: string | null;
@@ -11,12 +16,21 @@ type Props = {
 };
 
 export const CardAuthorFooter = memo(function CardAuthorFooter({
+  authors,
   externalAuthorName,
   studentAuthorName,
   authorName,
   createdAt,
 }: Props) {
-  const name = pickAuthorName(externalAuthorName, studentAuthorName, authorName);
+  // formatAuthorList honours the `authors` array first (CardAuthor rows),
+  // falling back to the legacy external/student/author chain when the
+  // array is empty — keeps legacy cards rendering the same name pick.
+  const name = formatAuthorList(
+    authors ?? null,
+    externalAuthorName,
+    studentAuthorName,
+    authorName
+  );
   if (!name && !createdAt) return null;
 
   const iso =

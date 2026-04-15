@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getCurrentStudent } from "@/lib/student-auth";
 import { requirePermission, ForbiddenError } from "@/lib/rbac";
 import { isCanvaDesignUrl, resolveCanvaEmbedUrl } from "@/lib/canva";
+import { setCardAuthors } from "@/lib/card-authors-service";
 
 const CreateCardSchema = z.object({
   boardId: z.string().min(1),
@@ -98,28 +99,40 @@ export async function POST(req: Request) {
       }
     }
 
-    const card = await db.card.create({
-      data: {
-        boardId: input.boardId,
-        authorId,
-        studentAuthorId,
-        externalAuthorName,
-        title: input.title,
-        content: input.content,
-        color: input.color ?? null,
-        imageUrl: input.imageUrl ?? null,
-        linkUrl,
-        linkTitle,
-        linkDesc,
-        linkImage,
-        videoUrl: input.videoUrl ?? null,
-        x: input.x,
-        y: input.y,
-        width: input.width ?? 240,
-        height: input.height ?? 160,
-        order: input.order ?? 0,
-        sectionId: input.sectionId ?? null,
-      },
+    const card = await db.$transaction(async (tx) => {
+      const c = await tx.card.create({
+        data: {
+          boardId: input.boardId,
+          authorId,
+          studentAuthorId,
+          externalAuthorName,
+          title: input.title,
+          content: input.content,
+          color: input.color ?? null,
+          imageUrl: input.imageUrl ?? null,
+          linkUrl,
+          linkTitle,
+          linkDesc,
+          linkImage,
+          videoUrl: input.videoUrl ?? null,
+          x: input.x,
+          y: input.y,
+          width: input.width ?? 240,
+          height: input.height ?? 160,
+          order: input.order ?? 0,
+          sectionId: input.sectionId ?? null,
+        },
+      });
+      // Student-authored cards get a primary CardAuthor row so the
+      // source of truth for authorship lives in the join table from the
+      // start. Teacher-created cards (no studentAuthorId) get no initial
+      // CardAuthor rows — teacher can open the editor to attribute.
+      if (studentAuthorId && externalAuthorName) {
+        await setCardAuthors(tx, c.id, [
+          { studentId: studentAuthorId, displayName: externalAuthorName },
+        ]);
+      }
+      return c;
     });
 
     // Mirror the server-side cardProps mapping (board/[id]/page.tsx) so

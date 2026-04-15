@@ -93,6 +93,15 @@ export default async function BoardPage({
         include: {
           author: { select: { name: true } },
           studentAuthor: { select: { name: true } },
+          authors: {
+            orderBy: { order: "asc" },
+            select: {
+              id: true,
+              studentId: true,
+              displayName: true,
+              order: true,
+            },
+          },
         },
       })
     : null;
@@ -223,6 +232,9 @@ export default async function BoardPage({
     externalAuthorName: c.externalAuthorName,
     studentAuthorName: c.studentAuthor?.name ?? null,
     authorName: c.author?.name ?? null,
+    authors:
+      (c as { authors?: { id: string; studentId: string | null; displayName: string; order: number }[] }).authors ??
+      [],
   }));
 
   const sectionProps = sections.map((s) => ({
@@ -458,6 +470,9 @@ export default async function BoardPage({
       // /api/cards endpoint also accepts student_session when a student
       // posts to a board in their own classroom.
       isStudentViewer: !!studentViewer,
+      // Board's classroom id — CardAuthorEditor uses it to fetch the
+      // roster for multi-student author assignment.
+      classroomId: board!.classroomId,
     };
 
     switch (board!.layout) {
