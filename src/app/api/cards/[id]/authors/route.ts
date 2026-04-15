@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { resolveIdentity } from "@/lib/identity";
+import { resolveIdentities } from "@/lib/identity";
 import { canEditCard, type BoardLike, type CardLike } from "@/lib/card-permissions";
 import {
   setCardAuthors,
@@ -57,7 +57,7 @@ export async function PUT(
       return NextResponse.json({ error: "Board not found" }, { status: 404 });
     }
 
-    const identity = await resolveIdentity();
+    const identity = await resolveIdentities();
     const boardLike: BoardLike = {
       id: board.id,
       classroomId: board.classroomId,
@@ -73,11 +73,9 @@ export async function PUT(
     // Author re-assignment is a strictly teacher-owner action — students
     // can edit their own card content via PATCH but cannot change who is
     // credited. Enforce here to avoid UI-only gating.
-    if (
-      identity.kind !== "teacher" ||
-      !identity.ownsBoardIds.has(board.id) ||
-      !canEditCard(identity, boardLike, cardLike)
-    ) {
+    const isTeacherOwner =
+      !!identity.teacher && identity.teacher.ownsBoardIds.has(board.id);
+    if (!isTeacherOwner || !canEditCard(identity, boardLike, cardLike)) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ForbiddenError } from "@/lib/rbac";
-import { resolveIdentity } from "@/lib/identity";
+import { resolveIdentities } from "@/lib/identity";
 import { canEditCard, canDeleteCard, type BoardLike, type CardLike } from "@/lib/card-permissions";
 import { isCanvaDesignUrl, resolveCanvaEmbedUrl, expandCanvaShortLink } from "@/lib/canva";
 
@@ -48,7 +48,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Board not found" }, { status: 404 });
     }
 
-    const identity = await resolveIdentity();
+    const identity = await resolveIdentities();
     const boardLike: BoardLike = {
       id: board.id,
       classroomId: board.classroomId,
@@ -153,7 +153,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Board not found" }, { status: 404 });
     }
 
-    const identity = await resolveIdentity();
+    const identity = await resolveIdentities();
     const boardLike: BoardLike = {
       id: board.id,
       classroomId: board.classroomId,

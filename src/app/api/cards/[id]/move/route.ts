@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ForbiddenError } from "@/lib/rbac";
-import { resolveIdentity } from "@/lib/identity";
+import { resolveIdentities } from "@/lib/identity";
 import { canEditCard, type BoardLike, type CardLike } from "@/lib/card-permissions";
 
 const MoveCardSchema = z.object({
@@ -30,7 +30,7 @@ export async function PATCH(
     });
     if (!board) return NextResponse.json({ error: "Board not found" }, { status: 404 });
 
-    const identity = await resolveIdentity();
+    const identity = await resolveIdentities();
     const boardLike: BoardLike = {
       id: board.id,
       classroomId: board.classroomId,
