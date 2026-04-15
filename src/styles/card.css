@@ -238,19 +238,31 @@
   background: #000;
 }
 
-/* card context menu positioning */
+/* Card context menu positioning — always visible on touch devices
+   (no hover signal there), hover-reveal on pointer-fine devices so
+   desktop cards keep their cleaner default state. */
 .card-ctx-menu {
   position: absolute;
   top: 8px;
   right: 8px;
-  display: none;
+  display: block;
 }
 
-.column-card:hover .card-ctx-menu,
-.grid-card:hover .card-ctx-menu,
-.stream-card:hover .card-ctx-menu,
-.padlet-card:hover .card-ctx-menu {
-  display: block;
+@media (hover: hover) {
+  .card-ctx-menu {
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+  .column-card:hover .card-ctx-menu,
+  .grid-card:hover .card-ctx-menu,
+  .stream-card:hover .card-ctx-menu,
+  .padlet-card:hover .card-ctx-menu,
+  .column-card:focus-within .card-ctx-menu,
+  .grid-card:focus-within .card-ctx-menu,
+  .stream-card:focus-within .card-ctx-menu,
+  .padlet-card:focus-within .card-ctx-menu {
+    opacity: 1;
+  }
 }
 
 /* Canva live-embed wrapper (task 2026-04-12-canva-oembed).
@@ -568,11 +580,11 @@
 }
 .card-author-row-actions {
   display: flex;
-  gap: 4px;
+  gap: 6px;
 }
 .card-author-row-actions button {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   background: transparent;
   border: 1px solid var(--color-border);
@@ -580,6 +592,15 @@
   color: var(--color-text-muted);
   cursor: pointer;
   font-size: 14px;
+}
+@media (pointer: coarse) {
+  .card-author-row-actions button {
+    width: var(--tap-min);
+    height: var(--tap-min);
+  }
+  .card-author-student-row {
+    min-height: var(--tap-min);
+  }
 }
 .card-author-row-actions button:disabled {
   opacity: 0.3;
