@@ -35,16 +35,7 @@ export function InviteCodeCard({ code, qrJoinUrl, issuedAt, usage, onRotate }: I
   };
 
   return (
-    <div
-      style={{
-        maxWidth: 340,
-        padding: 20,
-        borderRadius: "var(--radius-card)",
-        background: "var(--color-surface)",
-        border: "var(--border-card)",
-        boxShadow: "var(--shadow-card)",
-      }}
-    >
+    <div>
       <div
         aria-live="polite"
         style={{

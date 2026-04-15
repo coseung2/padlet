@@ -7,6 +7,9 @@ import { useState } from "react";
 export interface LinkedItem {
   linkId: string;
   parentEmail: string;
+  /** Used for the classroom detail page deep-link filter. Optional
+   *  for back-compat. */
+  studentId?: string;
   studentName: string;
   classNo: number;
   studentNo: number;
