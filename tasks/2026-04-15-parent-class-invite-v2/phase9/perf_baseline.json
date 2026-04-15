@@ -1,0 +1,9 @@
+{
+  "measurement_pending": true,
+  "reason": "parent v2 is primarily state-machine + inbox UX; no tablet-perf budget was set in phase2. Core Web Vitals on teacher /classroom/[id]/parent-access to be measured post-deploy with real data.",
+  "static_signals": {
+    "swr_polling_60s": "ParentAccessClient — single interval for inbox refresh.",
+    "no_realtime_subscription": "per v1 convention; router.refresh on mutation.",
+    "rate_limit_in_memory": "4-axis fallback; upgrades to Upstash scope-out."
+  }
+}

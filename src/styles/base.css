@@ -41,6 +41,10 @@
   --color-status-returned-text: #c62828;
   --color-slot-placeholder: var(--color-surface-alt);
 
+  /* Warning — D+3~5 badge (parent-v2). */
+  --color-warning: #f59e0b;
+  --color-warning-tinted-bg: #fef3c7;
+
   /* Radii */
   --radius-card: 12px;
   --radius-btn: 4px;

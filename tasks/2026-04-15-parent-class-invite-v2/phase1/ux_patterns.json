@@ -1,0 +1,89 @@
+{
+  "task_id": "2026-04-15-parent-class-invite-v2",
+  "created_at": "2026-04-15T10:00:00+09:00",
+  "patterns": [
+    {
+      "pattern_id": "A-self-match",
+      "description": "학부모가 학급 코드 입력 후 반·번호·마스킹이름 명단에서 자녀 1명 선택, 교사 승인 후 활성화",
+      "source_urls": ["https://classdojo.com", "https://web.seesaw.me"],
+      "pros": [
+        "교사 클릭 N×3 → N×1",
+        "2-step 사칭 방어 (코드 소유 + 교사 승인)",
+        "PII 최소화 (풀네임 비노출, 마스킹)"
+      ],
+      "cons": [
+        "학급 코드 유출 시 명단 전수 조회 가능 → 3단계 rate limit 필수",
+        "동명이인 혼동 → 교사 wrong_child 거부로 복구",
+        "pending → active 지연 (권고 24h, 최대 7d)"
+      ],
+      "verdict": "adopt"
+    },
+    {
+      "pattern_id": "B-status-gate-route-groups",
+      "description": "ParentChildLink.status 4값 유니언 + Next.js 라우트 그룹 (authed-preActive)/(authed-active) + 미들웨어 2종 분기",
+      "source_urls": ["docs/architecture.md", "src/lib/parent-scope.ts"],
+      "pros": [
+        "RLS 오염 방지 (BoardMember는 approve 시점에만 생성)",
+        "pending 세션의 자녀 콘텐츠 URL 직접 접근 401 강제",
+        "App Router 정적 분리"
+      ],
+      "cons": [
+        "미들웨어 혼용 시 security hole → ESLint 룰 필수",
+        "pending HTTP 200 + {status:pending} flag 처리 (D-27)",
+        "프론트 상태 머신 명시 분기"
+      ],
+      "verdict": "adopt"
+    },
+    {
+      "pattern_id": "C-cron-reminder-schedule",
+      "description": "Vercel Cron 일 1회 KST 02:00 pending 스캔 + D+3/D+6 리마인더 이메일 + D+7 auto-expire",
+      "source_urls": ["https://vercel.com/docs/cron-jobs"],
+      "pros": [
+        "hard SLA 없이 UX 흐름 자연 종료",
+        "단일 Cron 엔트리포인트 운영 단순",
+        "이메일 채널 일원화 (기존 parent-email.ts 재사용)"
+      ],
+      "cons": [
+        "Cron 실패 시 pending 영구 적체 → 리트라이 전략 필요",
+        "D+3/D+6 batch 이메일 → signup cohort 기준 grouping",
+        "Vercel Cron 무료 플랜 1회/일 제약 (요구와 일치, OK)"
+      ],
+      "verdict": "adopt"
+    },
+    {
+      "pattern_id": "D-class-code-rotation",
+      "description": "교사 수동 회전 버튼 + 회전 시 해당 학급 pending 일괄 rejected(code_rotated) + active 유지",
+      "source_urls": ["INBOX seed.yaml D-10 D-39 D-40"],
+      "pros": [
+        "유출 대응 단일 액션",
+        "active 링크는 코드 참조 없음 → 끊기지 않음"
+      ],
+      "cons": [
+        "대량 학급에서 pending 일괄 처리 트랜잭션 규모",
+        "이메일 스팸 리스크 (회전 빈도 제어 필요)"
+      ],
+      "verdict": "adopt"
+    },
+    {
+      "pattern_id": "E-classroom-cascade-revoke",
+      "description": "AMENDMENT D-51~D-56 — Classroom 삭제 시 해당 학급 전 active ParentChildLink cascade revoke (classroom_deleted)",
+      "source_urls": ["INBOX AMENDMENT_2026-04-13_link-lifetime.md"],
+      "pros": [
+        "year_end 수동 사유의 자동 커버리지",
+        "학급 삭제 후 학부모 잔존 세션 방지"
+      ],
+      "cons": [
+        "대형 학급 cascade 트랜잭션 + 대량 이메일 발송",
+        "실수 삭제 복구 불가 → 확인 모달 + 학급명 재입력 필수"
+      ],
+      "verdict": "adopt"
+    }
+  ],
+  "rejected_patterns": [
+    {
+      "pattern_id": "X-per-student-email-invite",
+      "description": "Google Classroom 방식 — 교사가 학생별 학부모 이메일 직접 입력",
+      "reason": "v2 핵심 목표(교사 운영 비용 N→1)와 정면 충돌"
+    }
+  ]
+}

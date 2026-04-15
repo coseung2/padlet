@@ -45,6 +45,18 @@ export async function GET(req: Request) {
     return fail("internal");
   }
 
-  const home = new URL("/parent/home", origin);
-  return NextResponse.redirect(home.toString());
+  // parent-class-invite-v2 — route by current link state instead of hard-redirecting
+  // to /parent/home. An authenticated-but-pre-match parent needs the onboarding
+  // flow (P3 Code Input); a parent with a pending link needs the pending page;
+  // etc. Matching behavior is owned by the API; this just picks the landing.
+  const links = await db.parentChildLink.findMany({
+    where: { parentId: parent.id, deletedAt: null },
+    select: { status: true },
+  });
+  let next = "/parent/onboard/match/code";
+  if (links.some((l) => l.status === "active")) next = "/parent/home";
+  else if (links.some((l) => l.status === "pending")) next = "/parent/onboard/pending";
+  else if (links.some((l) => l.status === "rejected")) next = "/parent/onboard/rejected";
+
+  return NextResponse.redirect(new URL(next, origin).toString());
 }
