@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ToastProvider, useToast } from "@/components/ui/Toast";
 import { InviteCodeCard } from "@/components/parent-access/InviteCodeCard";
 import { RotateConfirmModal } from "@/components/parent-access/RotateConfirmModal";
@@ -29,6 +30,11 @@ export function ParentAccessClient({ classroomId }: { classroomId: string }) {
 
 function InnerPage({ classroomId }: { classroomId: string }) {
   const toast = useToast();
+  // ?student=xxx deep-link filter — arrives from the student-table
+  // parent count chip on the classroom detail page. Scopes both the
+  // inbox and the linked-parents list to a single student.
+  const searchParams = useSearchParams();
+  const studentFilter = searchParams.get("student");
   const [activeCode, setActiveCode] = useState<ActiveCode | null>(null);
   const [codeLoading, setCodeLoading] = useState(true);
   const [pending, setPending] = useState<PendingLink[]>([]);
@@ -60,6 +66,7 @@ function InnerPage({ classroomId }: { classroomId: string }) {
         j.items.map((it: PendingLink & { approvedAt: string | null }) => ({
           linkId: it.linkId,
           parentEmail: it.parentEmail,
+          studentId: it.studentId,
           studentName: it.studentName,
           classNo: it.classNo,
           studentNo: it.studentNo,
@@ -141,15 +148,55 @@ function InnerPage({ classroomId }: { classroomId: string }) {
   };
 
   const filtered = useMemo(() => {
-    if (filter === "all") return pending;
+    let list = pending;
+    if (studentFilter) list = list.filter((p) => p.studentId === studentFilter);
+    if (filter === "all") return list;
     const threshold = filter === "d3" ? 3 : 6;
-    return pending.filter((p) => {
+    return list.filter((p) => {
       const days = Math.floor((Date.now() - new Date(p.requestedAt).getTime()) / (24 * 60 * 60 * 1000));
       return days >= threshold;
     });
-  }, [pending, filter]);
+  }, [pending, filter, studentFilter]);
+
+  const linkedFiltered = useMemo(() => {
+    if (!studentFilter) return linked;
+    return linked.filter((l) => l.studentId === studentFilter);
+  }, [linked, studentFilter]);
 
   return (
+    <div>
+      {studentFilter && (
+        <div
+          role="status"
+          style={{
+            marginBottom: 16,
+            padding: "10px 14px",
+            background: "var(--color-surface-alt)",
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-btn)",
+            fontSize: 14,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
+          <span>
+            <strong>
+              {(pending.find((p) => p.studentId === studentFilter) ??
+                linked.find((l) => l.studentId === studentFilter))?.studentName ?? "학생"}
+            </strong>
+            {" "}
+            관련 항목만 보여주고 있습니다.
+          </span>
+          <a
+            href={`/classroom/${classroomId}/parent-access`}
+            style={{ fontSize: 13, color: "var(--color-accent)", textDecoration: "none" }}
+          >
+            필터 해제 ✕
+          </a>
+        </div>
+      )}
     <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 3fr) minmax(340px, 2fr)", gap: 24, alignItems: "start" }}>
       {/* LEFT: Approval Inbox */}
       <section style={cardStyle} aria-labelledby="inbox-title">
@@ -201,14 +248,16 @@ function InnerPage({ classroomId }: { classroomId: string }) {
         </section>
 
         <section style={cardStyle} aria-labelledby="linked-title">
-          <h2 id="linked-title" style={sectionHeaderStyle}>연결된 학부모 ({linked.length})</h2>
-          {linked.length === 0 ? (
+          <h2 id="linked-title" style={sectionHeaderStyle}>연결된 학부모 ({linkedFiltered.length})</h2>
+          {linkedFiltered.length === 0 ? (
             <div style={{ padding: 24, color: "var(--color-text-muted)", fontSize: 15 }}>
-              아직 연결된 학부모가 없습니다.
+              {studentFilter
+                ? "이 학생에 연결된 학부모가 아직 없습니다."
+                : "아직 연결된 학부모가 없습니다."}
             </div>
           ) : (
             <div role="list">
-              {linked.map((l) => (
+              {linkedFiltered.map((l) => (
                 <LinkedRow key={l.linkId} link={l} onRevoke={onRevoke} />
               ))}
             </div>
@@ -222,6 +271,7 @@ function InnerPage({ classroomId }: { classroomId: string }) {
         onConfirm={doRotate}
         onCancel={() => setRotateOpen(false)}
       />
+    </div>
     </div>
   );
 }

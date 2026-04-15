@@ -8,6 +8,13 @@
   margin: 0 auto;
 }
 
+/* Detail page needs more horizontal room for the student-table +
+   board-column grid. S6 Lite portrait (1200px) fills nearly edge-to-
+   edge, desktop caps at 1400px. */
+.classroom-page-detail {
+  max-width: 1400px;
+}
+
 .classroom-back-link {
   display: inline-block;
   font-size: 14px;
@@ -210,7 +217,28 @@
   margin-bottom: 24px;
 }
 
+/* Red counter badge on the 초대 코드 · 승인 관리 button. Size matches
+   macOS dock-style badges — small enough not to overwhelm the label
+   but visible at tablet reading distance. */
+.classroom-action-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: #e53e3e;
+  border-radius: 999px;
+  line-height: 1;
+}
+
 .classroom-action-btn {
+  display: inline-flex;
+  align-items: center;
   padding: 8px 16px;
   font-family: var(--font-body);
   font-size: 14px;
@@ -219,6 +247,7 @@
   border-radius: var(--radius-btn);
   background: var(--color-accent);
   color: #ffffff;
+  text-decoration: none;
   cursor: pointer;
   transition: background 160ms ease;
 }
@@ -298,6 +327,36 @@
   color: var(--color-text-muted);
 }
 
+/* Parent-count cell: small deep-linkable chip. "–" when empty. */
+.classroom-td-parent {
+  text-align: center;
+}
+
+.classroom-parent-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-accent-tinted-text, var(--color-accent));
+  background: var(--color-accent-tinted-bg, var(--color-surface-alt));
+  border-radius: 999px;
+  text-decoration: none;
+  transition: background 120ms ease;
+}
+
+.classroom-parent-chip:hover {
+  background: var(--color-surface-alt);
+}
+
+.classroom-parent-chip.is-empty {
+  color: var(--color-text-faint);
+  background: transparent;
+  font-weight: 400;
+}
+
 .classroom-td-actions {
   text-align: right;
 }
@@ -340,10 +399,36 @@
   color: #c62828;
 }
 
+/* ---- Main grid (student table + board column side-by-side) ----
+ *
+ * Wide screens: left column (2fr) = student table, right column (1fr) =
+ * board cards. `align-items: stretch` lets both columns fill the row to
+ * equal height so the board column visually balances even if it has
+ * fewer cards than the table has rows.
+ *
+ * Galaxy Tab S6 Lite portrait (1200px) collapses to a single column —
+ * the table stays full-width first, board section below. Parent counts
+ * live inside the table (classroom-td-parent) so there's no third
+ * section to lay out. */
+
+.classroom-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 32px;
+  align-items: stretch;
+  margin-top: 24px;
+}
+
+@media (max-width: 1199px) {
+  .classroom-main-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* ---- Boards section ---- */
 
 .classroom-boards-section {
-  margin-top: 32px;
+  margin-top: 0;
 }
 
 .classroom-boards-header {
@@ -410,8 +495,25 @@
 
 .classroom-boards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  /* Inside the right column of classroom-main-grid (~300-400px wide on
+     S6 Lite portrait) a single column reads cleaner; desktop still gets
+     2-up via the lower minmax floor. */
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 12px;
+}
+
+/* "새 활동" pill on a linked-board card. Only renders when the board
+   was updated after the teacher's last visit (localStorage-tracked). */
+.classroom-board-new {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #166534;
+  background: #dcfce7;
+  border-radius: 999px;
 }
 
 .classroom-board-card {

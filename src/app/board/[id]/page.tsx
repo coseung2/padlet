@@ -23,6 +23,7 @@ import { AuthHeader } from "@/components/AuthHeader";
 import { EditableTitle } from "@/components/EditableTitle";
 import { BoardSettingsLauncher } from "@/components/BoardSettingsLauncher";
 import type { BoardSection } from "@/components/BoardSettingsPanel";
+import { BoardVisitTracker } from "@/components/BoardVisitTracker";
 
 // Auth + cookie reads already flag this route as dynamic.
 // Dropping the explicit flag keeps the Router Cache warm for navigations.
@@ -680,6 +681,7 @@ export default async function BoardPage({
 
   return (
     <main className="board-page">
+      <BoardVisitTracker boardId={board.id} />
       <BoardHeader
         boardId={board.id}
         title={board.title}
