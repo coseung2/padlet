@@ -453,6 +453,11 @@ export default async function BoardPage({
       initialCards: cardProps,
       currentUserId: effectiveUserId,
       currentRole: effectiveRole!,
+      // Student viewer hint — boards use this to show the add-card FAB
+      // + context menus even though the RBAC role is "viewer". The POST
+      // /api/cards endpoint also accepts student_session when a student
+      // posts to a board in their own classroom.
+      isStudentViewer: !!studentViewer,
     };
 
     switch (board!.layout) {

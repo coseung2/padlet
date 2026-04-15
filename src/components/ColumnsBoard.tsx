@@ -27,6 +27,7 @@ type Props = {
   initialSections: SectionData[];
   currentUserId: string;
   currentRole: "owner" | "editor" | "viewer";
+  isStudentViewer?: boolean;
 };
 
 export function ColumnsBoard({
@@ -35,6 +36,7 @@ export function ColumnsBoard({
   initialSections,
   currentUserId,
   currentRole,
+  isStudentViewer,
 }: Props) {
   const [cards, setCards] = useState<CardData[]>(initialCards);
   const [sections, setSections] = useState<SectionData[]>(
@@ -52,6 +54,10 @@ export function ColumnsBoard({
   const [folderSectionId, setFolderSectionId] = useState<string | null>(null);
   const [organizing, setOrganizing] = useState<string | null>(null);
   const canEdit = currentRole === "owner" || currentRole === "editor";
+  // Students can add cards to their classroom's columns board. Section
+  // membership rules (sectionId must belong to this board) are enforced
+  // server-side by /api/cards + the external-cards sectionId guard.
+  const canAddCard = canEdit || !!isStudentViewer;
 
   async function handleOrganizeToCanva(sectionId: string) {
     const section = sections.find((s) => s.id === sectionId);
@@ -472,7 +478,7 @@ export function ColumnsBoard({
         )}
       </div>
 
-      {canEdit && <AddCardButton onAdd={handleAdd} sections={sectionOptions} />}
+      {canAddCard && <AddCardButton onAdd={handleAdd} sections={sectionOptions} />}
 
       {addForSection && (
         <AddCardModal

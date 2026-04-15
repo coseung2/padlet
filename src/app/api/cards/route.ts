@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { getCurrentStudent } from "@/lib/student-auth";
 import { requirePermission, ForbiddenError } from "@/lib/rbac";
 import { isCanvaDesignUrl, resolveCanvaEmbedUrl } from "@/lib/canva";
 
@@ -26,10 +27,44 @@ const CreateCardSchema = z.object({
 
 export async function POST(req: Request) {
   try {
-    const user = await getCurrentUser();
     const body = await req.json();
     const input = CreateCardSchema.parse(body);
-    await requirePermission(input.boardId, user.id, "edit");
+
+    // Auth branches. Students (Canva-app-less, direct web UI) post cards to
+    // their own classroom's board; the student_session cookie is the
+    // identity anchor. We stamp authorId to the classroom's teacher and
+    // studentAuthorId/externalAuthorName so parent-viewer lookups and
+    // CardAuthorFooter both light up.
+    const student = await getCurrentStudent();
+    let authorId: string;
+    let studentAuthorId: string | null = null;
+    let externalAuthorName: string | null = null;
+    let currentUserName: string | null = null;
+
+    if (student) {
+      const board = await db.board.findUnique({
+        where: { id: input.boardId },
+        select: {
+          classroomId: true,
+          classroom: { select: { teacherId: true } },
+        },
+      });
+      if (!board || !board.classroom) {
+        return NextResponse.json({ error: "board_not_accessible" }, { status: 403 });
+      }
+      if (board.classroomId !== student.classroomId) {
+        return NextResponse.json({ error: "classroom_mismatch" }, { status: 403 });
+      }
+      authorId = board.classroom.teacherId;
+      studentAuthorId = student.id;
+      externalAuthorName = student.name;
+      currentUserName = student.name;
+    } else {
+      const user = await getCurrentUser();
+      await requirePermission(input.boardId, user.id, "edit");
+      authorId = user.id;
+      currentUserName = user.name;
+    }
 
     // Canva oEmbed enrichment. For a Canva design URL the SERVER owns
     // linkImage completely so the client-side iframe gate
@@ -66,7 +101,9 @@ export async function POST(req: Request) {
     const card = await db.card.create({
       data: {
         boardId: input.boardId,
-        authorId: user.id,
+        authorId,
+        studentAuthorId,
+        externalAuthorName,
         title: input.title,
         content: input.content,
         color: input.color ?? null,
@@ -85,15 +122,15 @@ export async function POST(req: Request) {
       },
     });
 
-    // Mirror the server-side cardProps mapping (board/[id]/page.tsx:209) so
+    // Mirror the server-side cardProps mapping (board/[id]/page.tsx) so
     // the client can drop the response straight into state and keep the
     // CardAuthorFooter populated without a page reload.
     return NextResponse.json({
       card: {
         ...card,
         createdAt: card.createdAt.toISOString(),
-        authorName: user.name,
-        studentAuthorName: null,
+        authorName: currentUserName,
+        studentAuthorName: student?.name ?? null,
         externalAuthorName: card.externalAuthorName,
       },
     });

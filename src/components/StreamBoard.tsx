@@ -11,14 +11,16 @@ type Props = {
   initialCards: CardData[];
   currentUserId: string;
   currentRole: "owner" | "editor" | "viewer";
+  isStudentViewer?: boolean;
 };
 
-export function StreamBoard({ boardId, initialCards, currentUserId, currentRole }: Props) {
+export function StreamBoard({ boardId, initialCards, currentUserId, currentRole, isStudentViewer }: Props) {
   const [cards, setCards] = useState<CardData[]>(
     [...initialCards].sort((a, b) => a.order - b.order)
   );
   const [openCard, setOpenCard] = useState<CardData | null>(null);
   const canEdit = currentRole === "owner" || currentRole === "editor";
+  const canAddCard = canEdit || !!isStudentViewer;
 
   async function handleAdd(data: {
     title: string;
@@ -122,7 +124,7 @@ export function StreamBoard({ boardId, initialCards, currentUserId, currentRole 
           </article>
         ))}
       </div>
-      {canEdit && <AddCardButton onAdd={handleAdd} />}
+      {canAddCard && <AddCardButton onAdd={handleAdd} />}
       <CardDetailModal
         card={openCard}
         onClose={() => setOpenCard(null)}
