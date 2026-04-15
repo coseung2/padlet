@@ -1,0 +1,29 @@
+{
+  "task_id": "2026-04-15-quiz-extensions",
+  "note": "gstack /benchmark 미설치 + chrome-devtools MCP 연결 불가 — Lighthouse/Core Web Vitals 자동 측정 불가. 아래는 dev 서버 API latency (turbopack, 첫 호출 warmup 제외) 대략치만.",
+  "dev_server": {
+    "nextjs": "16.2.3",
+    "bundler": "turbopack"
+  },
+  "api_latency_ms_warm": {
+    "GET_board_quiz_layout_ssr": 250,
+    "GET_api_quiz_library_owner": 280,
+    "GET_api_quiz_id_report": 260,
+    "GET_api_quiz_id_report_csv": 220,
+    "POST_api_quiz_create_draftPromote": 180,
+    "POST_api_quiz_id_clone": 240,
+    "PUT_api_quiz_id_questions": 210
+  },
+  "bundle_size_kb": {
+    "note": "production 번들 측정은 `next build` 출력 참고. phase9 에서는 별도 수집하지 않음."
+  },
+  "coverage": {
+    "automated_e2e_assertions": 35,
+    "unit_tests": 5,
+    "visual_manual_check_pending": 5
+  },
+  "followup": [
+    "갤탭 S6 Lite 기기 원격 Lighthouse 측정 (project_perf_baseline_tab_s6_lite.md)",
+    "chrome-devtools MCP 연결 복구 후 /benchmark 재실행"
+  ]
+}
