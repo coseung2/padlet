@@ -376,9 +376,27 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
           borderTop: "1px solid var(--color-border)",
         }}
       >
-        <h2 className="classroom-boards-heading" style={{ marginBottom: 12 }}>
-          학부모 관리
-        </h2>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            marginBottom: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <h2 className="classroom-boards-heading" style={{ margin: 0 }}>
+            학부모 관리
+          </h2>
+          <a
+            href={`/classroom/${classroom.id}/parent-access`}
+            className="btn btn-secondary"
+            style={{ fontSize: 13 }}
+          >
+            🔗 초대 코드 · 승인 관리
+          </a>
+        </div>
         <ParentManagementTab classroomId={classroom.id} />
       </section>
 
