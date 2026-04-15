@@ -257,6 +257,10 @@ model Card {
   content   String
   color     String?
   imageUrl  String?
+  // 160×120 WebP thumbnail generated from imageUrl on assignment submit
+  // (AC-12). Populated by resizeToWebPThumbUrl → blob. Falls back to
+  // imageUrl in slotRowToDTO when null so legacy rows keep working.
+  thumbUrl  String?
   linkUrl   String?
   linkTitle String?
   linkDesc  String?

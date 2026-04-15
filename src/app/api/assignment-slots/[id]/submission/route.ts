@@ -9,6 +9,7 @@ import type {
 import { canStudentSubmit, computeStudentSubmit } from "@/lib/assignment-state";
 import { slotRowToDTO, SLOT_INCLUDE_DEFAULT } from "@/lib/assignment-api";
 import { assignmentChannelKey, publish } from "@/lib/realtime";
+import { resizeToWebPThumbUrl } from "@/lib/blob";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -74,6 +75,25 @@ export async function POST(
   const { content, linkUrl, fileUrl, imageUrl } = parsed.data;
   const now = new Date();
 
+  // AC-12: when the student submits a new imageUrl, derive a 160×120 WebP
+  // thumbnail and persist it alongside. Failure is non-fatal — we fall
+  // back to null so slotRowToDTO will serve the original imageUrl.
+  let thumbUrl: string | null | undefined = undefined;
+  if (imageUrl !== undefined) {
+    try {
+      thumbUrl = await resizeToWebPThumbUrl(
+        imageUrl,
+        `assignment-thumbs/${slot.boardId}/${slot.cardId}.webp`
+      );
+    } catch (e) {
+      console.warn(
+        `[AssignmentSlot] thumb generation failed slotId=${slot.id}`,
+        e
+      );
+      thumbUrl = null;
+    }
+  }
+
   const updated = await db.$transaction(async (tx) => {
     await tx.card.update({
       where: { id: slot.cardId },
@@ -81,6 +101,7 @@ export async function POST(
         ...(content !== undefined ? { content } : {}),
         ...(linkUrl !== undefined ? { linkUrl } : {}),
         ...(imageUrl !== undefined ? { imageUrl } : {}),
+        ...(thumbUrl !== undefined ? { thumbUrl } : {}),
       },
     });
 
