@@ -146,3 +146,15 @@ v1 per-student `ParentInviteCode` → v2 **학급 전체 8자리 ClassInviteCode
 - **카드 API 통합**: `PATCH / DELETE / move /api/cards/[id]*` 전부 primitive 경유. 학생이 자기 카드 **편집 가능** (신규), **이동 가능** (신규), **삭제 가능** (기존 유지). 교사 flow regression 0.
 - **`src/lib/rbac.ts`**: `Role / Action / getBoardRole / requirePermission` 전부 `@deprecated` JSDoc. 교사 전용 라우트 17개는 여전히 호출하되 신규 callsite 금지.
 - **Deferred (follow-up)**: POST /api/cards primitive 명시 호출, 4 카드 보드 UI 의 `isStudentViewer` prop → primitive 교체, CardDetailModal 학생 편집 UI 노출.
+
+## 카드 다중 작성자 (card-author-multi) — 2026-04-15
+Card 의 단일 `studentAuthorId` + 자유 `externalAuthorName` 구조를 **N:N CardAuthor join table** 로 정식 확장. 교사가 기존 카드의 작성자를 재지정하거나, 공동 발표·모둠 과제 카드에 여러 학생을 작성자로 배정할 수 있음.
+
+- **스키마**: NEW `CardAuthor { cardId, studentId?, displayName, order, createdAt }` — @@unique([cardId, studentId]) + @@index([cardId, order]) + @@index([studentId]). `Card.studentAuthorId` + `Card.externalAuthorName` 은 primary (order=0) mirror 로 보존 → 기존 callsite 전수 호환.
+- **마이그레이션**: `20260415_add_card_author` 비파괴 + 백필 (기존 student-authored 카드 전부 order=0 CardAuthor 1행 자동 생성).
+- **API**: `PUT /api/cards/[id]/authors` (teacher-only replace-all), `GET /api/classroom/[id]/students` (roster), `POST /api/cards`·`/api/external/cards`·`/api/boards` (assignment 브랜치)·`roster-sync` 는 작성 시 CardAuthor 1행 자동 시드.
+- **라이브러리**: `src/lib/card-author.ts#formatAuthorList` (0→fallback / 1→name / 2-3→comma / 4+→"name 외 N명"). `src/lib/card-authors-service.ts#setCardAuthors` (replace-all 트랜잭션 + validation + primary mirror).
+- **UI**: ⋯ context menu 에 "작성자 지정" 항목(ColumnsBoard) / CardDetailModal 에 "👥 작성자 지정" 버튼 (4 board 공통). 모달: 학급 roster 체크박스 + 선택 순서 reorder + free-form row. 최대 10명.
+- **권한**: canEditCard 는 primary 기준 유지 — 공동 작성자는 편집 불가 (scope OUT).
+- **테스트**: Vitest 21 신규 (formatAuthorList 10 + setCardAuthors 11).
+- **Deferred**: 공동 작성자 편집권 부여, AssignmentSlot 공동 작성자, /parent/child/[sid]/cards 피드 페이지.
