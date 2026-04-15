@@ -25,6 +25,7 @@ export type CardData = {
   order: number;
   sectionId?: string | null;
   authorId: string;
+  studentAuthorId?: string | null;
   createdAt?: string;
   externalAuthorName?: string | null;
   studentAuthorName?: string | null;

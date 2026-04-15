@@ -155,7 +155,11 @@ export function BoardCanvas({
             canEdit={canEdit}
             canDelete={
               currentRole === "owner" ||
-              (currentRole === "editor" && c.authorId === currentUserId)
+              (currentRole === "editor" && c.authorId === currentUserId) ||
+              // Student-authored card — let the student delete their own
+              // publish even though they come in as role=viewer. Matches
+              // the DELETE /api/cards/:id student-auth path.
+              c.studentAuthorId === currentUserId
             }
             onPositionChange={(x, y) => handlePositionChange(c.id, x, y)}
             onDelete={() => handleDelete(c.id)}

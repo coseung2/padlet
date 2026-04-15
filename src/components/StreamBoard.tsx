@@ -104,7 +104,9 @@ export function StreamBoard({ boardId, initialCards, currentUserId, currentRole 
               </time>
             </div>
             <CardBody card={c} />
-            {(currentRole === "owner" || (currentRole === "editor" && c.authorId === currentUserId)) && (
+            {(currentRole === "owner" ||
+              (currentRole === "editor" && c.authorId === currentUserId) ||
+              c.studentAuthorId === currentUserId) && (
               <button
                 type="button"
                 onClick={(e) => {
