@@ -19,6 +19,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -47,11 +48,15 @@ export const CanvaEmbedSlot = memo(function CanvaEmbedSlot({
   linkImage,
   linkDesc,
 }: Props) {
-  // The slot id is the canva designId — stable per card + sufficient for
-  // LRU dedup across a board. If the same design appears twice on a board,
-  // both cards share a single iframe slot and can't both go live at once,
-  // which matches users' mental model (one design = one live preview).
-  const slotId = designId;
+  // Per-instance slot id. Earlier versions used designId alone so "same
+  // design appearing twice" would share a slot — but `useIsActive` then
+  // returns the same boolean for every instance, so one ▶ click was
+  // mounting every iframe that pointed at the same design (board had
+  // sdsd + 공유 + 공개보기 all on DAHGsmYWF7E → 3 cards went live at once).
+  // useId gives each CanvaEmbedSlot its own stable slot identity; the
+  // LRU-3 cap still bounds total iframe count.
+  const instanceId = useId();
+  const slotId = `${designId}:${instanceId}`;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inView = useInViewport(containerRef);
@@ -146,6 +151,20 @@ export const CanvaEmbedSlot = memo(function CanvaEmbedSlot({
     [handleToggle],
   );
 
+  // Derive embed src from the original linkUrl so public "공개 보기" share
+  // tokens (path segment between designId and /view) are preserved. Falls
+  // back to the bare designId form for legacy rows / private designs.
+  //
+  // MUST run before the iframeFailed early return — React's rules-of-hooks
+  // fires #300 ("rendered fewer hooks") when iframeFailed flips true and
+  // we skip this useMemo after having called it on the previous render.
+  const embedSrc = useMemo(() => {
+    return (
+      buildCanvaEmbedSrc(linkUrl) ??
+      `https://www.canva.com/design/${designId}/view?embed&meta`
+    );
+  }, [linkUrl, designId]);
+
   // Fallback branch: iframe errored. Surface the original link-preview
   // style anchor so the card is never empty.
   if (iframeFailed) {
@@ -174,15 +193,6 @@ export const CanvaEmbedSlot = memo(function CanvaEmbedSlot({
   }
 
   const title = linkTitle || "Canva design";
-  // Derive embed src from the original linkUrl so public "공개 보기" share
-  // tokens (path segment between designId and /view) are preserved. Falls
-  // back to the bare designId form for legacy rows / private designs.
-  const embedSrc = useMemo(() => {
-    return (
-      buildCanvaEmbedSrc(linkUrl) ??
-      `https://www.canva.com/design/${designId}/view?embed&meta`
-    );
-  }, [linkUrl, designId]);
   // Render the iframe as soon as the user activates. We no longer gate on
   // inView — the auto-deactivate useEffect above handles off-screen
   // eviction once IO reports genuine visibility. The LRU cap (3) still
