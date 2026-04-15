@@ -116,7 +116,24 @@ Live feature inventory. Update when merging feature tasks.
 - **Identity-based 권한**: teacher/student/parent 3tier (`project_permission_model` 메모리 정합). `BoardMember.role=editor` 학생용 행 생성 금지.
 - **Parent viewer `/parent/(app)/child/[studentId]/assignments`**: AssignmentSlot-backed rows 우선 — `returnReason` 배너 렌더, `submissionStatus` 라벨(assigned/submitted/viewed/returned/reviewed/orphaned).
 - **Realtime**: `assignmentChannelKey(boardId)` helper + 3 event types; `publish()` v1 no-op (engine 미정). 클라이언트는 `router.refresh()` + `useState` optimistic.
-- **Deferred (phase8/9 문서화)**:
-  - AC-12 WebP 썸네일 파이프라인 — sharp 미도입, `thumbUrl=imageUrl` passthrough (+ `loading="lazy"`, 160×120).
-  - AC-13 Matrix 뷰 owner+desktop 서버 guard — 미구현, 기본 grid만 렌더.
-  - AC-14 Galaxy Tab S6 Lite 실측 — 하드웨어 제약 defer.
+- **2026-04-15 AB-1 후속 머지**:
+  - AC-12 WebP 썸네일 파이프라인 완료 — `Card.thumbUrl` + `src/lib/blob.ts#resizeToWebPThumbUrl` + 학생 제출 시 자동 생성 + `slotRowToDTO` 가 thumbUrl 우선(없으면 imageUrl fallback).
+  - AC-13 Matrix 뷰 server guard 완료 — `?view=matrix` 학생/학부모 `notFound()`, 모바일 UA redirect, 교사 데스크탑은 `.assign-board--matrix` 1열 placeholder.
+  - AC-14 Galaxy Tab S6 Lite 실측은 하드웨어 제약으로 deferred.
+- **2026-04-15 대시보드 생성 흐름 정비**:
+  - `/api/boards` assignment branch 가 classroomId 없이 빈 보드 생성 가능 (board-first UX).
+  - `/api/boards/[id]/roster-sync` 가 선택적 classroomId 수용 — 배당 + slot 일괄 생성 한 트랜잭션.
+  - 교사 뷰 우하단 "학급 배당 / +N 동기화" FAB + `<AttachClassroomModal>`.
+
+## 학부모 학급 초대 v2 (parent-class-invite-v2) — 2026-04-15
+v1 per-student `ParentInviteCode` → v2 **학급 전체 8자리 ClassInviteCode + 이메일-우선 온보딩**.
+
+- **스키마**: NEW `ClassInviteCode` (학급당 1 active, partial unique). ALTER `ParentChildLink` — `status` enum 4종 + 감사 10컬럼. enums `ParentLinkStatus/ParentRejectedReason/ParentRevokedReason`. 마이그레이션 `20260415_parent_class_invite_v2` 적용 — v1 active 행 `status='active'` 로, soft-delete 행 `status='revoked'` 로 백필.
+- **API 신규**: `/api/class-invite-codes` (+ rotate, list), `/api/parent/signup`, `/api/parent/match/{code,request,retry}` + `GET /match/students`, `/api/parent/approvals/[linkId]/{approve,reject}` + `GET /api/parent/approvals`, `GET /api/cron/expire-pending-links`. v1 `redeem-code` + `parent-invites` 3라우트 → 410 Gone.
+- **UI**: 교사 `/classroom/[id]/parent-access` Inbox-First 2-Column. 학부모 6단계 온보딩(`/parent/onboard/{signup,match/code,match/select,pending,rejected}`). 전역 `components/ui/{Toast,Stepper}.tsx`. 9종 React-email 템플릿.
+- **권한 narrowing**: `src/lib/parent-scope.ts` 가 `status='active'` + `deletedAt:null` 2중 필터 — pending/rejected 유출 차단.
+- **Rate limit**: `src/lib/rate-limit-parent.ts` 4축 (IP / code / classroom / rejection).
+- **State machine**: `src/lib/parent-link-state.ts` + 10 unit tests (Vitest + @testing-library/react 신규 도입, 파일 패턴 `*.vitest.ts`).
+- **Cron**: `0 17 * * *` KST 02:00 — D+3/D+6 리마인더 + D+7 자동 expire.
+- **이메일 발송**: `PARENT_EMAIL_ENABLED=true` + `RESEND_API_KEY` + `PARENT_EMAIL_FROM` 세팅 시 실제 발송. 미설정 시 crash 없이 로그만.
+- **Deferred**: Resend env 4개 + DNS 검증 / QR 서버 렌더 / Revoke API + ClassroomDeleteModal 배선 / `ParentInviteCode` Prisma 모델 cleanup(테이블은 drop, schema 잔존 의도적).
