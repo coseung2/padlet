@@ -198,29 +198,25 @@ function InnerPage({ classroomId }: { classroomId: string }) {
         </div>
       )}
     <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 3fr) minmax(340px, 2fr)", gap: 24, alignItems: "start" }}>
-      {/* LEFT: Approval Inbox */}
-      <section style={cardStyle} aria-labelledby="inbox-title">
-        <header style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px", borderBottom: "1px solid var(--color-border)" }}>
-          <h2 id="inbox-title" style={{ fontSize: 15, fontWeight: 700, margin: 0, flex: 1 }}>
-            승인 대기 ({pending.length})
-          </h2>
-          {pending.length > 0 && <FilterBar value={filter} onChange={setFilter} />}
-        </header>
-        {pending.length === 0 ? (
-          <div style={{ padding: 48, textAlign: "center", color: "var(--color-text-muted)" }}>
-            <div style={{ fontSize: 15 }}>현재 승인 대기 중인 학부모가 없습니다.</div>
-            <div style={{ fontSize: 12, marginTop: 8 }}>초대 코드를 학부모에게 공유해 보세요.</div>
+      {/* LEFT: Linked Parents (grows over a school year — primary content). */}
+      <section style={cardStyle} aria-labelledby="linked-title">
+        <h2 id="linked-title" style={sectionHeaderStyle}>연결된 학부모 ({linkedFiltered.length})</h2>
+        {linkedFiltered.length === 0 ? (
+          <div style={{ padding: 24, color: "var(--color-text-muted)", fontSize: 15 }}>
+            {studentFilter
+              ? "이 학생에 연결된 학부모가 아직 없습니다."
+              : "아직 연결된 학부모가 없습니다."}
           </div>
         ) : (
           <div role="list">
-            {filtered.map((p) => (
-              <PendingRow key={p.linkId} link={p} onApprove={onApprove} onReject={onReject} />
+            {linkedFiltered.map((l) => (
+              <LinkedRow key={l.linkId} link={l} onRevoke={onRevoke} />
             ))}
           </div>
         )}
       </section>
 
-      {/* RIGHT: Invite Code + Linked Parents */}
+      {/* RIGHT: Invite Code + Pending Approvals (transient inbox under code). */}
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <section style={cardStyle} aria-labelledby="code-title">
           <h2 id="code-title" style={sectionHeaderStyle}>초대 코드</h2>
@@ -247,18 +243,29 @@ function InnerPage({ classroomId }: { classroomId: string }) {
           </div>
         </section>
 
-        <section style={cardStyle} aria-labelledby="linked-title">
-          <h2 id="linked-title" style={sectionHeaderStyle}>연결된 학부모 ({linkedFiltered.length})</h2>
-          {linkedFiltered.length === 0 ? (
-            <div style={{ padding: 24, color: "var(--color-text-muted)", fontSize: 15 }}>
-              {studentFilter
-                ? "이 학생에 연결된 학부모가 아직 없습니다."
-                : "아직 연결된 학부모가 없습니다."}
+        <section style={cardStyle} aria-labelledby="inbox-title">
+          <header
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "16px 20px",
+              borderBottom: "1px solid var(--color-border)",
+            }}
+          >
+            <h2 id="inbox-title" style={{ fontSize: 15, fontWeight: 700, margin: 0, flex: 1 }}>
+              승인 대기 ({pending.length})
+            </h2>
+            {pending.length > 0 && <FilterBar value={filter} onChange={setFilter} />}
+          </header>
+          {pending.length === 0 ? (
+            <div style={{ padding: 32, textAlign: "center", color: "var(--color-text-muted)" }}>
+              <div style={{ fontSize: 14 }}>승인 대기 중인 학부모가 없습니다.</div>
             </div>
           ) : (
             <div role="list">
-              {linkedFiltered.map((l) => (
-                <LinkedRow key={l.linkId} link={l} onRevoke={onRevoke} />
+              {filtered.map((p) => (
+                <PendingRow key={p.linkId} link={p} onApprove={onApprove} onReject={onReject} />
               ))}
             </div>
           )}
