@@ -1,6 +1,6 @@
 // Pure helpers used by CardAuthorFooter. Lives in lib/ to keep the
-// component free of testable logic and let the existing tsx-runner test
-// pattern (no Jest/Vitest in the repo) cover them.
+// component free of testable logic and let both the tsx-runner legacy
+// tests and the new Vitest cases cover them.
 
 export function pickAuthorName(
   external?: string | null,
@@ -8,6 +8,47 @@ export function pickAuthorName(
   author?: string | null,
 ): string | null {
   return external ?? student ?? author ?? null;
+}
+
+/**
+ * Shape that `formatAuthorList` accepts. Matches the CardAuthor row
+ * projection (order + displayName) without forcing a DB import at call
+ * sites. Pass `[]` to fall back to the legacy pickAuthorName chain.
+ */
+export type AuthorLike = {
+  order: number;
+  displayName: string;
+};
+
+/**
+ * Card footer display — 0/1/2/3/4+ cases:
+ *   0    → pickAuthorName fallback (legacy)
+ *   1    → "김철수"
+ *   2    → "김철수, 이영희"
+ *   3    → "김철수, 이영희, 박민수"
+ *   4+   → "김철수 외 N명"
+ *
+ * Entries are sorted by .order ascending so callers can pass unsorted
+ * Prisma rows without extra work.
+ */
+export function formatAuthorList(
+  authors: AuthorLike[] | null | undefined,
+  externalFallback?: string | null,
+  studentFallback?: string | null,
+  authorFallback?: string | null,
+): string | null {
+  const list = [...(authors ?? [])]
+    .filter((a) => a && a.displayName && a.displayName.trim().length > 0)
+    .sort((a, b) => a.order - b.order);
+  if (list.length === 0) {
+    return pickAuthorName(externalFallback, studentFallback, authorFallback);
+  }
+  if (list.length === 1) return list[0].displayName;
+  if (list.length === 2) return `${list[0].displayName}, ${list[1].displayName}`;
+  if (list.length === 3) {
+    return `${list[0].displayName}, ${list[1].displayName}, ${list[2].displayName}`;
+  }
+  return `${list[0].displayName} 외 ${list.length - 1}명`;
 }
 
 export function formatRelativeKo(iso: string, now: number = Date.now()): {

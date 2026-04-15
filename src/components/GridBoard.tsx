@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AddCardButton } from "./AddCardButton";
 import { CardBody } from "./cards/CardBody";
 import { CardDetailModal } from "./cards/CardDetailModal";
+import { CardAuthorEditor, type SavedAuthor } from "./cards/CardAuthorEditor";
 import type { CardData } from "./DraggableCard";
 
 type Props = {
@@ -12,13 +13,15 @@ type Props = {
   currentUserId: string;
   currentRole: "owner" | "editor" | "viewer";
   isStudentViewer?: boolean;
+  classroomId?: string | null;
 };
 
-export function GridBoard({ boardId, initialCards, currentUserId, currentRole, isStudentViewer }: Props) {
+export function GridBoard({ boardId, initialCards, currentUserId, currentRole, isStudentViewer, classroomId }: Props) {
   const [cards, setCards] = useState<CardData[]>(
     [...initialCards].sort((a, b) => a.order - b.order)
   );
   const [openCard, setOpenCard] = useState<CardData | null>(null);
+  const [authorEditCard, setAuthorEditCard] = useState<CardData | null>(null);
   const canEdit = currentRole === "owner" || currentRole === "editor";
   const canAddCard = canEdit || !!isStudentViewer;
 
@@ -124,7 +127,28 @@ export function GridBoard({ boardId, initialCards, currentUserId, currentRole, i
         onClose={() => setOpenCard(null)}
         cards={cards}
         onChange={setOpenCard}
+        onEditAuthors={canEdit ? (c) => setAuthorEditCard(c) : undefined}
       />
+      {authorEditCard && (
+        <CardAuthorEditor
+          cardId={authorEditCard.id}
+          classroomId={classroomId ?? null}
+          initialAuthors={(authorEditCard.authors ?? []).map((a) => ({
+            id: a.id,
+            studentId: a.studentId,
+            displayName: a.displayName,
+            order: a.order,
+          }))}
+          onSaved={(authors: SavedAuthor[]) => {
+            setCards((prev) =>
+              prev.map((c) =>
+                c.id === authorEditCard.id ? { ...c, authors } : c
+              )
+            );
+          }}
+          onClose={() => setAuthorEditCard(null)}
+        />
+      )}
     </div>
   );
 }

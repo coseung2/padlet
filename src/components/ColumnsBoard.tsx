@@ -5,6 +5,7 @@ import { AddCardButton } from "./AddCardButton";
 import { AddCardModal, type AddCardData } from "./AddCardModal";
 import { CardBody } from "./cards/CardBody";
 import { CardDetailModal } from "./cards/CardDetailModal";
+import { CardAuthorEditor, type SavedAuthor } from "./cards/CardAuthorEditor";
 import { ContextMenu } from "./ContextMenu";
 import { EditCardModal } from "./EditCardModal";
 import { ExportModal } from "./ExportModal";
@@ -28,6 +29,8 @@ type Props = {
   currentUserId: string;
   currentRole: "owner" | "editor" | "viewer";
   isStudentViewer?: boolean;
+  /** Board's classroomId — enables the CardAuthorEditor roster picker. */
+  classroomId?: string | null;
 };
 
 export function ColumnsBoard({
@@ -37,8 +40,10 @@ export function ColumnsBoard({
   currentUserId,
   currentRole,
   isStudentViewer,
+  classroomId,
 }: Props) {
   const [cards, setCards] = useState<CardData[]>(initialCards);
+  const [authorEditCard, setAuthorEditCard] = useState<CardData | null>(null);
   const [sections, setSections] = useState<SectionData[]>(
     [...initialSections].sort((a, b) => a.order - b.order)
   );
@@ -445,6 +450,15 @@ export function ColumnsBoard({
                           <ContextMenu
                             items={[
                               { label: "수정", icon: "✏️", onClick: () => setEditingCard(c) },
+                              ...(canEdit
+                                ? [
+                                    {
+                                      label: "작성자 지정",
+                                      icon: "👥",
+                                      onClick: () => setAuthorEditCard(c),
+                                    },
+                                  ]
+                                : []),
                               { label: "복제", icon: "📋", onClick: () => handleDuplicateCard(c) },
                               { label: "삭제", icon: "🗑️", danger: true, onClick: () => handleDeleteCard(c.id) },
                             ]}
@@ -497,11 +511,47 @@ export function ColumnsBoard({
         />
       )}
 
+      {authorEditCard && (
+        <CardAuthorEditor
+          cardId={authorEditCard.id}
+          classroomId={classroomId ?? null}
+          initialAuthors={(authorEditCard.authors ?? []).map((a) => ({
+            id: a.id,
+            studentId: a.studentId,
+            displayName: a.displayName,
+            order: a.order,
+          }))}
+          onSaved={(authors: SavedAuthor[]) => {
+            setCards((prev) =>
+              prev.map((c) =>
+                c.id === authorEditCard.id
+                  ? {
+                      ...c,
+                      authors,
+                      studentAuthorId: authors[0]?.studentId ?? null,
+                      externalAuthorName:
+                        authors.length > 0
+                          ? authors
+                              .slice(0, 3)
+                              .map((a) => a.displayName)
+                              .join(", ") +
+                            (authors.length > 3 ? ` 외 ${authors.length - 1}명` : "")
+                          : null,
+                    }
+                  : c
+              )
+            );
+          }}
+          onClose={() => setAuthorEditCard(null)}
+        />
+      )}
+
       <CardDetailModal
         card={openCard}
         onClose={() => setOpenCard(null)}
         cards={cards}
         onChange={setOpenCard}
+        onEditAuthors={canEdit ? (c) => setAuthorEditCard(c) : undefined}
       />
 
       {panelState && (() => {

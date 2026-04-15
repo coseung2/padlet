@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { DraggableCard, type CardData } from "./DraggableCard";
 import { AddCardButton } from "./AddCardButton";
 import { CardDetailModal } from "./cards/CardDetailModal";
+import { CardAuthorEditor, type SavedAuthor } from "./cards/CardAuthorEditor";
 
 type Role = "owner" | "editor" | "viewer";
 
@@ -13,6 +14,7 @@ type Props = {
   currentUserId: string;
   currentRole: Role;
   isStudentViewer?: boolean;
+  classroomId?: string | null;
 };
 
 export function BoardCanvas({
@@ -21,9 +23,11 @@ export function BoardCanvas({
   currentUserId,
   currentRole,
   isStudentViewer,
+  classroomId,
 }: Props) {
   const [cards, setCards] = useState<CardData[]>(initialCards);
   const [openCard, setOpenCard] = useState<CardData | null>(null);
+  const [authorEditCard, setAuthorEditCard] = useState<CardData | null>(null);
   const [, startTransition] = useTransition();
   const canEdit = currentRole === "owner" || currentRole === "editor";
   // Students (role=viewer) can add cards on their own classroom's board.
@@ -179,7 +183,28 @@ export function BoardCanvas({
         onClose={() => setOpenCard(null)}
         cards={cards}
         onChange={setOpenCard}
+        onEditAuthors={canEdit ? (c) => setAuthorEditCard(c) : undefined}
       />
+      {authorEditCard && (
+        <CardAuthorEditor
+          cardId={authorEditCard.id}
+          classroomId={classroomId ?? null}
+          initialAuthors={(authorEditCard.authors ?? []).map((a) => ({
+            id: a.id,
+            studentId: a.studentId,
+            displayName: a.displayName,
+            order: a.order,
+          }))}
+          onSaved={(authors: SavedAuthor[]) => {
+            setCards((prev) =>
+              prev.map((c) =>
+                c.id === authorEditCard.id ? { ...c, authors } : c
+              )
+            );
+          }}
+          onClose={() => setAuthorEditCard(null)}
+        />
+      )}
     </div>
   );
 }

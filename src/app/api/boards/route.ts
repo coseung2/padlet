@@ -239,6 +239,16 @@ export async function POST(req: Request) {
                 cardId: card.id,
               },
             });
+            // Seed the CardAuthor row so author source-of-truth lives on
+            // the join table for these slot cards too.
+            await tx.cardAuthor.create({
+              data: {
+                cardId: card.id,
+                studentId: s.id,
+                displayName: s.name,
+                order: 0,
+              },
+            });
           }
         }
         return createdBoard;

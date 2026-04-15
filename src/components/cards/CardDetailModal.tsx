@@ -11,9 +11,18 @@ type Props = {
   /** Optional: cards list + setter for prev/next navigation. */
   cards?: CardData[];
   onChange?: (card: CardData) => void;
+  /** Teacher-only: opens CardAuthorEditor from inside the modal. When
+   *  undefined the author-edit button is hidden (student/parent path). */
+  onEditAuthors?: (card: CardData) => void;
 };
 
-export function CardDetailModal({ card, onClose, cards, onChange }: Props) {
+export function CardDetailModal({
+  card,
+  onClose,
+  cards,
+  onChange,
+  onEditAuthors,
+}: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -162,11 +171,21 @@ export function CardDetailModal({ card, onClose, cards, onChange }: Props) {
               </a>
             )}
             <CardAuthorFooter
+              authors={card.authors}
               externalAuthorName={card.externalAuthorName}
               studentAuthorName={card.studentAuthorName}
               authorName={card.authorName}
               createdAt={card.createdAt}
             />
+            {onEditAuthors && (
+              <button
+                type="button"
+                className="card-detail-edit-authors"
+                onClick={() => onEditAuthors(card)}
+              >
+                👥 작성자 지정
+              </button>
+            )}
           </aside>
         </div>
       </div>

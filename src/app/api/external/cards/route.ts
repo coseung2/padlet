@@ -260,6 +260,9 @@ export async function POST(req: Request) {
       "canvaDesignUrl: could not extract design id (resolve canva.link first)"
     );
   }
+  // Import lazily — external-cards route has a lot of top-level imports
+  // already; the service is only used on the success path here.
+  const { setCardAuthors } = await import("@/lib/card-authors-service");
   const card = await db.card.create({
     data: {
       boardId: board.id,
@@ -284,6 +287,23 @@ export async function POST(req: Request) {
     },
     select: { id: true },
   });
+
+  // Seed the CardAuthor row so the join table is the source of truth for
+  // authorship from the first publish. Skip when we have neither a
+  // student identity nor a display name (degenerate path — shouldn't
+  // happen given the auth-path guard above). Classroom-membership check
+  // is off here because external/cards already gated classroomId above.
+  if (externalAuthorName) {
+    try {
+      await setCardAuthors(db, card.id, [
+        { studentId: studentAuthorId, displayName: externalAuthorName },
+      ]);
+    } catch (e) {
+      console.warn("[POST /api/external/cards] seed CardAuthor failed", e);
+      // Non-fatal — Card row already exists with studentAuthorId +
+      // externalAuthorName mirror. Teacher can re-author later.
+    }
+  }
 
   // Image path:
   //   (a) imageDataUrl provided → upload to Blob → use as card image/linkImage.

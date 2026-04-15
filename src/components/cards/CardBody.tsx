@@ -17,6 +17,7 @@ type Props = {
     externalAuthorName?: string | null;
     studentAuthorName?: string | null;
     authorName?: string | null;
+    authors?: Array<{ order: number; displayName: string }>;
     createdAt?: string | Date | null;
   };
   // Some layouts (BreakoutBoard, ColumnsBoard) nest cards inside section
@@ -40,6 +41,7 @@ export const CardBody = memo(function CardBody({ card, titleAs = "h3" }: Props) 
       <Title className="padlet-card-title">{card.title}</Title>
       <p className="padlet-card-content">{card.content}</p>
       <CardAuthorFooter
+        authors={card.authors}
         externalAuthorName={card.externalAuthorName}
         studentAuthorName={card.studentAuthorName}
         authorName={card.authorName}
