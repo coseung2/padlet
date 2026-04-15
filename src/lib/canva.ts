@@ -448,6 +448,29 @@ export function buildCanvaEmbedSrc(rawUrl: string): string | null {
   }
 }
 
+/**
+ * True when the URL carries a share token — i.e. is publicly viewable
+ * without a Canva login. Used as a gate for attempting the live iframe
+ * embed even when the server-side oEmbed thumbnail fetch failed (which
+ * happens for anonymous callers — Canva's oEmbed endpoint rejects anon
+ * requests with 401, so we can't rely on linkImage alone to mean
+ * "embed is safe").
+ */
+export function hasCanvaShareToken(rawUrl: string | null | undefined): boolean {
+  if (!rawUrl) return false;
+  try {
+    const u = new URL(rawUrl);
+    const host = u.hostname.toLowerCase();
+    if (host !== "canva.com" && host !== "www.canva.com") return false;
+    const m = u.pathname.match(
+      /\/design\/[A-Za-z0-9_-]+\/([A-Za-z0-9_-]+)\/(?:view|watch)/
+    );
+    return !!m?.[1];
+  } catch {
+    return false;
+  }
+}
+
 // Async resolver — may do 1 short-link HEAD plus 1 oEmbed fetch.
 // Returns null on any failure so callers can fall back to the link-preview
 // path without a throw.

@@ -96,7 +96,9 @@ export async function PATCH(
     if (urlChanged && isCanvaDesignUrl(patch.linkUrl as string)) {
       const embed = await resolveCanvaEmbedUrl(patch.linkUrl as string);
       if (embed) {
-        patch.linkUrl = `https://www.canva.com/design/${embed.designId}/view`;
+        // Preserve the user-pasted URL with its share-token segment —
+        // dropping it would break anonymous iframe embedding. Only
+        // overwrite derived fields (title/desc/image).
         patch.linkImage = embed.thumbnailUrl;
         if (patch.linkTitle === undefined) patch.linkTitle = embed.title;
         if (patch.linkDesc === undefined) {

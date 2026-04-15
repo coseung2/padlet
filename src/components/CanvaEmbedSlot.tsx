@@ -211,7 +211,7 @@ export const CanvaEmbedSlot = memo(function CanvaEmbedSlot({
       </div>
 
       <div className="card-canva-slot-frame">
-        {linkImage && (
+        {linkImage ? (
           // Thumbnail always painted underneath — acts as LCP image and as
           // the background that shows through while iframe boots (and after
           // eviction). loading="lazy" is safe because the slot is cheap.
@@ -221,6 +221,19 @@ export const CanvaEmbedSlot = memo(function CanvaEmbedSlot({
             loading="lazy"
             className="card-canva-slot-thumbnail"
           />
+        ) : (
+          // No oEmbed thumbnail (anonymous 401 is the common case) —
+          // paint a neutral placeholder so the slot isn't visually empty
+          // before the iframe loads. Labelled "Canva 디자인" so the user
+          // knows what they're about to see.
+          <div
+            className="card-canva-slot-thumbnail card-canva-slot-placeholder"
+            aria-hidden="true"
+          >
+            <span className="card-canva-slot-placeholder-label">
+              Canva 디자인
+            </span>
+          </div>
         )}
 
         {shouldRenderIframe ? (

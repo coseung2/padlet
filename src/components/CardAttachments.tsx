@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { extractCanvaDesignId } from "@/lib/canva";
+import { extractCanvaDesignId, hasCanvaShareToken } from "@/lib/canva";
 import { CanvaEmbedSlot } from "./CanvaEmbedSlot";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
@@ -29,14 +29,21 @@ export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl
 
   const ytId = videoUrl ? getYouTubeId(videoUrl) : null;
   const canvaDesignId = linkUrl ? extractCanvaDesignId(linkUrl) : null;
-  // Only render the live Canva iframe when the server's oEmbed resolver
-  // actually succeeded. A successful resolve always fills linkImage from
-  // oEmbed.thumbnail_url, so the absence of linkImage means the resolver
-  // returned null (timeout / private design / endpoint drift) and we
-  // should fall back to the generic card-link-preview instead of
-  // attempting an iframe that would leak a Canva login prompt or a
-  // blank area.
-  const canRenderCanvaEmbed = Boolean(canvaDesignId && linkImage);
+  // Open the live-iframe gate when EITHER:
+  //   (a) oEmbed succeeded → linkImage is the Canva thumbnail, the URL
+  //       was pre-validated as public, safe to embed.
+  //   (b) the pasted URL carries a share token → the design is publicly
+  //       viewable (Canva's own "링크가 있는 누구나" flag), so the
+  //       iframe will render even though our anon oEmbed call got 401.
+  //       We lose the pre-loaded thumbnail but CanvaEmbedSlot shows a
+  //       neutral placeholder and the iframe itself fills in on load.
+  //
+  // Path (a) used to be the only trigger. The consequence was that
+  // student-pasted public links showed a plain link preview with no
+  // live iframe (reported 2026-04-15) — path (b) fixes that without
+  // regressing the oEmbed-pre-validated path.
+  const hasShareToken = Boolean(linkUrl && hasCanvaShareToken(linkUrl));
+  const canRenderCanvaEmbed = Boolean(canvaDesignId && (linkImage || hasShareToken));
 
   return (
     <div className="card-attachments">
