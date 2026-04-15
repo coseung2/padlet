@@ -62,12 +62,19 @@ export const CanvaEmbedSlot = memo(function CanvaEmbedSlot({
   const [iframeFailed, setIframeFailed] = useState(false);
   const [evictedToast, setEvictedToast] = useState<string | null>(null);
 
-  // Auto-deactivate when the slot scrolls out of view. Using a ref to the
-  // previous inView value would let us skip the initial false->false call,
-  // but deactivate() on an inactive id is a cheap no-op so we keep this
-  // straightforward.
+  // IntersectionObserver starts at `false` and only flips once it has
+  // actually reported an intersection. Gating the auto-deactivate on
+  // inView directly would immediately undo the user's activate() before
+  // the IO ever gets a chance to report — the ▶ button would look dead.
+  // Track "was ever in view" so we only scroll-deactivate slots that
+  // genuinely left the viewport.
+  const wasEverInViewRef = useRef(false);
   useEffect(() => {
-    if (!inView && active) {
+    if (inView) wasEverInViewRef.current = true;
+  }, [inView]);
+
+  useEffect(() => {
+    if (!inView && active && wasEverInViewRef.current) {
       deactivate(slotId);
     }
   }, [inView, active, deactivate, slotId]);
@@ -176,7 +183,11 @@ export const CanvaEmbedSlot = memo(function CanvaEmbedSlot({
       `https://www.canva.com/design/${designId}/view?embed&meta`
     );
   }, [linkUrl, designId]);
-  const shouldRenderIframe = active && inView;
+  // Render the iframe as soon as the user activates. We no longer gate on
+  // inView — the auto-deactivate useEffect above handles off-screen
+  // eviction once IO reports genuine visibility. The LRU cap (3) still
+  // prevents runaway iframe counts regardless.
+  const shouldRenderIframe = active;
 
   return (
     <div
