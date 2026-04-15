@@ -12,6 +12,7 @@ type Props = {
   initialCards: CardData[];
   currentUserId: string;
   currentRole: Role;
+  isStudentViewer?: boolean;
 };
 
 export function BoardCanvas({
@@ -19,11 +20,16 @@ export function BoardCanvas({
   initialCards,
   currentUserId,
   currentRole,
+  isStudentViewer,
 }: Props) {
   const [cards, setCards] = useState<CardData[]>(initialCards);
   const [openCard, setOpenCard] = useState<CardData | null>(null);
   const [, startTransition] = useTransition();
   const canEdit = currentRole === "owner" || currentRole === "editor";
+  // Students (role=viewer) can add cards on their own classroom's board.
+  // The POST /api/cards endpoint accepts the student_session cookie and
+  // stamps authorship via studentAuthorId + externalAuthorName.
+  const canAddCard = canEdit || !!isStudentViewer;
 
   function handlePositionChange(id: string, x: number, y: number) {
     let prevX = 0;
@@ -167,7 +173,7 @@ export function BoardCanvas({
           />
         ))}
       </div>
-      {canEdit && <AddCardButton onAdd={handleAdd} />}
+      {canAddCard && <AddCardButton onAdd={handleAdd} />}
       <CardDetailModal
         card={openCard}
         onClose={() => setOpenCard(null)}
