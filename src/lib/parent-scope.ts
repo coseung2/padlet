@@ -50,8 +50,17 @@ export async function requireParentScope(_req: Request) {
   if (!current) {
     throw new ParentScopeError(401, "unauthorized");
   }
+  // v2 narrowing: only `status='active'` grants read access. pending /
+  // rejected / revoked rows can share `deletedAt IS NULL` in some flows
+  // (pending requests kept for 7d, rejected-not-yet-cleaned) so the
+  // previous deletedAt-only filter would leak data to parents whose
+  // approval hasn't completed.
   const links = await db.parentChildLink.findMany({
-    where: { parentId: current.parent.id, deletedAt: null },
+    where: {
+      parentId: current.parent.id,
+      status: "active",
+      deletedAt: null,
+    },
     select: { id: true, studentId: true, createdAt: true },
     orderBy: { createdAt: "asc" },
   });

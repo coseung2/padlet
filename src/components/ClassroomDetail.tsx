@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AddStudentsModal, type CreatedStudent } from "./AddStudentsModal";
 import { QRPrintSheet } from "./QRPrintSheet";
-import ParentInviteButton from "./ParentInviteButton";
+// parent-class-invite-v2 — per-student ParentInviteButton removed.
+// Codes are now classroom-scoped (see /classroom/[id]/parent-access).
 import { ParentManagementTab } from "./parent/ParentManagementTab";
 
 type Student = {
@@ -455,7 +456,6 @@ function StudentRow({
       <td className="classroom-td classroom-td-date">{dateStr}</td>
       <td className="classroom-td classroom-td-actions">
         <div className="classroom-row-actions">
-          <ParentInviteButton studentId={student.id} studentName={student.name} />
           <button
             type="button"
             className="classroom-row-btn classroom-row-btn-reissue"

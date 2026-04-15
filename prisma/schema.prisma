@@ -34,6 +34,11 @@ model User {
   templatesOwned        BreakoutTemplate[]    @relation("TemplateOwner")
   issuedParentInvites   ParentInviteCode[]    @relation("TeacherInvite")
   canvaConnect          CanvaConnectAccount?
+  // parent-class-invite-v2 — issued codes + audit FKs into ParentChildLink
+  classInvitesIssued    ClassInviteCode[]     @relation("ClassInviteIssued")
+  approvedParentLinks   ParentChildLink[]     @relation("LinkApprovedBy")
+  rejectedParentLinks   ParentChildLink[]     @relation("LinkRejectedBy")
+  revokedParentLinks    ParentChildLink[]     @relation("LinkRevokedBy")
 }
 
 // ──── Canva Connect API token store ────
@@ -126,6 +131,7 @@ model Classroom {
   students    Student[]
   boards      Board[]               @relation("ClassroomBoards")
   plantAllows ClassroomPlantAllow[]
+  inviteCodes ClassInviteCode[]
 
   @@index([teacherId])
   @@index([code])
@@ -664,20 +670,98 @@ model Parent {
   @@index([parentDeletedAt])
 }
 
-model ParentChildLink {
-  id         String    @id @default(cuid())
-  parentId   String
-  studentId  String
-  createdAt  DateTime  @default(now())
-  deletedAt  DateTime? // soft delete
+// parent-class-invite-v2 — ParentLinkStatus lifecycle.
+//   pending  → (approve) → active
+//   pending  → (reject | code_rotated | auto_expired) → rejected
+//   active   → (teacher_revoked | classroom_deleted | year_end | parent_self_leave) → revoked
+// rejected/revoked are dead-end. See src/lib/parent-link-state.ts for the
+// transition validator used by every state-changing endpoint.
+enum ParentLinkStatus {
+  pending
+  active
+  rejected
+  revoked
+}
 
-  parent  Parent  @relation(fields: [parentId], references: [id], onDelete: Cascade)
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+// UI dropdown for teacher reject action exposes only the first 3 values.
+// System-originated reject uses code_rotated | auto_expired | classroom_deleted.
+enum ParentRejectedReason {
+  wrong_child
+  not_parent
+  other
+  code_rotated
+  auto_expired
+  classroom_deleted
+}
+
+// v1 had 3 revoked reasons; v2 adds 4 more (audit completeness — system
+// transitions that originate from pending→rejected ALSO get a matching
+// revokedReason row for downstream reporting).
+enum ParentRevokedReason {
+  teacher_revoked
+  year_end
+  parent_self_leave
+  rejected_by_teacher
+  auto_expired_pending
+  code_rotated
+  classroom_deleted
+}
+
+model ParentChildLink {
+  id             String                 @id @default(cuid())
+  parentId       String
+  studentId      String
+
+  // v2 lifecycle
+  status         ParentLinkStatus       @default(pending)
+
+  // audit — set as status transitions
+  requestedAt    DateTime               @default(now())
+  approvedAt     DateTime?
+  approvedById   String?
+  rejectedAt     DateTime?
+  rejectedById   String?
+  rejectedReason ParentRejectedReason?
+  revokedAt      DateTime?
+  revokedById    String?
+  revokedReason  ParentRevokedReason?
+
+  createdAt      DateTime               @default(now())
+  deletedAt      DateTime?              // soft delete (R-07 v1 compat)
+
+  parent     Parent  @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  student    Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  approvedBy User?   @relation("LinkApprovedBy", fields: [approvedById], references: [id])
+  rejectedBy User?   @relation("LinkRejectedBy", fields: [rejectedById], references: [id])
+  revokedBy  User?   @relation("LinkRevokedBy",  fields: [revokedById],  references: [id])
 
   @@unique([parentId, studentId])
   @@index([studentId])
   @@index([parentId])
+  @@index([status, requestedAt])
   @@index([deletedAt])
+}
+
+// parent-class-invite-v2 — classroom-scoped invite code.
+// One active (rotatedAt IS NULL) row per classroom, enforced by a partial
+// unique index declared in the migration SQL (Prisma schema doesn't support
+// partial uniques directly).
+model ClassInviteCode {
+  id          String    @id @default(cuid())
+  classroomId String
+  code        String    @unique
+  codeHash    String    @unique
+  issuedById  String
+  expiresAt   DateTime?
+  maxUses     Int?
+  rotatedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  issuedBy  User      @relation("ClassInviteIssued", fields: [issuedById], references: [id])
+
+  @@index([classroomId])
+  @@index([rotatedAt])
 }
 
 model ParentInviteCode {

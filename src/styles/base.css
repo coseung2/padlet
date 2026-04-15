@@ -31,6 +31,10 @@
   --color-danger: #c62828;
   --color-danger-active: #a01b1b;
 
+  /* Warning — D+3~5 badge, etc. */
+  --color-warning: #f59e0b;
+  --color-warning-tinted-bg: #fef3c7;
+
   /* Radii */
   --radius-card: 12px;
   --radius-btn: 4px;
