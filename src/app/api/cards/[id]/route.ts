@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
-import { getCurrentStudent } from "@/lib/student-auth";
-import { requirePermission, getBoardRole, ForbiddenError } from "@/lib/rbac";
+import { ForbiddenError } from "@/lib/rbac";
+import { resolveIdentity } from "@/lib/identity";
+import { canEditCard, canDeleteCard, type BoardLike, type CardLike } from "@/lib/card-permissions";
 import { isCanvaDesignUrl, resolveCanvaEmbedUrl } from "@/lib/canva";
 
 const PatchCardSchema = z.object({
@@ -30,14 +30,39 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const user = await getCurrentUser();
 
     const card = await db.card.findUnique({ where: { id } });
     if (!card) {
       return NextResponse.json({ error: "Card not found" }, { status: 404 });
     }
 
-    await requirePermission(card.boardId, user.id, "edit");
+    const board = await db.board.findUnique({
+      where: { id: card.boardId },
+      select: {
+        id: true,
+        classroomId: true,
+        classroom: { select: { teacherId: true } },
+      },
+    });
+    if (!board) {
+      return NextResponse.json({ error: "Board not found" }, { status: 404 });
+    }
+
+    const identity = await resolveIdentity();
+    const boardLike: BoardLike = {
+      id: board.id,
+      classroomId: board.classroomId,
+      ownerUserId: board.classroom?.teacherId ?? null,
+    };
+    const cardLike: CardLike = {
+      id: card.id,
+      boardId: card.boardId,
+      authorId: card.authorId,
+      studentAuthorId: card.studentAuthorId,
+    };
+    if (!canEditCard(identity, boardLike, cardLike)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const body = await req.json();
     const input = PatchCardSchema.parse(body);
@@ -114,30 +139,32 @@ export async function DELETE(
       return NextResponse.json({ error: "Card not found" }, { status: 404 });
     }
 
-    // Student-author path — students publish via the Canva app, come back
-    // here with only a student_session cookie (no NextAuth user). Allow
-    // them to delete their own publish before falling through to the
-    // teacher/editor RBAC path.
-    const student = await getCurrentStudent();
-    if (student && card.studentAuthorId === student.id) {
-      await db.card.delete({ where: { id } });
-      return NextResponse.json({ ok: true });
+    const board = await db.board.findUnique({
+      where: { id: card.boardId },
+      select: {
+        id: true,
+        classroomId: true,
+        classroom: { select: { teacherId: true } },
+      },
+    });
+    if (!board) {
+      return NextResponse.json({ error: "Board not found" }, { status: 404 });
     }
 
-    const user = await getCurrentUser();
-    const role = await getBoardRole(card.boardId, user.id);
-    if (!role) {
-      return NextResponse.json({ error: "Not a member" }, { status: 403 });
-    }
-
-    // owner deletes anything; editor deletes own cards only
-    const isAuthor = card.authorId === user.id;
-    const canDelete = role === "owner" || (role === "editor" && isAuthor);
-    if (!canDelete) {
-      return NextResponse.json(
-        { error: `Role "${role}" cannot delete this card` },
-        { status: 403 }
-      );
+    const identity = await resolveIdentity();
+    const boardLike: BoardLike = {
+      id: board.id,
+      classroomId: board.classroomId,
+      ownerUserId: board.classroom?.teacherId ?? null,
+    };
+    const cardLike: CardLike = {
+      id: card.id,
+      boardId: card.boardId,
+      authorId: card.authorId,
+      studentAuthorId: card.studentAuthorId,
+    };
+    if (!canDeleteCard(identity, boardLike, cardLike)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     await db.card.delete({ where: { id } });

@@ -1,0 +1,5 @@
+src/lib/card-permissions.ts        (new)
+src/lib/identity.ts                 (new)
+src/lib/__tests__/card-permissions.vitest.ts  (new — 17 tests)
+src/app/api/cards/[id]/route.ts     (PATCH + DELETE → primitive)
+src/app/api/cards/[id]/move/route.ts (PATCH → primitive)
