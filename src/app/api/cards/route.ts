@@ -31,18 +31,31 @@ export async function POST(req: Request) {
     const body = await req.json();
     const input = CreateCardSchema.parse(body);
 
-    // Auth branches. Students (Canva-app-less, direct web UI) post cards to
-    // their own classroom's board; the student_session cookie is the
-    // identity anchor. We stamp authorId to the classroom's teacher and
-    // studentAuthorId/externalAuthorName so parent-viewer lookups and
-    // CardAuthorFooter both light up.
-    const student = await getCurrentStudent();
+    // Auth precedence: teacher (NextAuth) → student (HMAC cookie). Same
+    // order as resolveIdentity / PATCH / DELETE. A leftover student_session
+    // cookie from prior testing must NOT hijack a teacher-initiated POST.
+    let teacherUser: Awaited<ReturnType<typeof getCurrentUser>> | null = null;
+    try {
+      teacherUser = await getCurrentUser();
+    } catch {
+      teacherUser = null;
+    }
+
     let authorId: string;
     let studentAuthorId: string | null = null;
     let externalAuthorName: string | null = null;
     let currentUserName: string | null = null;
+    let student: Awaited<ReturnType<typeof getCurrentStudent>> = null;
 
-    if (student) {
+    if (teacherUser) {
+      await requirePermission(input.boardId, teacherUser.id, "edit");
+      authorId = teacherUser.id;
+      currentUserName = teacherUser.name;
+    } else {
+      student = await getCurrentStudent();
+      if (!student) {
+        return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+      }
       const board = await db.board.findUnique({
         where: { id: input.boardId },
         select: {
@@ -60,11 +73,6 @@ export async function POST(req: Request) {
       studentAuthorId = student.id;
       externalAuthorName = student.name;
       currentUserName = student.name;
-    } else {
-      const user = await getCurrentUser();
-      await requirePermission(input.boardId, user.id, "edit");
-      authorId = user.id;
-      currentUserName = user.name;
     }
 
     // Canva oEmbed enrichment. For a Canva design URL the SERVER owns
