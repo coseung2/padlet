@@ -215,9 +215,65 @@ export function ColumnsBoard({
   function handleDrop(e: React.DragEvent, targetSectionId: string) {
     e.preventDefault();
     setOverSectionId(null);
+    setDraggingSectionId(null);
+    // Section drag takes priority — distinguished by the mime key set
+    // in the column-header's onDragStart.
+    const sectionId = e.dataTransfer.getData("application/section-id");
+    if (sectionId) {
+      moveSectionTo(sectionId, targetSectionId);
+      return;
+    }
     const cardId = e.dataTransfer.getData("application/card-id");
     if (cardId) moveCard(cardId, targetSectionId);
   }
+
+  /* ── Section reorder (drag-drop) ──
+   *
+   * Column headers are HTML5-draggable. Dropping section A onto
+   * section B's column moves A to B's position in the list. All
+   * affected sections are re-indexed 0..N-1 locally and PATCH'd in
+   * parallel. Optimistic state; on failure we roll back.
+   *
+   * Distinguishable from card drag via the `application/section-id`
+   * mime key — card drag uses `application/card-id`. */
+  async function moveSectionTo(sectionId: string, targetSectionId: string) {
+    if (sectionId === targetSectionId) return;
+    const fromIdx = sections.findIndex((s) => s.id === sectionId);
+    const toIdx = sections.findIndex((s) => s.id === targetSectionId);
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    const prev = sections;
+    const next = [...sections];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, moved!);
+    const normalised = next.map((s, i) => ({ ...s, order: i }));
+    setSections(normalised);
+
+    // Every section whose index actually changed gets PATCH'd. For a
+    // move of length K positions this is ≤K+1 rows — still cheap on
+    // typical 3-8 column boards.
+    const changed = normalised.filter((s, i) => prev[i]?.id !== s.id);
+    try {
+      const responses = await Promise.all(
+        changed.map((s) =>
+          fetch(`/api/sections/${s.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ order: s.order }),
+          })
+        )
+      );
+      if (responses.some((r) => !r.ok)) {
+        console.error("섹션 순서 변경 실패");
+        setSections(prev);
+      }
+    } catch (err) {
+      console.error(err);
+      setSections(prev);
+    }
+  }
+
+  const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
 
   /* ── Add card (shared by FAB and per-column buttons) ── */
   async function handleAdd(data: AddCardData) {
@@ -411,7 +467,21 @@ export function ColumnsBoard({
               }}
               onDrop={(e) => handleDrop(e, section.id)}
             >
-              <div className="column-header">
+              <div
+                className={`column-header ${
+                  canEdit ? "is-section-draggable" : ""
+                } ${
+                  draggingSectionId === section.id ? "is-section-dragging" : ""
+                }`}
+                draggable={canEdit}
+                onDragStart={(e) => {
+                  if (!canEdit) return;
+                  e.dataTransfer.setData("application/section-id", section.id);
+                  e.dataTransfer.effectAllowed = "move";
+                  setDraggingSectionId(section.id);
+                }}
+                onDragEnd={() => setDraggingSectionId(null)}
+              >
                 <h3 className="column-title">{section.title}</h3>
                 <span className="column-count">{sectionCards.length}</span>
                 {menuItems.length > 0 && <ContextMenu items={menuItems} />}
