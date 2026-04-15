@@ -13,6 +13,10 @@ import {
 
 type Props = {
   viewer: "teacher" | "student";
+  // AC-13: "matrix" renders the same AssignmentGridView inside a
+  // `.assign-board--matrix` wrapper (1-column placeholder CSS). Default grid
+  // is unchanged. Guard enforced server-side in `/board/[id]/page.tsx`.
+  view?: "grid" | "matrix";
   board: AssignmentBoardDTO;
   initialSlots: AssignmentSlotDTO[];
   canStudentSubmit?: boolean;
@@ -30,6 +34,7 @@ type Props = {
  */
 export function AssignmentBoard({
   viewer,
+  view,
   board,
   initialSlots,
   canStudentSubmit,
@@ -151,9 +156,13 @@ export function AssignmentBoard({
     );
   }
 
+  const teacherClass =
+    view === "matrix"
+      ? "assign-board assign-board--teacher assign-board--matrix"
+      : "assign-board assign-board--teacher";
   return (
     <div className="board-canvas-wrap">
-      <div className="assign-board assign-board--teacher">
+      <div className={teacherClass}>
         {board.assignmentGuideText && (
           <section className="assign-guide" aria-labelledby="assign-guide-label">
             <div id="assign-guide-label" className="assign-guide__label">

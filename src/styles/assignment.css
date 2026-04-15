@@ -479,6 +479,11 @@
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
 }
+/* AC-13 matrix view: single-column placeholder (v1). Owner+desktop only —
+   server guard in /board/[id]/page.tsx. */
+.assign-board--matrix .assign-grid {
+  grid-template-columns: 1fr;
+}
 .assign-grid__empty {
   text-align: center;
   padding: 32px;

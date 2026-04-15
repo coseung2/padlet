@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getCurrentStudent } from "@/lib/student-auth";
@@ -41,10 +42,18 @@ const LAYOUT_LABEL: Record<string, string> = {
 
 export default async function BoardPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ view?: string }>;
 }) {
   const { id } = await params;
+  const { view: viewParam } = await searchParams;
+  // AC-13 matrix guard reads UA server-side. Best-effort — iPad Pro in
+  // desktop-mode Safari reports a Mac UA and slips through; documented
+  // tradeoff (scope phase2 R9 / phase3 §E9 accept this imperfection).
+  const uaString =
+    viewParam === "matrix" ? (await headers()).get("user-agent") ?? "" : "";
 
   // Round 1 — resolve the board itself plus auth subjects concurrently.
   const [board, user, student] = await Promise.all([
@@ -510,6 +519,22 @@ export default async function BoardPage({
         const slotRows = assignmentSlotsRaw ?? [];
         const viewer: "teacher" | "student" =
           studentViewer ? "student" : "teacher";
+        // AC-13 Matrix view guard: owner (teacher) + desktop UA only.
+        // Non-teachers → notFound (403). Non-desktop UA → redirect to default grid.
+        // UA heuristic is imperfect (iPad Pro desktop-mode, UA spoofing) — see
+        // tradeoff report. Scope phase2 explicitly accepts "best effort".
+        let matrixView = false;
+        if (viewParam === "matrix") {
+          if (viewer !== "teacher") {
+            notFound();
+          }
+          const ua = uaString ?? "";
+          const isNonDesktop = /Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(ua);
+          if (isNonDesktop) {
+            redirect(`/board/${board!.slug}`);
+          }
+          matrixView = true;
+        }
         const slotDTOs = slotRows
           .filter((row) => viewer === "teacher" || row.studentId === studentViewer?.id)
           .map((row) => ({
@@ -554,6 +579,7 @@ export default async function BoardPage({
         return (
           <AssignmentBoard
             viewer={viewer}
+            view={matrixView ? "matrix" : "grid"}
             board={{
               id: board!.id,
               slug: board!.slug,
