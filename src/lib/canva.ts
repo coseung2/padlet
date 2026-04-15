@@ -339,22 +339,34 @@ export async function canvaMoveItem(token: string, itemId: string, toFolderId: s
 }
 
 export async function resolveCanvaDesignId(url: string): Promise<string | null> {
-  let finalUrl = url;
-
-  if (url.includes("canva.link")) {
-    try {
-      // Short-link expansion — hard cap the redirect HEAD so a slow
-      // canva.link response cannot blow past the outer 3s oEmbed budget.
-      const res = await fetch(url, {
-        redirect: "manual",
-        signal: AbortSignal.timeout(2000),
-      });
-      finalUrl = res.headers.get("location") ?? url;
-    } catch {}
-  }
-
+  const finalUrl = await expandCanvaShortLink(url);
   const match = finalUrl.match(/\/design\/([A-Za-z0-9_-]+)\//);
   return match?.[1] ?? null;
+}
+
+/**
+ * Follow a canva.link short URL to its canonical canva.com form so the
+ * share-token path segment becomes visible. Returns the input unchanged
+ * for non-canva.link URLs or on network failure.
+ *
+ * Canva's "공유 → 링크 공유 → 공개 보기" button hands students a
+ * `canva.link/xxxxx` form that 302-redirects to the real
+ * `canva.com/design/{id}/{shareToken}/view` URL — we need the expanded
+ * form so client predicates (extractCanvaDesignId / hasCanvaShareToken)
+ * accept it and open the live-iframe gate.
+ */
+export async function expandCanvaShortLink(url: string): Promise<string> {
+  if (!url.includes("canva.link")) return url;
+  try {
+    const res = await fetch(url, {
+      redirect: "manual",
+      signal: AbortSignal.timeout(2000),
+    });
+    const loc = res.headers.get("location");
+    return loc ?? url;
+  } catch {
+    return url;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -432,10 +444,12 @@ export function buildCanvaEmbedSrc(rawUrl: string): string | null {
     const host = u.hostname.toLowerCase();
     if (host !== "canva.com" && host !== "www.canva.com") return null;
 
-    // Accept /design/{id}/(view|watch), or the full share form
-    // /design/{id}/{shareToken}/(view|watch).
+    // Accept /design/{id}/(view|watch|edit), or the full share form
+    // /design/{id}/{shareToken}/(view|watch|edit). Canva's "링크 공유"
+    // button gives an /edit URL; we always rewrite it to /view for the
+    // iframe (embedding the editor surface is blocked by X-Frame).
     const m = u.pathname.match(
-      /\/design\/([A-Za-z0-9_-]+)(?:\/([A-Za-z0-9_-]+))?\/(?:view|watch)/
+      /\/design\/([A-Za-z0-9_-]+)(?:\/([A-Za-z0-9_-]+))?\/(?:view|watch|edit)/
     );
     if (!m) return null;
     const [, designId, shareToken] = m;
@@ -462,8 +476,11 @@ export function hasCanvaShareToken(rawUrl: string | null | undefined): boolean {
     const u = new URL(rawUrl);
     const host = u.hostname.toLowerCase();
     if (host !== "canva.com" && host !== "www.canva.com") return false;
+    // Accept view / watch / edit — Canva hands out /edit URLs for the
+    // "링크 공유" (anyone-with-link) share flow; buildCanvaEmbedSrc
+    // rewrites to /view for the iframe.
     const m = u.pathname.match(
-      /\/design\/[A-Za-z0-9_-]+\/([A-Za-z0-9_-]+)\/(?:view|watch)/
+      /\/design\/[A-Za-z0-9_-]+\/([A-Za-z0-9_-]+)\/(?:view|watch|edit)/
     );
     return !!m?.[1];
   } catch {
