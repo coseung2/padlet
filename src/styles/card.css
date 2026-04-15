@@ -657,3 +657,26 @@
   color: var(--color-text);
   border-color: var(--color-border-hover);
 }
+
+/* Placeholder shown in CanvaEmbedSlot when we don't have an oEmbed
+   thumbnail (anonymous oEmbed returns 401). Neutral Canva-brand-ish
+   gradient with a centred label. Replaced by the real iframe the
+   moment it loads. */
+.card-canva-slot-placeholder {
+  background: linear-gradient(135deg, #00c4cc 0%, #7d2ae8 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+}
+.card-canva-slot-placeholder-label {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  opacity: 0.92;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}

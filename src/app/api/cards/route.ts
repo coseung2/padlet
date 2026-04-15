@@ -83,18 +83,21 @@ export async function POST(req: Request) {
     if (linkUrl && isCanvaDesignUrl(linkUrl)) {
       const embed = await resolveCanvaEmbedUrl(linkUrl);
       if (embed) {
-        linkUrl = `https://www.canva.com/design/${embed.designId}/view`;
-        // Force-set linkImage from the oEmbed thumbnail so a client
-        // cannot satisfy the iframe gate with a stale / unrelated image.
+        // Preserve the ORIGINAL URL (including the share-token path
+        // segment when the client pasted one) — dropping it breaks the
+        // iframe login gate on Canva's side. oEmbed resolver strips the
+        // token from its response, so we only overwrite linkTitle /
+        // linkDesc / linkImage and leave linkUrl untouched.
         linkImage = embed.thumbnailUrl;
         if (input.linkTitle === undefined) linkTitle = embed.title;
         if (input.linkDesc === undefined) {
           linkDesc = embed.authorName ? `by ${embed.authorName}` : null;
         }
       } else {
-        // oEmbed failed → null linkImage so the client falls back to
-        // the plain link-preview rather than attempting a likely-broken
-        // iframe.
+        // oEmbed failed (anonymous 401 is the common path). The iframe
+        // can still render when the URL carries a share token — the
+        // client's canRenderCanvaEmbed gate opens in that case. We
+        // just don't have a thumbnail.
         linkImage = null;
       }
     }
