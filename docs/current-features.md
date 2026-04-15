@@ -137,3 +137,12 @@ v1 per-student `ParentInviteCode` → v2 **학급 전체 8자리 ClassInviteCode
 - **Cron**: `0 17 * * *` KST 02:00 — D+3/D+6 리마인더 + D+7 자동 expire.
 - **이메일 발송**: `PARENT_EMAIL_ENABLED=true` + `RESEND_API_KEY` + `PARENT_EMAIL_FROM` 세팅 시 실제 발송. 미설정 시 crash 없이 로그만.
 - **Deferred**: Resend env 4개 + DNS 검증 / QR 서버 렌더 / Revoke API + ClassroomDeleteModal 배선 / `ParentInviteCode` Prisma 모델 cleanup(테이블은 drop, schema 잔존 의도적).
+
+## 권한 모델 (role-model-cleanup) — 2026-04-15
+3-tier `owner | editor | viewer` 단일 축 권한을 **identity × ownership 2축 primitive** 로 교체.
+
+- **신규 `src/lib/card-permissions.ts`**: 4 순수 함수 `canViewCard / canEditCard / canDeleteCard / canAddCardToBoard`. `Identity` discriminated union (`teacher / student / parent / anon`). 17 vitest 매트릭스 커버.
+- **신규 `src/lib/identity.ts`**: `resolveIdentity()` — per-request server-side 단일 resolver. NextAuth teacher → student_session → parent_session → anon 순 precedence.
+- **카드 API 통합**: `PATCH / DELETE / move /api/cards/[id]*` 전부 primitive 경유. 학생이 자기 카드 **편집 가능** (신규), **이동 가능** (신규), **삭제 가능** (기존 유지). 교사 flow regression 0.
+- **`src/lib/rbac.ts`**: `Role / Action / getBoardRole / requirePermission` 전부 `@deprecated` JSDoc. 교사 전용 라우트 17개는 여전히 호출하되 신규 callsite 금지.
+- **Deferred (follow-up)**: POST /api/cards primitive 명시 호출, 4 카드 보드 UI 의 `isStudentViewer` prop → primitive 교체, CardDetailModal 학생 편집 UI 노출.
