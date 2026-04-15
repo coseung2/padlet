@@ -4,7 +4,7 @@
   "date": "2026-04-15",
   "initiator": "user",
   "title": "학생 태블릿 반응형 + 반응형 토큰 primitive + ⋯ 상시 표시",
-  "problem_statement": "오늘 배포된 기능들이 desktop-first 가정(hover, 넓은 폭)으로 설계되어 Galaxy Tab S6 Lite (1200×2000 세로) 에서 불편함. 구체적으로 (a) 터치 기기에 hover 없어 ⋯ 컨텍스트 메뉴가 카드 터치 후에만 나타남 — 사용자가 '그냥 떠있길' 요청, (b) 모달들이 desktop 가정으로 2-panel 레이아웃 스택 안 됨, (c) 여러 탭 대상 (iPad/탭 S6 Lite) 기준 44×44 터치 타깃 미달 요소 산재, (d) 반응형 토큰이 없어 hard-coded breakpoint 반복.",
+  "problem_statement": "오늘 배포된 기능들이 desktop-first 가정(hover, 넓은 폭)으로 설계되어 Galaxy Tab S6 Lite 세로 1200×2000 Android Chrome 에서 불편함. 구체적으로 (a) 터치 기기에 hover 없어 ⋯ 컨텍스트 메뉴가 카드 터치 후에만 나타남 — 사용자가 '그냥 떠있길' 요청, (b) 모달들이 desktop 가정으로 2-panel 레이아웃 스택 안 됨, (c) 44×44 터치 타깃 미달 요소 산재, (d) 반응형 토큰이 없어 hard-coded breakpoint 반복. 실사용 기기는 S6 Lite 단일 — iOS/iPad 없음.",
   "goal": "(1) CSS 변수 기반 반응형 primitive 도입 — 터치 타깃·폰트 스케일·모달 폭. (2) 학생 동선 주요 서피스(로그인→보드 4종→카드 추가/편집/모달→drawing→quiz) 반응형 강화. (3) ⋯ 토글 상시 표시 (hover 의존 제거). (4) 기존 desktop flow regression 0.",
   "scope_hints": {
     "must_add": [
@@ -28,7 +28,6 @@
       "교사 대시보드 (학생 동선 밖)",
       "학부모 페이지 (별도 반응형 감사 대상, 별 task)",
       "assignment AB-1 grid 반응형 (이미 @media 767 있음)",
-      "iPad Pro 12.9 최적화 (S6 Lite + iPad mini 기준)",
       "다크 모드 (별 task)"
     ]
   },

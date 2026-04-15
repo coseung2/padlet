@@ -4,10 +4,9 @@
 
 ### 1.1 ⋯ 토글 hover 의존 (보고된 문제)
 - `src/styles/card.css:242-254` — `.card-ctx-menu` 가 기본 `display: none` + `:hover` 상태에서만 `display: block`.
-- 4 board 레이아웃(column/grid/stream/padlet) 모두 hover 가정. 터치 기기 영향:
-  - iOS/iPadOS: 첫 터치가 hover 트리거 (가끔), 두 번째 터치가 클릭 — 예측불가
-  - Android Chrome: hover 이벤트 없음 → 카드를 **포커스** 할 방법만 있음 (태블릿에서 카드 opening 경로 포화)
-- 수정: 기본 `display: block` + `@media (hover: hover)` 조건부로 숨김/표시 토글
+- 4 board 레이아웃(column/grid/stream/padlet) 모두 hover 가정. 대상 기기 = Galaxy Tab S6 Lite Android Chrome:
+  - hover 이벤트 없음 → 카드를 **포커스** 하거나 터치하지 않으면 ⋯ 영영 안 보임.
+- 수정: 기본 `display: block` + `@media (hover: hover)` 조건부로 숨김/표시 토글 (데스크탑 깔끔함 유지).
 
 ### 1.2 터치 타깃 사이즈
 - `.add-card-fab` 56×56 ✅

@@ -18,7 +18,6 @@
 - 교사 대시보드 반응형
 - 학부모 페이지 반응형 (parent v2 별도 task)
 - assignment AB-1 grid (이미 3열 @767)
-- iPad Pro 12.9 초대형 뷰
 - 다크 모드
 - 방향(세로↔가로) 전환 시 state 유지 로직
 
