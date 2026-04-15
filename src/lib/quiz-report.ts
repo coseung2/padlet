@@ -112,9 +112,17 @@ export function reportToCsv(report: QuizReportPayload): string {
     return [p.name, ...selects, ...verdicts, String(p.score), String(p.totalCorrect)];
   });
 
+  // Two-stage escape:
+  //  1. CSV-inject guard — Excel/Sheets interpret leading =,+,-,@ (and \t,\r)
+  //     as formulas. A student nickname like `=HYPERLINK(...)` would fire
+  //     when a teacher opens the download. Prefix a single-quote so the
+  //     cell renders as literal text. Then go through standard CSV quoting.
+  const FORMULA_CHARS = new Set(["=", "+", "-", "@", "\t", "\r"]);
   const escapeCell = (cell: string) => {
-    if (/[",\n]/.test(cell)) return `"${cell.replace(/"/g, '""')}"`;
-    return cell;
+    let safe = cell;
+    if (safe.length > 0 && FORMULA_CHARS.has(safe[0])) safe = "'" + safe;
+    if (/[",\n]/.test(safe)) return `"${safe.replace(/"/g, '""')}"`;
+    return safe;
   };
   const lines = [header, ...rows].map((row) => row.map(escapeCell).join(","));
   return "\uFEFF" + lines.join("\n");

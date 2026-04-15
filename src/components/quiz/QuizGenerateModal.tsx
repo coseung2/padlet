@@ -65,13 +65,24 @@ export function QuizGenerateModal({
 
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // When a draft is pending, Esc and backdrop close both route through
+  // a confirm so the teacher doesn't lose edits by reflex (design_doc §5.11).
+  const draftPending = !!draft;
+  const requestClose = () => {
+    if (draftPending && !confirm("저장하지 않은 변경이 있습니다. 닫으시겠습니까?")) {
+      return;
+    }
+    onClose();
+  };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") requestClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftPending]);
 
   // Warn teacher about unsaved draft on page unload.
   useEffect(() => {
@@ -164,7 +175,7 @@ export function QuizGenerateModal({
 
   return (
     <>
-      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-backdrop" onClick={requestClose} />
       <div
         className="quiz-modal"
         role="dialog"
@@ -178,7 +189,7 @@ export function QuizGenerateModal({
           <button
             type="button"
             className="quiz-modal-close"
-            onClick={onClose}
+            onClick={requestClose}
             aria-label="닫기"
           >
             ×
