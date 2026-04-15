@@ -209,6 +209,7 @@ export default async function BoardPage({
     order: c.order,
     sectionId: c.sectionId,
     authorId: c.authorId,
+    studentAuthorId: c.studentAuthorId,
     createdAt: c.createdAt.toISOString(),
     externalAuthorName: c.externalAuthorName,
     studentAuthorName: c.studentAuthor?.name ?? null,

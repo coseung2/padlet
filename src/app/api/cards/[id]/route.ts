@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { getCurrentStudent } from "@/lib/student-auth";
 import { requirePermission, getBoardRole, ForbiddenError } from "@/lib/rbac";
 import { isCanvaDesignUrl, resolveCanvaEmbedUrl } from "@/lib/canva";
 
@@ -107,13 +108,23 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const user = await getCurrentUser();
 
     const card = await db.card.findUnique({ where: { id } });
     if (!card) {
       return NextResponse.json({ error: "Card not found" }, { status: 404 });
     }
 
+    // Student-author path — students publish via the Canva app, come back
+    // here with only a student_session cookie (no NextAuth user). Allow
+    // them to delete their own publish before falling through to the
+    // teacher/editor RBAC path.
+    const student = await getCurrentStudent();
+    if (student && card.studentAuthorId === student.id) {
+      await db.card.delete({ where: { id } });
+      return NextResponse.json({ ok: true });
+    }
+
+    const user = await getCurrentUser();
     const role = await getBoardRole(card.boardId, user.id);
     if (!role) {
       return NextResponse.json({ error: "Not a member" }, { status: 403 });

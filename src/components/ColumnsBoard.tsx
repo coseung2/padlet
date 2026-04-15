@@ -409,7 +409,11 @@ export function ColumnsBoard({
                 {sectionCards.map((c) => {
                   const canModify =
                     currentRole === "owner" ||
-                    (currentRole === "editor" && c.authorId === currentUserId);
+                    (currentRole === "editor" && c.authorId === currentUserId) ||
+                    // Student-authored card — the author student (role=viewer
+                    // in the fallback session) can still manage their own
+                    // publish. Matches /api/cards/:id student-auth path.
+                    c.studentAuthorId === currentUserId;
 
                   return (
                     <article

@@ -98,7 +98,9 @@ export function GridBoard({ boardId, initialCards, currentUserId, currentRole }:
             role="button"
           >
             <CardBody card={c} />
-            {(currentRole === "owner" || (currentRole === "editor" && c.authorId === currentUserId)) && (
+            {(currentRole === "owner" ||
+              (currentRole === "editor" && c.authorId === currentUserId) ||
+              c.studentAuthorId === currentUserId) && (
               <button
                 type="button"
                 onClick={(e) => {
