@@ -30,9 +30,11 @@
    right = narrow side panel (title + content + link + author). */
 .card-detail-modal {
   width: min(1400px, calc(100vw - 48px));
-  height: calc(100vh - 48px);
+  /* dvh (dynamic viewport) so Chrome Android's address-bar resize
+     doesn't leave the modal taller than the visible viewport. */
+  height: calc(100dvh - 48px);
   max-width: calc(100vw - 48px);
-  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
   padding: 0;
   overflow: hidden;
 }
@@ -286,14 +288,29 @@
   grid-template-columns: 1fr;
 }
 
-@media (max-width: 900px) {
+/* Stack vertically whenever the viewport is portrait-oriented (tablet
+   세로, phone) OR narrower than 1200px (narrow desktop window). Galaxy
+   Tab S6 Lite portrait is exactly 1200px wide, which max-width:1199
+   misses — orientation:portrait catches it.
+   Landscape on the same tablet (2000×1200) keeps the 2-column layout
+   because both predicates fail: not portrait AND width > 1199. */
+@media (orientation: portrait), (max-width: 1199px) {
   .card-detail-body {
     grid-template-columns: 1fr;
-    grid-template-rows: 55vh 1fr;
+    grid-template-rows: 55dvh 1fr;
   }
   .card-detail-side {
     border-left: 0;
     border-top: 1px solid var(--color-border);
+    overflow-y: auto;
+  }
+}
+
+/* Tighter portrait split for skinny portrait viewports (phone portrait).
+   Drop media to 45dvh so text + actions aren't hidden below the fold. */
+@media (orientation: portrait) and (max-width: 640px) {
+  .card-detail-body {
+    grid-template-rows: 45dvh 1fr;
   }
 }
 
@@ -349,6 +366,13 @@
   justify-content: center;
   color: var(--color-text-muted);
   transition: background 150ms ease;
+}
+@media (pointer: coarse) {
+  .modal-close {
+    width: var(--tap-min);
+    height: var(--tap-min);
+    font-size: 22px;
+  }
 }
 
 .modal-close:hover {
