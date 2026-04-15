@@ -148,7 +148,7 @@ export async function POST(req: Request) {
   // [8] Board + RBAC.
   const board = await db.board.findUnique({
     where: { id: input.boardId },
-    select: { id: true, slug: true },
+    select: { id: true, slug: true, layout: true },
   });
   if (!board) return externalErrorResponse("not_found");
   try {
@@ -170,6 +170,19 @@ export async function POST(req: Request) {
         "sectionId does not belong to boardId"
       );
     }
+  }
+
+  // [9.a] Columns layout: sectionId is mandatory. Without it the card has
+  // no column to render under and only surfaces via the modal prev/next
+  // navigator — i.e. it's invisible in the main view. This was hit in
+  // production by a Canva app publish that skipped the section picker
+  // (2026-04-15 서현우 orphan). Reject early so the client UX can show
+  // the student a clear error instead of silently orphaning the card.
+  if (board.layout === "columns" && !input.sectionId) {
+    return externalErrorResponse(
+      "invalid_data_url",
+      "sectionId is required for columns-layout boards"
+    );
   }
 
   // [9.5] Author attribution.
