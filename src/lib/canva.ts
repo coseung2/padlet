@@ -496,12 +496,23 @@ export async function resolveCanvaEmbedUrl(
 ): Promise<CanvaEmbed | null> {
   if (!isCanvaDesignUrl(rawUrl)) return null;
 
-  // 1. Resolve short-link to its canva.com location when needed.
-  const designId = await resolveCanvaDesignId(rawUrl);
-  if (!designId) return null;
+  // 1. Expand canva.link so share-token path segment becomes visible.
+  const expandedUrl = await expandCanvaShortLink(rawUrl);
+  const match = expandedUrl.match(
+    /\/design\/([A-Za-z0-9_-]+)(?:\/([A-Za-z0-9_-]+))?\/(?:view|watch|edit)/
+  );
+  if (!match) return null;
+  const designId = match[1];
+  const shareToken = match[2];
 
-  // 2. Canonicalize to the /view URL so oEmbed responds consistently.
-  const canonicalUrl = `https://www.canva.com/design/${designId}/view`;
+  // 2. Build the oEmbed query URL. Keeping the share token makes the
+  //    call work anonymously — Canva treats share-token URLs as
+  //    "anyone with link can view" and returns thumbnail + title
+  //    without a login. Without the token we get 401, which is why
+  //    pre-this-fix cards ended up with linkImage=null.
+  const canonicalUrl = shareToken
+    ? `https://www.canva.com/design/${designId}/${shareToken}/view`
+    : `https://www.canva.com/design/${designId}/view`;
 
   // 3. Ask Canva's oEmbed endpoint. Canva is currently migrating from the
   //    legacy www.canva.com path to api.canva.com — try the new endpoint
