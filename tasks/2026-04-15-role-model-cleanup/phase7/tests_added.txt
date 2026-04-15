@@ -1,0 +1,18 @@
+src/lib/__tests__/card-permissions.vitest.ts
+  - teacher: owner can view/edit/delete any card on their board
+  - teacher: owner can add cards to their board (with or without classroom)
+  - teacher: non-owner teacher has no card-level write access via primitive
+  - student: same-classroom student can view all cards
+  - student: can edit/delete only own card
+  - student: can add to same-classroom board
+  - student: can't add to board without classroom
+  - student: different classroom denied everywhere
+  - parent: can view card of child
+  - parent: cannot view other children's cards
+  - parent: cannot edit/delete/add (read-only)
+  - parent: without active children sees nothing
+  - anon: sees nothing, can do nothing
+  - cross-board card always false (boardId guard)
+  - boardCaps teacher/student/parent convenience
+
+Total 17 tests, all passing (vitest).
