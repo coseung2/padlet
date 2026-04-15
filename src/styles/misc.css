@@ -3,7 +3,7 @@
 .add-card-fab {
   position: fixed;
   right: 32px;
-  bottom: 32px;
+  bottom: var(--fab-bottom-safe, 32px);
   width: 56px;
   height: 56px;
   border: none;
@@ -37,6 +37,8 @@
 }
 
 .ctx-menu-trigger {
+  /* Desktop default — compact 28px hit area. Tablet (pointer: coarse)
+     promotes to --tap-min so students can reliably tap it. */
   width: 28px;
   height: 28px;
   border: none;
@@ -53,6 +55,14 @@
   transition: background 150ms ease, color 150ms ease;
   padding: 0;
   line-height: 1;
+}
+
+@media (pointer: coarse) {
+  .ctx-menu-trigger {
+    width: var(--tap-min);
+    height: var(--tap-min);
+    font-size: 22px;
+  }
 }
 
 .ctx-menu-trigger:hover {

@@ -158,3 +158,14 @@ Card 의 단일 `studentAuthorId` + 자유 `externalAuthorName` 구조를 **N:N 
 - **권한**: canEditCard 는 primary 기준 유지 — 공동 작성자는 편집 불가 (scope OUT).
 - **테스트**: Vitest 21 신규 (formatAuthorList 10 + setCardAuthors 11).
 - **Deferred**: 공동 작성자 편집권 부여, AssignmentSlot 공동 작성자, /parent/child/[sid]/cards 피드 페이지.
+
+## 학생 태블릿 반응형 (responsive-tablet) — 2026-04-15
+Galaxy Tab S6 Lite 세로 (1200×2000) + 기타 태블릿에서 학생 동선을 터치 친화적으로 재조정.
+
+- **신규 토큰** `src/styles/tokens-responsive.css` — `--tap-min: 44px`, `--text-body: clamp(14px, 1.1vw, 16px)`, `--modal-max: min(92vw, 640px)`, `--fab-bottom-safe: calc(32px + env(safe-area-inset-bottom))`.
+- **⋯ 카드 컨텍스트 메뉴**: hover-only 제거. 기본 표시 + `@media (hover: hover)` 안에서만 opacity reveal. 터치 기기에서 상시 보임.
+- **터치 타깃 44px 승격**: `.ctx-menu-trigger`, CardAuthorEditor row 이동/삭제 버튼이 `@media (pointer: coarse)` 에서 `--tap-min` 로 확장.
+- **모달**: `.add-card-modal` 폭이 `--modal-max` 사용 — 뷰포트 92% 내 fit. `dvh` 높이로 주소창 변화 대응.
+- **FAB safe area**: iOS 홈 인디케이터 + on-screen keyboard 회피 (`env(safe-area-inset-bottom)`).
+- **이미 충족 확인**: 학생 로그인 input 52px+, Drawing 툴바 48px, Quiz 답지 80px+ — 추가 수정 불필요.
+- **Deferred**: 교사 대시보드 반응형 / 학부모 페이지 반응형 / iPad Pro 12.9 최적화 / 다크 모드.

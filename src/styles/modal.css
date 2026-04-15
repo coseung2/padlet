@@ -14,8 +14,8 @@
   left: 50%;
   transform: translate(-50%, -50%);
   width: 520px;
-  max-width: calc(100vw - 32px);
-  max-height: calc(100vh - 64px);
+  max-width: var(--modal-max);
+  max-height: calc(100dvh - 64px);
   overflow-y: auto;
   background: var(--color-surface);
   border: var(--border-card);

@@ -947,7 +947,7 @@
 .assign-fab {
   position: fixed;
   right: 32px;
-  bottom: 32px;
+  bottom: var(--fab-bottom-safe, 32px);
   min-width: 56px;
   height: 56px;
   padding: 0 18px;

@@ -1,0 +1,47 @@
+{
+  "task_id": "2026-04-15-responsive-tablet",
+  "type": "feature",
+  "date": "2026-04-15",
+  "initiator": "user",
+  "title": "학생 태블릿 반응형 + 반응형 토큰 primitive + ⋯ 상시 표시",
+  "problem_statement": "오늘 배포된 기능들이 desktop-first 가정(hover, 넓은 폭)으로 설계되어 Galaxy Tab S6 Lite (1200×2000 세로) 에서 불편함. 구체적으로 (a) 터치 기기에 hover 없어 ⋯ 컨텍스트 메뉴가 카드 터치 후에만 나타남 — 사용자가 '그냥 떠있길' 요청, (b) 모달들이 desktop 가정으로 2-panel 레이아웃 스택 안 됨, (c) 여러 탭 대상 (iPad/탭 S6 Lite) 기준 44×44 터치 타깃 미달 요소 산재, (d) 반응형 토큰이 없어 hard-coded breakpoint 반복.",
+  "goal": "(1) CSS 변수 기반 반응형 primitive 도입 — 터치 타깃·폰트 스케일·모달 폭. (2) 학생 동선 주요 서피스(로그인→보드 4종→카드 추가/편집/모달→drawing→quiz) 반응형 강화. (3) ⋯ 토글 상시 표시 (hover 의존 제거). (4) 기존 desktop flow regression 0.",
+  "scope_hints": {
+    "must_add": [
+      "src/styles/tokens-responsive.css — --tap-min(44px), --text-body(clamp), --modal-max(min(90vw, ...))",
+      "학생 로그인 페이지 터치 타깃",
+      "4 board layout (freeform/grid/stream/columns) 의 1200px 이하 반응형",
+      "CardDetailModal 세로/좁은 폭 레이아웃",
+      "AddCardModal / EditCardModal 터치 친화",
+      "CardAuthorEditor 640px 이하 이미 대응 — 44px 터치 보정만",
+      "ContextMenu 카드 ⋯ 상시 표시 (hover 의존 제거)",
+      "DrawingStudio 툴바 터치 크기",
+      "QuizBoard 버튼 크기"
+    ],
+    "must_preserve": [
+      "기존 desktop 1200px+ 레이아웃 시각적 동일",
+      "AB-1 assignment 보드 phase2 perf 예산 (DOM ≤180, TTI ≤3s)",
+      "parent v2 / role-cleanup / card-author-multi 전부 regression 0",
+      "Matrix 뷰 desktop-only 제약"
+    ],
+    "out_of_scope": [
+      "교사 대시보드 (학생 동선 밖)",
+      "학부모 페이지 (별도 반응형 감사 대상, 별 task)",
+      "assignment AB-1 grid 반응형 (이미 @media 767 있음)",
+      "iPad Pro 12.9 최적화 (S6 Lite + iPad mini 기준)",
+      "다크 모드 (별 task)"
+    ]
+  },
+  "success_criteria_raw": [
+    "⋯ 토글 카드 ctx-menu 가 터치/마우스 무관하게 상시 표시",
+    "모든 버튼/체크박스 터치 타깃 최소 44×44px",
+    "학생 로그인 코드 input 세로 입력 편함 (숫자 키패드 width ≥ 80% viewport)",
+    "컬럼 보드 세로 태블릿에서 컬럼이 1-2개씩 스크롤 가능",
+    "freeform 보드 태블릿 세로에서 카드 드래그 영역 충분",
+    "CardDetailModal 세로 태블릿에서 media+aside 가 세로 스택",
+    "DrawingStudio 툴바 S-Pen + 손가락 둘 다 사용 가능",
+    "Quiz 답지 버튼 실수 터치 방지 (44px+, 간격 8px+)",
+    "vitest + build + tsc 전부 green",
+    "Galaxy Tab S6 Lite 세로 chrome-devtools emulation 에서 주요 서피스 스크린샷 정상"
+  ]
+}
