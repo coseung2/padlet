@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AddStudentsModal, type CreatedStudent } from "./AddStudentsModal";
 import { QRPrintSheet } from "./QRPrintSheet";
+import { ClassroomDeleteModal } from "./classroom/ClassroomDeleteModal";
 // parent-class-invite-v2 — per-student ParentInviteButton removed.
 // Codes are now classroom-scoped (see /classroom/[id]/parent-access).
 // The separate ParentManagementTab widget was pulled too — connected
@@ -52,6 +53,8 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
   const [showBoardPicker, setShowBoardPicker] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [showClassroomDelete, setShowClassroomDelete] = useState(false);
+  const [deletingClassroom, setDeletingClassroom] = useState(false);
 
   // Per-student parent-link counts, loaded once on mount and refreshed on
   // approval/revoke actions elsewhere. Plain Record keyed by studentId
@@ -187,6 +190,28 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
     setDeleting(false);
   }
 
+  async function handleDeleteClassroom() {
+    setDeletingClassroom(true);
+    try {
+      const res = await fetch(`/api/classroom/${classroom.id}`, {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ confirmName: classroom.name }),
+      });
+      if (res.ok) {
+        router.push("/classroom");
+      } else {
+        const errText = await res.text();
+        alert(`학급 삭제 실패: ${errText}`);
+      }
+    } catch (err) {
+      console.error("[handleDeleteClassroom]", err);
+      alert("학급 삭제에 실패했습니다.");
+    } finally {
+      setDeletingClassroom(false);
+    }
+  }
+
   async function handleReissue(studentId: string) {
     if (!confirm("이 학생의 QR 코드를 재발급하시겠습니까? 기존 코드는 사용할 수 없게 됩니다.")) {
       return;
@@ -273,6 +298,14 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
           The field stays in the DB schema for future use. */}
       <div className="classroom-detail-header">
         <h1 className="classroom-detail-name">{classroom.name}</h1>
+        <button
+          type="button"
+          className="classroom-detail-delete"
+          onClick={() => setShowClassroomDelete(true)}
+          title="학급을 삭제하면 연결된 학부모 액세스도 해제됩니다."
+        >
+          🗑 학급 삭제
+        </button>
       </div>
 
       {/* Action bar */}
@@ -466,6 +499,22 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
           }}
         />
       )}
+
+      {/* Classroom delete — re-type classroom name to confirm. Backend
+          cascades parent-link revokes and emails the affected parents. */}
+      <ClassroomDeleteModal
+        open={showClassroomDelete}
+        classroomName={classroom.name}
+        pendingCount={pendingCount}
+        activeCount={Object.values(parentCounts).reduce((a, b) => a + b, 0)}
+        onConfirm={async () => {
+          await handleDeleteClassroom();
+          setShowClassroomDelete(false);
+        }}
+        onCancel={() => {
+          if (!deletingClassroom) setShowClassroomDelete(false);
+        }}
+      />
     </div>
   );
 }

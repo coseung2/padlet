@@ -170,6 +170,28 @@
   margin-bottom: 8px;
 }
 
+/* Destructive action — pushed to the far right of the header. Subtle
+   red text-button instead of a full-colour destructive button so it
+   doesn't compete visually with the classroom name. The confirm
+   modal (ClassroomDeleteModal) is the real gate. */
+.classroom-detail-delete {
+  margin-left: auto;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-danger, #c62828);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-btn);
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.classroom-detail-delete:hover {
+  background: rgba(198, 40, 40, 0.08);
+  border-color: rgba(198, 40, 40, 0.3);
+}
+
 .classroom-detail-name {
   font-family: var(--font-display);
   font-size: 26px;
