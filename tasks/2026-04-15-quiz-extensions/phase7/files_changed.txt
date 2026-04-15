@@ -1,0 +1,28 @@
+# Modified
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/prisma/schema.prisma
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/src/app/api/quiz/create/route.ts
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/src/components/QuizBoard.tsx
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/src/lib/quiz-llm.ts
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/src/styles/base.css
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/src/styles/quiz.css
+
+# Added
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/prisma/migrations/20260416_quiz_extensions_difficulty_parent/migration.sql
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/src/app/api/quiz/draft/route.ts
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/src/app/api/quiz/library/route.ts
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/src/app/api/quiz/[id]/questions/route.ts
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/src/app/api/quiz/[id]/report/route.ts
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/src/app/api/quiz/[id]/report.csv/route.ts
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/src/app/api/quiz/[id]/clone/route.ts
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/src/components/ui/SegmentedControl.tsx
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/src/components/quiz/QuizGenerateModal.tsx
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/src/components/quiz/QuizDraftEditor.tsx
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/src/components/quiz/QuizLibraryList.tsx
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/src/components/quiz/QuizReportModal.tsx
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/src/lib/quiz-permissions.ts
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/src/lib/quiz-report.ts
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/src/lib/__tests__/quiz-permissions.vitest.ts
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/src/types/quiz.ts
+
+# Deleted
+(none)
