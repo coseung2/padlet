@@ -18,6 +18,7 @@ import { randomBytes } from "crypto";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { put } from "@vercel/blob";
+import sharp from "sharp";
 
 export class BlobUploadError extends Error {
   code = "blob_upload_failed" as const;
@@ -84,4 +85,56 @@ export async function uploadPngFromDataUrl(
   } catch (e) {
     throw new BlobUploadError("fs fallback write failed", e);
   }
+}
+
+/**
+ * Fetch `sourceUrl`, resize to a 160×120 WebP thumbnail, upload under
+ * `pathname` and return the public URL. AC-12 of the assignment-board
+ * feature — called from the student submission route so the teacher grid
+ * can render a light thumbnail instead of the full imageUrl. 160×120
+ * matches the CSS box the grid already renders (see AssignmentSlotCard).
+ *
+ * Separate from uploadPngFromDataUrl so existing callers stay untouched.
+ */
+export async function resizeToWebPThumbUrl(
+  sourceUrl: string,
+  pathname: string
+): Promise<string> {
+  const res = await fetch(sourceUrl);
+  if (!res.ok) {
+    throw new BlobUploadError(`source fetch failed: ${res.status}`);
+  }
+  const inputBuf = Buffer.from(await res.arrayBuffer());
+  const webp = await resizeBufferToWebP(inputBuf);
+
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+  if (blobToken) {
+    const out = await put(pathname, webp, {
+      access: "public",
+      contentType: "image/webp",
+      token: blobToken,
+      multipart: false,
+      addRandomSuffix: false,
+    });
+    return out.url;
+  }
+
+  // fs fallback mirrors uploadPngFromDataUrl for dev/self-host parity.
+  const safe = `${randomBytes(4).toString("hex")}-${pathname.replace(/[^a-zA-Z0-9_.-]/g, "_")}`;
+  const abs = path.join(process.cwd(), "public", "uploads", safe);
+  await mkdir(path.dirname(abs), { recursive: true });
+  await writeFile(abs, webp);
+  return `/uploads/${safe}`;
+}
+
+/**
+ * Exported for the test harness only — the real sharp pipeline is not
+ * mockable, so the test drives a PNG buffer through this and inspects the
+ * WebP magic bytes. Route code should call `resizeToWebPThumbUrl`.
+ */
+export async function resizeBufferToWebP(input: Buffer): Promise<Buffer> {
+  return sharp(input)
+    .resize(160, 120, { fit: "cover" })
+    .webp({ quality: 75 })
+    .toBuffer();
 }

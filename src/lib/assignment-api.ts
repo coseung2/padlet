@@ -74,6 +74,7 @@ type RawSlotRow = {
     id: string;
     content: string;
     imageUrl: string | null;
+    thumbUrl: string | null;
     linkUrl: string | null;
     updatedAt: Date;
   };
@@ -96,10 +97,10 @@ export function slotRowToDTO(row: RawSlotRow): AssignmentSlotDTO {
       id: row.card.id,
       content: row.card.content,
       imageUrl: row.card.imageUrl,
-      // v1: thumbUrl intentionally mirrors imageUrl until the sharp pipeline
-      // lands in phase8 review follow-up. Client uses loading="lazy" +
-      // explicit 160×120 CSS to stay within the AC-12 perf budget.
-      thumbUrl: row.card.imageUrl,
+      // AC-12: prefer the pre-rendered 160×120 WebP thumb when the sharp
+      // pipeline produced one on submit; otherwise fall back to the full
+      // imageUrl so legacy rows (pre-thumbUrl migration) keep rendering.
+      thumbUrl: row.card.thumbUrl ?? row.card.imageUrl,
       linkUrl: row.card.linkUrl,
       fileUrl: row.submission?.fileUrl ?? null,
       updatedAt: row.card.updatedAt.toISOString(),
@@ -114,6 +115,7 @@ export const SLOT_INCLUDE_DEFAULT = {
       id: true,
       content: true,
       imageUrl: true,
+      thumbUrl: true,
       linkUrl: true,
       updatedAt: true,
     },
