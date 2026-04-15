@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { ForbiddenError } from "@/lib/rbac";
 import { resolveIdentity } from "@/lib/identity";
 import { canEditCard, canDeleteCard, type BoardLike, type CardLike } from "@/lib/card-permissions";
-import { isCanvaDesignUrl, resolveCanvaEmbedUrl } from "@/lib/canva";
+import { isCanvaDesignUrl, resolveCanvaEmbedUrl, expandCanvaShortLink } from "@/lib/canva";
 
 const PatchCardSchema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -94,11 +94,11 @@ export async function PATCH(
     );
 
     if (urlChanged && isCanvaDesignUrl(patch.linkUrl as string)) {
-      const embed = await resolveCanvaEmbedUrl(patch.linkUrl as string);
+      // Expand canva.link short-URL so the stored value carries the
+      // share-token path segment that client predicates need.
+      patch.linkUrl = await expandCanvaShortLink(patch.linkUrl as string);
+      const embed = await resolveCanvaEmbedUrl(patch.linkUrl);
       if (embed) {
-        // Preserve the user-pasted URL with its share-token segment —
-        // dropping it would break anonymous iframe embedding. Only
-        // overwrite derived fields (title/desc/image).
         patch.linkImage = embed.thumbnailUrl;
         if (patch.linkTitle === undefined) patch.linkTitle = embed.title;
         if (patch.linkDesc === undefined) {

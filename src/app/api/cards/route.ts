@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getCurrentStudent } from "@/lib/student-auth";
 import { requirePermission, ForbiddenError } from "@/lib/rbac";
-import { isCanvaDesignUrl, resolveCanvaEmbedUrl } from "@/lib/canva";
+import { isCanvaDesignUrl, resolveCanvaEmbedUrl, expandCanvaShortLink } from "@/lib/canva";
 import { setCardAuthors } from "@/lib/card-authors-service";
 
 const CreateCardSchema = z.object({
@@ -89,13 +89,15 @@ export async function POST(req: Request) {
     let linkImage = input.linkImage === undefined ? null : input.linkImage;
     let linkDesc = input.linkDesc === undefined ? null : input.linkDesc;
     if (linkUrl && isCanvaDesignUrl(linkUrl)) {
+      // Canva's "링크 공유" button hands out canva.link short URLs —
+      // expand to the canonical canva.com/{id}/{shareToken}/view form
+      // before storing so the client-side hasCanvaShareToken gate works.
+      linkUrl = await expandCanvaShortLink(linkUrl);
       const embed = await resolveCanvaEmbedUrl(linkUrl);
       if (embed) {
-        // Preserve the ORIGINAL URL (including the share-token path
-        // segment when the client pasted one) — dropping it breaks the
-        // iframe login gate on Canva's side. oEmbed resolver strips the
-        // token from its response, so we only overwrite linkTitle /
-        // linkDesc / linkImage and leave linkUrl untouched.
+        // oEmbed resolver strips the share token from its response, so
+        // we only overwrite derived fields and leave linkUrl (already
+        // expanded above) untouched.
         linkImage = embed.thumbnailUrl;
         if (input.linkTitle === undefined) linkTitle = embed.title;
         if (input.linkDesc === undefined) {
