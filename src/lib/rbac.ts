@@ -7,11 +7,19 @@
  *   - viewer : read-only
  *
  * Author-based exception for delete is handled in the API route, not here.
+ *
+ * @deprecated card-level permissions moved to src/lib/card-permissions.ts
+ * (Identity × ownership matrix). The Role enum + requirePermission remain
+ * for teacher-only routes (boards, breakout, event-signup, sections) that
+ * haven't migrated yet. Do NOT add new callers; prefer resolveIdentity +
+ * the pure predicates in card-permissions.ts.
  */
 import { timingSafeEqual } from "crypto";
 import { db } from "./db";
 
+/** @deprecated see module header. */
 export type Role = "owner" | "editor" | "viewer";
+/** @deprecated see module header. */
 export type Action = "view" | "edit" | "delete_any";
 
 const PERMISSIONS: Record<Action, readonly Role[]> = {
