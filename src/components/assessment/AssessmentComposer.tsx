@@ -11,6 +11,17 @@ import type { AssessmentQuestionCreate } from "@/types/assessment";
 const CHOICE_IDS_4 = ["①", "②", "③", "④"];
 const CHOICE_IDS_5 = ["①", "②", "③", "④", "⑤"];
 
+// 10문항 이하는 1단. 11문항 이상은 2단으로 쪼갠다 — 왼쪽이 크거나 같게
+// 밸런스 (예: 15 → 8/7, 20 → 10/10, 25 → 13/12).
+function splitIntoColumns(n: number): number[][] {
+  if (n <= 10) return [Array.from({ length: n }, (_, i) => i)];
+  const left = Math.ceil(n / 2);
+  return [
+    Array.from({ length: left }, (_, i) => i),
+    Array.from({ length: n - left }, (_, i) => left + i),
+  ];
+}
+
 function buildQuestions(
   count: number,
   choiceCount: 4 | 5,
@@ -149,31 +160,35 @@ export function AssessmentComposer({
         </div>
       )}
 
-      <div className="omr-grid">
-        <div className="omr-grid-header">
-          <div className="omr-grid-num">번호</div>
-          {choiceIds.map((id) => (
-            <div key={id} className="omr-grid-col-header">{id}</div>
-          ))}
-        </div>
-        {Array.from({ length: questionCount }, (_, qi) => (
-          <div key={qi} className="omr-grid-row">
-            <div className="omr-grid-num">{qi + 1}</div>
-            {choiceIds.map((id) => {
-              const selected = answers[qi] === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  className={`omr-bubble${selected ? " is-filled" : ""}`}
-                  onClick={() => pick(qi, id)}
-                  disabled={saving}
-                  aria-label={`${qi + 1}번 ${id} ${selected ? "선택됨" : ""}`}
-                >
-                  {selected ? "●" : "○"}
-                </button>
-              );
-            })}
+      <div className="omr-grid-wrap">
+        {splitIntoColumns(questionCount).map((range, ci) => (
+          <div key={ci} className="omr-grid">
+            <div className="omr-grid-header">
+              <div className="omr-grid-num">번호</div>
+              {choiceIds.map((id) => (
+                <div key={id} className="omr-grid-col-header">{id}</div>
+              ))}
+            </div>
+            {range.map((qi) => (
+              <div key={qi} className="omr-grid-row">
+                <div className="omr-grid-num">{qi + 1}</div>
+                {choiceIds.map((id) => {
+                  const selected = answers[qi] === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      className={`omr-bubble${selected ? " is-filled" : ""}`}
+                      onClick={() => pick(qi, id)}
+                      disabled={saving}
+                      aria-label={`${qi + 1}번 ${id} ${selected ? "선택됨" : ""}`}
+                    >
+                      {selected ? "●" : "○"}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         ))}
       </div>

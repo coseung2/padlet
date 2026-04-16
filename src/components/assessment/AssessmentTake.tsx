@@ -7,6 +7,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AssessmentTemplateStudentDTO } from "@/types/assessment";
 
+// 10문항 이하는 1단. 11문항 이상은 2단으로 쪼갠다.
+function splitIntoColumns(n: number): number[][] {
+  if (n <= 10) return [Array.from({ length: n }, (_, i) => i)];
+  const left = Math.ceil(n / 2);
+  return [
+    Array.from({ length: left }, (_, i) => i),
+    Array.from({ length: n - left }, (_, i) => left + i),
+  ];
+}
+
 type SubmissionRow = {
   id: string;
   status: "in_progress" | "submitted";
@@ -172,36 +182,41 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
 
       <h2 className="assessment-take-title">{state.template.title}</h2>
 
-      <div className="omr-grid">
-        <div className="omr-grid-header">
-          <div className="omr-grid-num">번호</div>
-          {state.template.questions[0]?.choices.map((c) => (
-            <div key={c.id} className="omr-grid-col-header">{c.id}</div>
-          ))}
-        </div>
-        {state.template.questions.map((q, qi) => {
-          const selected = answers[q.id]?.[0] ?? null;
-          return (
-            <div key={q.id} className="omr-grid-row">
-              <div className="omr-grid-num">{qi + 1}</div>
-              {q.choices.map((c) => {
-                const filled = selected === c.id;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className={`omr-bubble${filled ? " is-filled" : ""}`}
-                    onClick={() => selectAnswer(q.id, c.id)}
-                    disabled={expired || submitting}
-                    aria-label={`${qi + 1}번 ${c.id} ${filled ? "선택됨" : ""}`}
-                  >
-                    {filled ? "●" : "○"}
-                  </button>
-                );
-              })}
+      <div className="omr-grid-wrap">
+        {splitIntoColumns(state.template.questions.length).map((range, ci) => (
+          <div key={ci} className="omr-grid">
+            <div className="omr-grid-header">
+              <div className="omr-grid-num">번호</div>
+              {state.template.questions[0]?.choices.map((c) => (
+                <div key={c.id} className="omr-grid-col-header">{c.id}</div>
+              ))}
             </div>
-          );
-        })}
+            {range.map((qi) => {
+              const q = state.template.questions[qi];
+              const selected = answers[q.id]?.[0] ?? null;
+              return (
+                <div key={q.id} className="omr-grid-row">
+                  <div className="omr-grid-num">{qi + 1}</div>
+                  {q.choices.map((c) => {
+                    const filled = selected === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className={`omr-bubble${filled ? " is-filled" : ""}`}
+                        onClick={() => selectAnswer(q.id, c.id)}
+                        disabled={expired || submitting}
+                        aria-label={`${qi + 1}번 ${c.id} ${filled ? "선택됨" : ""}`}
+                      >
+                        {filled ? "●" : "○"}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
 
       <div className="assessment-take-submit-bar">
