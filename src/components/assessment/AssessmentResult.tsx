@@ -4,7 +4,7 @@
 // teacher releases the gradebook entry; then renders score + per-question
 // correct/wrong breakdown.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AssessmentResultPayload } from "@/types/assessment";
 
 type LoadState =
@@ -18,6 +18,10 @@ export interface AssessmentResultProps {
 
 export function AssessmentResult({ submissionId }: AssessmentResultProps) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  // Mirror released-ness so the polling interval can see it without
+  // recreating (the setInterval closure would otherwise capture the
+  // initial state and keep polling after release).
+  const releasedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -28,7 +32,10 @@ export function AssessmentResult({ submissionId }: AssessmentResultProps) {
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as AssessmentResultPayload;
-        if (!cancelled) setState({ kind: "ready", data });
+        if (!cancelled) {
+          setState({ kind: "ready", data });
+          if (data.released) releasedRef.current = true;
+        }
       } catch (e) {
         if (!cancelled)
           setState({
@@ -39,16 +46,13 @@ export function AssessmentResult({ submissionId }: AssessmentResultProps) {
     }
     load();
     const timer = setInterval(() => {
-      // Stop polling once released; the render path below leaves state
-      // in a `released=true` terminal which we can detect cheaply.
-      if (state.kind === "ready" && state.data.released) return;
+      if (releasedRef.current) return;
       load();
     }, 10_000);
     return () => {
       cancelled = true;
       clearInterval(timer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [submissionId]);
 
   if (state.kind === "loading") {

@@ -115,6 +115,17 @@ describe("canViewAssessmentTemplate", () => {
     });
     expect(await canViewAssessmentTemplate("t1", teacherA)).toBe(true);
   });
+
+  it("non-owner teacher + student-in bundle falls through to student check", async () => {
+    // manage path: teacher_b does NOT own the classroom (teacherId=a)
+    templateFind.mockResolvedValueOnce({
+      classroom: { teacherId: "u_teacher_a" },
+    });
+    // student path: template belongs to c_1 and studentIn.classroomId="c_1"
+    templateFind.mockResolvedValueOnce({ classroomId: "c_1" });
+    const bundle: Identities = { ...studentIn, teacher: teacherB.teacher };
+    expect(await canViewAssessmentTemplate("t1", bundle)).toBe(true);
+  });
 });
 
 describe("canAccessSubmission", () => {

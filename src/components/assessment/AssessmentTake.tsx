@@ -6,10 +6,7 @@
 // result screen is a sibling (AssessmentResult) that polls for release.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type {
-  AssessmentTemplateStudentDTO,
-  AssessmentSubmissionDTO,
-} from "@/types/assessment";
+import type { AssessmentTemplateStudentDTO } from "@/types/assessment";
 
 type SubmissionRow = {
   id: string;
@@ -85,24 +82,13 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
     };
   }, [templateId]);
 
-  // 2. Once ready, fetch any existing answers so a refresh doesn't
-  //    look like a blank form.
-  useEffect(() => {
-    if (state.kind !== "ready") return;
-    // The template response is student-safe but doesn't include the
-    // student's previous answers. Fetch the result endpoint; for an
-    // in-progress (unreleased) submission it just returns a stub, but
-    // we can also derive answers via a direct submission peek — MVP-0
-    // keeps things simple and skips prefill on refresh (user re-enters).
-  }, [state.kind]);
-
-  // 3. Timer tick.
+  // 2. Timer tick.
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  // 4. Debounced autosave per question.
+  // 3. Debounced autosave per question.
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   function selectAnswer(questionId: string, choiceIds: string[]) {
     setAnswers((prev) => ({ ...prev, [questionId]: choiceIds }));
@@ -196,13 +182,15 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
       <ol className="assessment-take-questions">
         {state.template.questions.map((q, i) => {
           const selected = answers[q.id] ?? [];
-          const isMulti = selected.length > 1 || q.choices.length > 4; // simple heuristic
+          // Every MCQ uses checkboxes so multi-correct questions work.
+          // The correct-count itself is not revealed to the student —
+          // they just see "하나 이상 선택" helper text.
           return (
             <li key={q.id} className="assessment-take-question">
               <div className="assessment-take-q-num">문항 {i + 1} / {state.template.questions.length}</div>
               <div className="assessment-take-q-prompt">{q.prompt}</div>
               <div
-                role="radiogroup"
+                role="group"
                 aria-label={`문항 ${i + 1} 보기 선택`}
                 className="assessment-take-choices"
               >
@@ -214,10 +202,14 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
                       className={`assessment-take-choice${checked ? " is-checked" : ""}`}
                     >
                       <input
-                        type="radio"
-                        name={`q-${q.id}`}
+                        type="checkbox"
                         checked={checked}
-                        onChange={() => selectAnswer(q.id, [c.id])}
+                        onChange={() => {
+                          const next = checked
+                            ? selected.filter((id) => id !== c.id)
+                            : [...selected, c.id];
+                          selectAnswer(q.id, next);
+                        }}
                         disabled={expired || submitting}
                       />
                       <span className="assessment-take-choice-letter">{c.id}</span>
@@ -225,11 +217,6 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
                     </label>
                   );
                 })}
-                {isMulti && (
-                  <div className="assessment-take-multi-hint">
-                    복수정답 허용: {selected.join(", ") || "없음"}
-                  </div>
-                )}
               </div>
             </li>
           );
@@ -250,4 +237,3 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
   );
 }
 
-export type { AssessmentSubmissionDTO };

@@ -23,16 +23,17 @@ export async function canManageAssessment(
 
 /**
  * Student-scope check: is the signed-in student a member of the
- * classroom this template belongs to? (Teachers also pass for
- * diagnostic views but the standard caller should split teacher
- * path through canManageAssessment.)
+ * classroom this template belongs to? Teachers also pass via the
+ * manage path. Callers that only need the student branch (e.g. the
+ * bootstrap endpoint) should instead check canManageAssessment first
+ * themselves; this helper OR-s the two, mirroring card-permissions.
  */
 export async function canViewAssessmentTemplate(
   templateId: string,
   ids: Identities
 ): Promise<boolean> {
-  if (ids.teacher) {
-    return canManageAssessment(templateId, ids);
+  if (ids.teacher && (await canManageAssessment(templateId, ids))) {
+    return true;
   }
   if (!ids.student) return false;
   const template = await db.assessmentTemplate.findUnique({
