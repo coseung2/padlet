@@ -4,9 +4,9 @@
    ========================================================= */
 
 .assessment-shell {
-  max-width: 960px;
+  max-width: 720px;
   margin: 24px auto;
-  padding: 0 16px;
+  padding: 0 20px;
 }
 
 .assessment-empty {
@@ -524,7 +524,8 @@
 /* ─── OMR Grid (shared between Composer answer-key & Take) ─── */
 .omr-grid {
   width: 100%;
-  max-width: 420px;
+  max-width: 560px;
+  margin: 0 auto;
 }
 .omr-grid-header {
   display: flex;
