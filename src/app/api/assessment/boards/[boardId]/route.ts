@@ -24,6 +24,7 @@ export async function GET(
       id: true,
       classroomId: true,
       classroom: { select: { teacherId: true } },
+      members: { where: { role: "owner" }, select: { userId: true } },
     },
   });
   if (!board) return NextResponse.json({ error: "board_not_found" }, { status: 404 });
@@ -34,13 +35,17 @@ export async function GET(
     select: { id: true, classroomId: true },
   });
 
-  // Teacher gate.
+  // Teacher gate — check classroom.teacherId OR board member owner.
   if (ids.teacher) {
-    if (board.classroom?.teacherId !== ids.teacher.userId) {
+    const isOwner =
+      board.classroom?.teacherId === ids.teacher.userId ||
+      board.members.some((m) => m.userId === ids.teacher!.userId);
+    if (!isOwner) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
     return NextResponse.json({
       templateId: template?.id ?? null,
+      classroomId: board.classroomId,
       submissionId: null,
       submitted: false,
       viewer: "teacher",
