@@ -1,0 +1,40 @@
+{
+  "task_id": "2026-04-15-parent-class-invite-v2",
+  "created_at": "2026-04-15T10:00:00+09:00",
+  "note": "외부 브라우저 미사용 — INBOX phase1 audit.md 가 이미 벤치마크 근거를 포함. phase5 shotgun 시 캡처 보강 예정.",
+  "benchmarks": [
+    {
+      "name": "Google Classroom — Guardian Invitation",
+      "url": "https://support.google.com/edu/classroom/answer/6388136",
+      "pattern_type": "teacher-initiated-per-student-email",
+      "capture_path": null,
+      "verdict": "reject"
+    },
+    {
+      "name": "ClassDojo — Parent Class Code",
+      "url": "https://classdojo.com",
+      "pattern_type": "class-code-self-match-with-approval",
+      "capture_path": null,
+      "verdict": "adopt"
+    },
+    {
+      "name": "Seesaw — Student Roster Self-Selection",
+      "url": "https://web.seesaw.me",
+      "pattern_type": "masked-roster-number-based-selection",
+      "capture_path": null,
+      "verdict": "adopt"
+    }
+  ],
+  "internal_references": [
+    {
+      "name": "Aura v1 parent-viewer deploy log",
+      "path": "tasks/2026-04-12-parent-viewer-access/phase10/deploy_log.md",
+      "role": "brownfield-reality-check"
+    },
+    {
+      "name": "INBOX ideation phase1 audit",
+      "path": "INBOX/2026-04-13-parent-class-invite-refine/handoff_note.md (references phase1/audit.md)",
+      "role": "primary-source"
+    }
+  ]
+}

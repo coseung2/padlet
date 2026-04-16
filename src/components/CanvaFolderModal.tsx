@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { OptimizedImage } from "./ui/OptimizedImage";
 
 type FolderItem = {
   type: "design" | "folder";
@@ -141,7 +142,7 @@ export function CanvaFolderModal({ sectionTitle, onImport, onClose }: Props) {
           </div>
 
           {loading && <div className="export-hint">로딩 중...</div>}
-          {error && <div className="export-hint" style={{ color: "#dc3545" }}>{error}</div>}
+          {error && <div className="export-hint" style={{ color: "var(--color-danger)" }}>{error}</div>}
 
           {!loading && (
             <div className="export-design-list">
@@ -173,7 +174,14 @@ export function CanvaFolderModal({ sectionTitle, onImport, onClose }: Props) {
                     className="export-item-check"
                   />
                   {d.thumbnail && (
-                    <img src={d.thumbnail.url} alt="" className="export-design-thumb" />
+                    <div className="export-design-thumb optimized-img-wrap">
+                      {/* unoptimized: Canva returns auth-gated /screen URLs for
+                          some designs which fail through next/image's server-
+                          side optimizer (400). Direct browser fetch rides the
+                          user's canva.com session cookies and usually succeeds;
+                          if not, OptimizedImage's onError shows a placeholder. */}
+                      <OptimizedImage src={d.thumbnail.url} alt="" sizes="160px" unoptimized />
+                    </div>
                   )}
                   <div className="export-design-info">
                     <div className="export-design-title">{d.name}</div>

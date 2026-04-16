@@ -1,0 +1,3 @@
+phase9 QA OK — all 10 acceptance criteria + edge cases verified with curl.
+Rate limit, revocation, token cap, RBAC, image handling, error codes all PASS.
+2026-04-12 10:54 KST

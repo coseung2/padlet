@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>Modal — Fullscreen (common)</title>
+<style>
+  :root{
+    --color-bg:#0b0c0e; --color-surface:#fff; --color-surface-alt:rgba(255,255,255,.08);
+    --color-text:rgba(255,255,255,.95); --color-text-muted:#c4c0bb;
+    --color-accent:#0075de; --color-accent-active:#005bab;
+    --color-border:rgba(255,255,255,.14);
+    --color-danger:#c62828; --color-danger-active:#a01b1b;
+    --color-status-returned-bg:#ffebee;
+    --radius-card:12px; --radius-btn:6px; --radius-pill:9999px;
+    font-family:Inter,system-ui,sans-serif;
+  }
+  body{margin:0;background:#222;color:var(--color-text);min-height:100vh}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.92);display:flex;flex-direction:column}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--color-border);gap:16px}
+  .student{display:flex;align-items:center;gap:10px}
+  .student-num{font-size:13px;color:var(--color-text-muted);font-weight:600}
+  .student-name{font-size:20px;font-weight:700;letter-spacing:-0.3px}
+  .meta{display:flex;gap:10px;align-items:center;color:var(--color-text-muted);font-size:13px}
+  .badge{padding:3px 10px;border-radius:var(--radius-pill);font-size:12px;font-weight:600}
+  .badge--sub{background:#1565c0;color:#fff}
+  .closebtn{background:transparent;color:var(--color-text-muted);border:none;font-size:24px;cursor:pointer;padding:6px 10px}
+  .stage{flex:1;display:grid;grid-template-columns:48px 1fr 48px;align-items:stretch}
+  .navbtn{background:transparent;border:none;color:var(--color-text-muted);font-size:32px;cursor:pointer}
+  .navbtn:hover{background:var(--color-surface-alt)}
+  .media{display:flex;align-items:center;justify-content:center;padding:20px}
+  .media-box{max-width:min(90vw,1080px);aspect-ratio:4/3;background:#fff;color:#333;border-radius:var(--radius-card);display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+  .footer{border-top:1px solid var(--color-border);padding:14px 20px;display:flex;gap:10px;justify-content:flex-end;transition:padding 180ms}
+  .btn{padding:10px 18px;border-radius:var(--radius-btn);font-size:14px;font-weight:600;border:none;cursor:pointer}
+  .btn--primary{background:var(--color-accent);color:#fff}
+  .btn--primary:hover{background:var(--color-accent-active)}
+  .btn--danger{background:var(--color-danger);color:#fff}
+  .btn--danger:hover{background:var(--color-danger-active)}
+  .btn--ghost{background:transparent;color:var(--color-text-muted);border:1px solid var(--color-border)}
+  .reason-panel{max-height:0;overflow:hidden;transition:max-height 180ms ease-out}
+  .reason-panel.open{max-height:200px}
+  .reason-inner{padding:14px 20px;border-top:1px solid var(--color-border);display:flex;flex-direction:column;gap:8px}
+  .reason-label{font-size:12px;color:var(--color-text-muted);font-weight:600;letter-spacing:.1px}
+  .reason-ta{width:100%;min-height:72px;background:var(--color-surface-alt);color:#fff;border:1px solid var(--color-border);border-radius:var(--radius-btn);padding:10px;font-size:14px;resize:vertical;box-sizing:border-box}
+  .reason-row{display:flex;justify-content:space-between;align-items:center}
+  .counter{font-size:12px;color:var(--color-text-muted)}
+  .reason-actions{display:flex;gap:8px}
+</style></head>
+<body>
+<div class="modal" role="dialog" aria-labelledby="stuName">
+  <div class="topbar">
+    <div class="student">
+      <span class="student-num">3번</span>
+      <h2 class="student-name" id="stuName">박민수</h2>
+      <span class="badge badge--sub">제출</span>
+    </div>
+    <div class="meta"><span>제출 4/18 14:22</span><span>·</span><span>최초 확인 4/19 09:10</span></div>
+    <button class="closebtn" aria-label="닫기">✕</button>
+  </div>
+  <div class="stage">
+    <button class="navbtn" aria-label="이전">‹</button>
+    <div class="media"><div class="media-box">제출된 감상문 이미지 / PDF / 텍스트</div></div>
+    <button class="navbtn" aria-label="다음">›</button>
+  </div>
+  <div class="footer">
+    <button class="btn btn--ghost">반려하기</button>
+    <button class="btn btn--primary">확인됨</button>
+  </div>
+  <!-- 반려 inline 확장 상태 (class="open" 토글) -->
+  <div class="reason-panel open">
+    <div class="reason-inner">
+      <div class="reason-label">반려 사유</div>
+      <textarea class="reason-ta" placeholder="예: 표지 사진 없이 제목만 있어 다시 올려주세요."></textarea>
+      <div class="reason-row">
+        <span class="counter">32 / 200</span>
+        <div class="reason-actions">
+          <button class="btn btn--ghost">취소</button>
+          <button class="btn btn--danger">반려하기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

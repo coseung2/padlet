@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { getCurrentStudent } from "@/lib/student-auth";
 import { requirePermission, ForbiddenError } from "@/lib/rbac";
-import { isCanvaDesignUrl, resolveCanvaEmbedUrl } from "@/lib/canva";
+import { isCanvaDesignUrl, resolveCanvaEmbedUrl, expandCanvaShortLink } from "@/lib/canva";
+import { setCardAuthors } from "@/lib/card-authors-service";
 
 const CreateCardSchema = z.object({
   boardId: z.string().min(1),
@@ -26,10 +28,52 @@ const CreateCardSchema = z.object({
 
 export async function POST(req: Request) {
   try {
-    const user = await getCurrentUser();
     const body = await req.json();
     const input = CreateCardSchema.parse(body);
-    await requirePermission(input.boardId, user.id, "edit");
+
+    // Auth precedence: teacher (NextAuth) → student (HMAC cookie). Same
+    // order as resolveIdentity / PATCH / DELETE. A leftover student_session
+    // cookie from prior testing must NOT hijack a teacher-initiated POST.
+    let teacherUser: Awaited<ReturnType<typeof getCurrentUser>> | null = null;
+    try {
+      teacherUser = await getCurrentUser();
+    } catch {
+      teacherUser = null;
+    }
+
+    let authorId: string;
+    let studentAuthorId: string | null = null;
+    let externalAuthorName: string | null = null;
+    let currentUserName: string | null = null;
+    let student: Awaited<ReturnType<typeof getCurrentStudent>> = null;
+
+    if (teacherUser) {
+      await requirePermission(input.boardId, teacherUser.id, "edit");
+      authorId = teacherUser.id;
+      currentUserName = teacherUser.name;
+    } else {
+      student = await getCurrentStudent();
+      if (!student) {
+        return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+      }
+      const board = await db.board.findUnique({
+        where: { id: input.boardId },
+        select: {
+          classroomId: true,
+          classroom: { select: { teacherId: true } },
+        },
+      });
+      if (!board || !board.classroom) {
+        return NextResponse.json({ error: "board_not_accessible" }, { status: 403 });
+      }
+      if (board.classroomId !== student.classroomId) {
+        return NextResponse.json({ error: "classroom_mismatch" }, { status: 403 });
+      }
+      authorId = board.classroom.teacherId;
+      studentAuthorId = student.id;
+      externalAuthorName = student.name;
+      currentUserName = student.name;
+    }
 
     // Canva oEmbed enrichment. For a Canva design URL the SERVER owns
     // linkImage completely so the client-side iframe gate
@@ -45,47 +89,77 @@ export async function POST(req: Request) {
     let linkImage = input.linkImage === undefined ? null : input.linkImage;
     let linkDesc = input.linkDesc === undefined ? null : input.linkDesc;
     if (linkUrl && isCanvaDesignUrl(linkUrl)) {
+      // Canva's "링크 공유" button hands out canva.link short URLs —
+      // expand to the canonical canva.com/{id}/{shareToken}/view form
+      // before storing so the client-side hasCanvaShareToken gate works.
+      linkUrl = await expandCanvaShortLink(linkUrl);
       const embed = await resolveCanvaEmbedUrl(linkUrl);
       if (embed) {
-        linkUrl = `https://www.canva.com/design/${embed.designId}/view`;
-        // Force-set linkImage from the oEmbed thumbnail so a client
-        // cannot satisfy the iframe gate with a stale / unrelated image.
+        // oEmbed resolver strips the share token from its response, so
+        // we only overwrite derived fields and leave linkUrl (already
+        // expanded above) untouched.
         linkImage = embed.thumbnailUrl;
         if (input.linkTitle === undefined) linkTitle = embed.title;
         if (input.linkDesc === undefined) {
           linkDesc = embed.authorName ? `by ${embed.authorName}` : null;
         }
       } else {
-        // oEmbed failed → null linkImage so the client falls back to
-        // the plain link-preview rather than attempting a likely-broken
-        // iframe.
+        // oEmbed failed (anonymous 401 is the common path). The iframe
+        // can still render when the URL carries a share token — the
+        // client's canRenderCanvaEmbed gate opens in that case. We
+        // just don't have a thumbnail.
         linkImage = null;
       }
     }
 
-    const card = await db.card.create({
-      data: {
-        boardId: input.boardId,
-        authorId: user.id,
-        title: input.title,
-        content: input.content,
-        color: input.color ?? null,
-        imageUrl: input.imageUrl ?? null,
-        linkUrl,
-        linkTitle,
-        linkDesc,
-        linkImage,
-        videoUrl: input.videoUrl ?? null,
-        x: input.x,
-        y: input.y,
-        width: input.width ?? 240,
-        height: input.height ?? 160,
-        order: input.order ?? 0,
-        sectionId: input.sectionId ?? null,
-      },
+    const card = await db.$transaction(async (tx) => {
+      const c = await tx.card.create({
+        data: {
+          boardId: input.boardId,
+          authorId,
+          studentAuthorId,
+          externalAuthorName,
+          title: input.title,
+          content: input.content,
+          color: input.color ?? null,
+          imageUrl: input.imageUrl ?? null,
+          linkUrl,
+          linkTitle,
+          linkDesc,
+          linkImage,
+          videoUrl: input.videoUrl ?? null,
+          x: input.x,
+          y: input.y,
+          width: input.width ?? 240,
+          height: input.height ?? 160,
+          order: input.order ?? 0,
+          sectionId: input.sectionId ?? null,
+        },
+      });
+      // Student-authored cards get a primary CardAuthor row so the
+      // source of truth for authorship lives in the join table from the
+      // start. Teacher-created cards (no studentAuthorId) get no initial
+      // CardAuthor rows — teacher can open the editor to attribute.
+      if (studentAuthorId && externalAuthorName) {
+        await setCardAuthors(tx, c.id, [
+          { studentId: studentAuthorId, displayName: externalAuthorName },
+        ]);
+      }
+      return c;
     });
 
-    return NextResponse.json({ card });
+    // Mirror the server-side cardProps mapping (board/[id]/page.tsx) so
+    // the client can drop the response straight into state and keep the
+    // CardAuthorFooter populated without a page reload.
+    return NextResponse.json({
+      card: {
+        ...card,
+        createdAt: card.createdAt.toISOString(),
+        authorName: currentUserName,
+        studentAuthorName: student?.name ?? null,
+        externalAuthorName: card.externalAuthorName,
+      },
+    });
   } catch (e) {
     if (e instanceof ForbiddenError) {
       return NextResponse.json({ error: e.message }, { status: 403 });

@@ -1,0 +1,8 @@
+{
+  "add": {
+    "--color-danger": "#c62828",
+    "--color-danger-active": "#a01b1b"
+  },
+  "deprecate": [],
+  "notes": "SectionActionsPanel 의 파괴적 액션 색 토큰. plant-stalled 와 동일 hex 이나 의미가 달라 별도 토큰."
+}

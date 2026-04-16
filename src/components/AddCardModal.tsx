@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useLinkPreview } from "./useLinkPreview";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 export type AddCardData = {
   title: string;
@@ -14,6 +15,16 @@ export type AddCardData = {
   videoUrl?: string;
   color?: string;
   sectionId?: string;
+  // When set, the caller should attach this StudentAsset to the created card
+  // (POST /api/student-assets/{id}/attach) after the card row exists.
+  attachAssetId?: string;
+};
+
+type LibraryAsset = {
+  id: string;
+  title: string;
+  fileUrl: string;
+  thumbnailUrl: string | null;
 };
 
 type SectionOption = { id: string; title: string };
@@ -46,6 +57,41 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
   const [uploading, setUploading] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [libraryAssets, setLibraryAssets] = useState<LibraryAsset[] | null>(null);
+  const [libraryLoading, setLibraryLoading] = useState(false);
+  const [pickedAssetId, setPickedAssetId] = useState<string | null>(null);
+
+  async function openLibrary() {
+    setPickerOpen(true);
+    if (libraryAssets === null) {
+      setLibraryLoading(true);
+      try {
+        const res = await fetch("/api/student-assets?scope=mine");
+        if (res.ok) {
+          const data = (await res.json()) as { assets: LibraryAsset[] };
+          setLibraryAssets(data.assets ?? []);
+        } else {
+          setLibraryAssets([]);
+        }
+      } catch {
+        setLibraryAssets([]);
+      } finally {
+        setLibraryLoading(false);
+      }
+    }
+  }
+
+  function confirmLibraryPick() {
+    if (!pickedAssetId || !libraryAssets) return;
+    const picked = libraryAssets.find((a) => a.id === pickedAssetId);
+    if (picked) {
+      const url = picked.thumbnailUrl ?? picked.fileUrl;
+      setImageUrl(url);
+      setShowImage(true);
+    }
+    setPickerOpen(false);
+  }
 
   async function handleFileUpload(file: File, type: "image" | "video") {
     setUploading(true);
@@ -92,6 +138,7 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
               videoUrl: videoUrl || undefined,
               color: color || undefined,
               sectionId: sectionId || undefined,
+              attachAssetId: pickedAssetId ?? undefined,
             });
             setBusy(false);
             onClose();
@@ -156,14 +203,28 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
             >
               🎬 동영상
             </button>
+            <button
+              type="button"
+              className="modal-attach-btn"
+              onClick={openLibrary}
+              title="내 그림 라이브러리에서 선택"
+            >
+              🎨 내 라이브러리
+            </button>
           </div>
 
           {/* ── 이미지 (개별 토글) ── */}
           {showImage && (
             <div className="modal-attach-section">
               {imageUrl ? (
-                <div className="modal-file-preview">
-                  <img src={imageUrl} alt="" className="modal-preview-img" />
+                <div className="modal-file-preview optimized-img-wrap">
+                  <OptimizedImage
+                    src={imageUrl}
+                    alt=""
+                    className="modal-preview-img"
+                    sizes="320px"
+                    fit="contain"
+                  />
                   <button type="button" className="modal-file-remove" onClick={() => setImageUrl("")}>제거</button>
                 </div>
               ) : (
@@ -213,8 +274,8 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
               {preview && (preview.title || preview.image) && (
                 <div className="link-preview-card">
                   {preview.image && (
-                    <div className="link-preview-card-image">
-                      <img src={preview.image} alt="" />
+                    <div className="link-preview-card-image optimized-img-wrap">
+                      <OptimizedImage src={preview.image} alt="" sizes="160px" />
                     </div>
                   )}
                   <div className="link-preview-card-body">
@@ -292,6 +353,68 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
           </div>
         </form>
       </div>
+
+      {pickerOpen && (
+        <div className="library-picker-overlay" onClick={() => setPickerOpen(false)}>
+          <div className="library-picker" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">내 라이브러리</h2>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setPickerOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            {libraryLoading && <p className="muted">불러오는 중...</p>}
+            {!libraryLoading && libraryAssets && libraryAssets.length === 0 && (
+              <p className="muted">
+                아직 업로드한 그림이 없어요. 그림보드(🎨) 레이아웃에서 먼저 업로드하세요.
+              </p>
+            )}
+            {!libraryLoading && libraryAssets && libraryAssets.length > 0 && (
+              <div className="library-picker-grid">
+                {libraryAssets.map((a) => (
+                  <button
+                    type="button"
+                    key={a.id}
+                    className={`library-picker-item ${
+                      pickedAssetId === a.id ? "selected" : ""
+                    }`}
+                    onClick={() => setPickedAssetId(a.id)}
+                    aria-pressed={pickedAssetId === a.id}
+                  >
+                    {a.thumbnailUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={a.thumbnailUrl} alt={a.title || "그림"} />
+                    ) : (
+                      <span aria-hidden>🖼️</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="modal-btn-cancel"
+                onClick={() => setPickerOpen(false)}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="modal-btn-submit"
+                disabled={!pickedAssetId}
+                onClick={confirmLibraryPick}
+              >
+                첨부
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

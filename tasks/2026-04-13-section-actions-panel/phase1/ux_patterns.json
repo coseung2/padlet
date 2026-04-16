@@ -1,0 +1,38 @@
+{
+  "patterns": [
+    {
+      "id": "right-drawer-tabs",
+      "name": "우측 드로어 + 탭 세그먼트",
+      "source": ["Linear issue panel", "Notion peek"],
+      "pros": ["컨텍스트 유지", "액션 그룹핑 명확", "모바일에서 바텀시트 전환 쉬움"],
+      "cons": ["좁은 뷰포트에서 탭 세그먼트 길이 제약"],
+      "fit_score": 9
+    },
+    {
+      "id": "right-drawer-accordion",
+      "name": "우측 드로어 + 아코디언",
+      "source": ["Figma 인스펙터 변형"],
+      "pros": ["세로 긴 뷰포트 유리"],
+      "cons": ["3개 섹션 모두 펼치면 스크롤 필요, 탭보다 탐색 느림"],
+      "fit_score": 6
+    },
+    {
+      "id": "right-drawer-stacked",
+      "name": "우측 드로어 + 단일 스택 (탭 없음)",
+      "source": ["Google Classroom"],
+      "pros": ["가장 단순"],
+      "cons": ["삭제/공유 등 위험 액션이 시각적으로 동등해져 실수 유발"],
+      "fit_score": 5
+    },
+    {
+      "id": "center-modal-tabs",
+      "name": "중앙 모달 + 탭",
+      "source": ["기존 padlet modals"],
+      "pros": ["기존 코드 재사용"],
+      "cons": ["피드백의 요청(우측 슬라이드)과 불일치"],
+      "fit_score": 3
+    }
+  ],
+  "recommended": "right-drawer-tabs",
+  "rationale": "피드백 본문에서 'plant 로드맵의 우측 시트 패턴'을 명시적으로 참조. 탭 세그먼트는 3개 액션을 명확히 구분해 파괴적 액션(삭제) 오터치를 줄인다."
+}

@@ -1,14 +1,17 @@
 /**
  * Canva Connect API helpers.
  * Docs: https://www.canva.dev/docs/connect/
+ *
+ * Tokens and the transient PKCE verifier are persisted in
+ * CanvaConnectAccount (Prisma) so the teacher's connection survives Vercel
+ * Function cold starts. Earlier in-memory Maps (tokenStore / pkceStore)
+ * silently logged teachers out whenever a new container handled a request.
  */
+import { db } from "./db";
 
 const CANVA_API = "https://api.canva.com/rest/v1";
 const CANVA_AUTH = "https://www.canva.com/api/oauth/authorize";
 const CANVA_TOKEN = `${CANVA_API}/oauth/token`;
-
-// In-memory token store (per mock user). In production, use DB.
-const tokenStore = new Map<string, { accessToken: string; refreshToken: string; expiresAt: number }>();
 
 export function getCanvaClientId() {
   return process.env.CANVA_CLIENT_ID ?? "";
@@ -36,14 +39,20 @@ async function generateCodeChallenge(verifier: string): Promise<string> {
   return Buffer.from(digest).toString("base64url");
 }
 
-// Store code verifiers per session
-const pkceStore = new Map<string, string>();
-
 /* ── OAuth flow ── */
 export async function buildAuthorizationUrl(userId: string): Promise<string> {
   const verifier = generateCodeVerifier();
   const challenge = await generateCodeChallenge(verifier);
-  pkceStore.set(userId, verifier);
+
+  // Persist the verifier (upsert — teacher may restart the flow without
+  // finishing the previous one). accessToken/refreshToken are NOT cleared so
+  // a mid-flow re-authorize doesn't log the user out of an already-working
+  // session; they're only rewritten on successful exchangeCode.
+  await db.canvaConnectAccount.upsert({
+    where: { userId },
+    create: { userId, pkceVerifier: verifier },
+    update: { pkceVerifier: verifier },
+  });
 
   const params = new URLSearchParams({
     response_type: "code",
@@ -59,9 +68,9 @@ export async function buildAuthorizationUrl(userId: string): Promise<string> {
 }
 
 export async function exchangeCode(userId: string, code: string): Promise<boolean> {
-  const verifier = pkceStore.get(userId);
+  const row = await db.canvaConnectAccount.findUnique({ where: { userId } });
+  const verifier = row?.pkceVerifier;
   if (!verifier) return false;
-  pkceStore.delete(userId);
 
   const basic = Buffer.from(`${getCanvaClientId()}:${getCanvaClientSecret()}`).toString("base64");
 
@@ -85,17 +94,21 @@ export async function exchangeCode(userId: string, code: string): Promise<boolea
   }
 
   const data = await res.json();
-  tokenStore.set(userId, {
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token,
-    expiresAt: Date.now() + data.expires_in * 1000,
+  await db.canvaConnectAccount.update({
+    where: { userId },
+    data: {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      expiresAt: new Date(Date.now() + data.expires_in * 1000),
+      pkceVerifier: null,
+    },
   });
   return true;
 }
 
 async function refreshAccessToken(userId: string): Promise<string | null> {
-  const stored = tokenStore.get(userId);
-  if (!stored) return null;
+  const row = await db.canvaConnectAccount.findUnique({ where: { userId } });
+  if (!row?.refreshToken) return null;
 
   const basic = Buffer.from(`${getCanvaClientId()}:${getCanvaClientSecret()}`).toString("base64");
 
@@ -107,37 +120,49 @@ async function refreshAccessToken(userId: string): Promise<string | null> {
     },
     body: new URLSearchParams({
       grant_type: "refresh_token",
-      refresh_token: stored.refreshToken,
+      refresh_token: row.refreshToken,
     }),
   });
 
   if (!res.ok) {
-    tokenStore.delete(userId);
+    // Refresh failed (likely revoked / expired). Clear tokens so the next
+    // request surfaces canva_not_connected and prompts re-authorize.
+    await db.canvaConnectAccount.update({
+      where: { userId },
+      data: { accessToken: null, refreshToken: null, expiresAt: null },
+    });
     return null;
   }
 
   const data = await res.json();
-  tokenStore.set(userId, {
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token,
-    expiresAt: Date.now() + data.expires_in * 1000,
+  await db.canvaConnectAccount.update({
+    where: { userId },
+    data: {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      expiresAt: new Date(Date.now() + data.expires_in * 1000),
+    },
   });
   return data.access_token;
 }
 
 export async function getAccessToken(userId: string): Promise<string | null> {
-  const stored = tokenStore.get(userId);
-  if (!stored) return null;
+  const row = await db.canvaConnectAccount.findUnique({ where: { userId } });
+  if (!row?.accessToken || !row.expiresAt) return null;
 
-  // Refresh if expiring within 5 minutes
-  if (stored.expiresAt - Date.now() < 5 * 60 * 1000) {
+  // Refresh if expiring within 5 minutes.
+  if (row.expiresAt.getTime() - Date.now() < 5 * 60 * 1000) {
     return refreshAccessToken(userId);
   }
-  return stored.accessToken;
+  return row.accessToken;
 }
 
-export function isCanvaConnected(userId: string): boolean {
-  return tokenStore.has(userId);
+export async function isCanvaConnected(userId: string): Promise<boolean> {
+  const row = await db.canvaConnectAccount.findUnique({
+    where: { userId },
+    select: { accessToken: true },
+  });
+  return !!row?.accessToken;
 }
 
 /* ── API calls ── */
@@ -314,22 +339,34 @@ export async function canvaMoveItem(token: string, itemId: string, toFolderId: s
 }
 
 export async function resolveCanvaDesignId(url: string): Promise<string | null> {
-  let finalUrl = url;
-
-  if (url.includes("canva.link")) {
-    try {
-      // Short-link expansion — hard cap the redirect HEAD so a slow
-      // canva.link response cannot blow past the outer 3s oEmbed budget.
-      const res = await fetch(url, {
-        redirect: "manual",
-        signal: AbortSignal.timeout(2000),
-      });
-      finalUrl = res.headers.get("location") ?? url;
-    } catch {}
-  }
-
+  const finalUrl = await expandCanvaShortLink(url);
   const match = finalUrl.match(/\/design\/([A-Za-z0-9_-]+)\//);
   return match?.[1] ?? null;
+}
+
+/**
+ * Follow a canva.link short URL to its canonical canva.com form so the
+ * share-token path segment becomes visible. Returns the input unchanged
+ * for non-canva.link URLs or on network failure.
+ *
+ * Canva's "공유 → 링크 공유 → 공개 보기" button hands students a
+ * `canva.link/xxxxx` form that 302-redirects to the real
+ * `canva.com/design/{id}/{shareToken}/view` URL — we need the expanded
+ * form so client predicates (extractCanvaDesignId / hasCanvaShareToken)
+ * accept it and open the live-iframe gate.
+ */
+export async function expandCanvaShortLink(url: string): Promise<string> {
+  if (!url.includes("canva.link")) return url;
+  try {
+    const res = await fetch(url, {
+      redirect: "manual",
+      signal: AbortSignal.timeout(2000),
+    });
+    const loc = res.headers.get("location");
+    return loc ?? url;
+  } catch {
+    return url;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -380,6 +417,77 @@ export function extractCanvaDesignId(rawUrl: string): string | null {
   }
 }
 
+/**
+ * Build the iframe src for a canva.com design URL.
+ *
+ * Canva's official oEmbed response returns an iframe src in the form
+ *   `/design/{designId}/{shareToken}/view?embed&meta`
+ * regardless of whether the user's "공개 보기 링크" surface is `/view`
+ * (gallery / document / poster) or `/watch` (presentation player). We
+ * normalise every paste to that canonical form.
+ *
+ * Previous attempts to simplify the URL (dropping `&meta`, or rewriting
+ * `/view` → `/watch`) broke embedding: `/watch?embed` returns 403 +
+ * `X-Frame-Options: SAMEORIGIN`, and `?embed` without `&meta` leaves some
+ * multi-page designs in a half-loaded state. Keep the exact format
+ * Canva blesses via oEmbed.
+ *
+ * Also preserve the share-token path segment — without it Canva shows its
+ * login gate instead of the design.
+ *
+ * Returns null for URLs we don't recognise as canva design pages.
+ */
+export function buildCanvaEmbedSrc(rawUrl: string): string | null {
+  if (!rawUrl) return null;
+  try {
+    const u = new URL(rawUrl);
+    const host = u.hostname.toLowerCase();
+    if (host !== "canva.com" && host !== "www.canva.com") return null;
+
+    // Accept /design/{id}/(view|watch|edit), or the full share form
+    // /design/{id}/{shareToken}/(view|watch|edit). Canva's "링크 공유"
+    // button gives an /edit URL; we always rewrite it to /view for the
+    // iframe (embedding the editor surface is blocked by X-Frame).
+    const m = u.pathname.match(
+      /\/design\/([A-Za-z0-9_-]+)(?:\/([A-Za-z0-9_-]+))?\/(?:view|watch|edit)/
+    );
+    if (!m) return null;
+    const [, designId, shareToken] = m;
+    const pathPrefix = shareToken
+      ? `/design/${designId}/${shareToken}/view`
+      : `/design/${designId}/view`;
+    return `https://www.canva.com${pathPrefix}?embed&meta`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * True when the URL carries a share token — i.e. is publicly viewable
+ * without a Canva login. Used as a gate for attempting the live iframe
+ * embed even when the server-side oEmbed thumbnail fetch failed (which
+ * happens for anonymous callers — Canva's oEmbed endpoint rejects anon
+ * requests with 401, so we can't rely on linkImage alone to mean
+ * "embed is safe").
+ */
+export function hasCanvaShareToken(rawUrl: string | null | undefined): boolean {
+  if (!rawUrl) return false;
+  try {
+    const u = new URL(rawUrl);
+    const host = u.hostname.toLowerCase();
+    if (host !== "canva.com" && host !== "www.canva.com") return false;
+    // Accept view / watch / edit — Canva hands out /edit URLs for the
+    // "링크 공유" (anyone-with-link) share flow; buildCanvaEmbedSrc
+    // rewrites to /view for the iframe.
+    const m = u.pathname.match(
+      /\/design\/[A-Za-z0-9_-]+\/([A-Za-z0-9_-]+)\/(?:view|watch|edit)/
+    );
+    return !!m?.[1];
+  } catch {
+    return false;
+  }
+}
+
 // Async resolver — may do 1 short-link HEAD plus 1 oEmbed fetch.
 // Returns null on any failure so callers can fall back to the link-preview
 // path without a throw.
@@ -388,12 +496,23 @@ export async function resolveCanvaEmbedUrl(
 ): Promise<CanvaEmbed | null> {
   if (!isCanvaDesignUrl(rawUrl)) return null;
 
-  // 1. Resolve short-link to its canva.com location when needed.
-  const designId = await resolveCanvaDesignId(rawUrl);
-  if (!designId) return null;
+  // 1. Expand canva.link so share-token path segment becomes visible.
+  const expandedUrl = await expandCanvaShortLink(rawUrl);
+  const match = expandedUrl.match(
+    /\/design\/([A-Za-z0-9_-]+)(?:\/([A-Za-z0-9_-]+))?\/(?:view|watch|edit)/
+  );
+  if (!match) return null;
+  const designId = match[1];
+  const shareToken = match[2];
 
-  // 2. Canonicalize to the /view URL so oEmbed responds consistently.
-  const canonicalUrl = `https://www.canva.com/design/${designId}/view`;
+  // 2. Build the oEmbed query URL. Keeping the share token makes the
+  //    call work anonymously — Canva treats share-token URLs as
+  //    "anyone with link can view" and returns thumbnail + title
+  //    without a login. Without the token we get 401, which is why
+  //    pre-this-fix cards ended up with linkImage=null.
+  const canonicalUrl = shareToken
+    ? `https://www.canva.com/design/${designId}/${shareToken}/view`
+    : `https://www.canva.com/design/${designId}/view`;
 
   // 3. Ask Canva's oEmbed endpoint. Canva is currently migrating from the
   //    legacy www.canva.com path to api.canva.com — try the new endpoint

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
-import { requirePermission, getBoardRole, ForbiddenError } from "@/lib/rbac";
-import { isCanvaDesignUrl, resolveCanvaEmbedUrl } from "@/lib/canva";
+import { ForbiddenError } from "@/lib/rbac";
+import { resolveIdentities } from "@/lib/identity";
+import { canEditCard, canDeleteCard, type BoardLike, type CardLike } from "@/lib/card-permissions";
+import { isCanvaDesignUrl, resolveCanvaEmbedUrl, expandCanvaShortLink } from "@/lib/canva";
 
 const PatchCardSchema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -29,14 +30,39 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const user = await getCurrentUser();
 
     const card = await db.card.findUnique({ where: { id } });
     if (!card) {
       return NextResponse.json({ error: "Card not found" }, { status: 404 });
     }
 
-    await requirePermission(card.boardId, user.id, "edit");
+    const board = await db.board.findUnique({
+      where: { id: card.boardId },
+      select: {
+        id: true,
+        classroomId: true,
+        classroom: { select: { teacherId: true } },
+      },
+    });
+    if (!board) {
+      return NextResponse.json({ error: "Board not found" }, { status: 404 });
+    }
+
+    const identity = await resolveIdentities();
+    const boardLike: BoardLike = {
+      id: board.id,
+      classroomId: board.classroomId,
+      ownerUserId: board.classroom?.teacherId ?? null,
+    };
+    const cardLike: CardLike = {
+      id: card.id,
+      boardId: card.boardId,
+      authorId: card.authorId,
+      studentAuthorId: card.studentAuthorId,
+    };
+    if (!canEditCard(identity, boardLike, cardLike)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const body = await req.json();
     const input = PatchCardSchema.parse(body);
@@ -68,9 +94,11 @@ export async function PATCH(
     );
 
     if (urlChanged && isCanvaDesignUrl(patch.linkUrl as string)) {
-      const embed = await resolveCanvaEmbedUrl(patch.linkUrl as string);
+      // Expand canva.link short-URL so the stored value carries the
+      // share-token path segment that client predicates need.
+      patch.linkUrl = await expandCanvaShortLink(patch.linkUrl as string);
+      const embed = await resolveCanvaEmbedUrl(patch.linkUrl);
       if (embed) {
-        patch.linkUrl = `https://www.canva.com/design/${embed.designId}/view`;
         patch.linkImage = embed.thumbnailUrl;
         if (patch.linkTitle === undefined) patch.linkTitle = embed.title;
         if (patch.linkDesc === undefined) {
@@ -107,26 +135,38 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const user = await getCurrentUser();
 
     const card = await db.card.findUnique({ where: { id } });
     if (!card) {
       return NextResponse.json({ error: "Card not found" }, { status: 404 });
     }
 
-    const role = await getBoardRole(card.boardId, user.id);
-    if (!role) {
-      return NextResponse.json({ error: "Not a member" }, { status: 403 });
+    const board = await db.board.findUnique({
+      where: { id: card.boardId },
+      select: {
+        id: true,
+        classroomId: true,
+        classroom: { select: { teacherId: true } },
+      },
+    });
+    if (!board) {
+      return NextResponse.json({ error: "Board not found" }, { status: 404 });
     }
 
-    // owner deletes anything; editor deletes own cards only
-    const isAuthor = card.authorId === user.id;
-    const canDelete = role === "owner" || (role === "editor" && isAuthor);
-    if (!canDelete) {
-      return NextResponse.json(
-        { error: `Role "${role}" cannot delete this card` },
-        { status: 403 }
-      );
+    const identity = await resolveIdentities();
+    const boardLike: BoardLike = {
+      id: board.id,
+      classroomId: board.classroomId,
+      ownerUserId: board.classroom?.teacherId ?? null,
+    };
+    const cardLike: CardLike = {
+      id: card.id,
+      boardId: card.boardId,
+      authorId: card.authorId,
+      studentAuthorId: card.studentAuthorId,
+    };
+    if (!canDeleteCard(identity, boardLike, cardLike)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     await db.card.delete({ where: { id } });

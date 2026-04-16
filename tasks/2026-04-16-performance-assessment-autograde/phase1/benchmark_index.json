@@ -1,0 +1,41 @@
+{
+  "task_id": "2026-04-16-performance-assessment-autograde",
+  "source_of_truth": "ideation/tasks/2026-04-16-performance-assessment-autograde/phase1/exploration.md",
+  "note": "외부 제품 스크린샷/라이브 재관찰은 ideation phase1 exploration.md 에서 618 lines 로 선행 완료. padlet phase1 은 재조사 대신 코드베이스 audit 를 수행했으므로 benchmark_index 는 ideation 참조 포인터만 보관.",
+  "external_benchmarks": [
+    { "name": "Quizizz Paper Mode", "ideation_ref": "phase1/exploration.md#quizizz" },
+    { "name": "ClassKick Guard Mode", "ideation_ref": "phase1/exploration.md#classkick" },
+    { "name": "Kahoot Kahoot!+ AI", "ideation_ref": "phase1/exploration.md#kahoot" },
+    { "name": "Google Forms Quiz", "ideation_ref": "phase1/exploration.md#google-forms" },
+    { "name": "Formative Rubric Builder", "ideation_ref": "phase1/exploration.md#formative" },
+    { "name": "Socrative Space Race", "ideation_ref": "phase1/exploration.md#socrative" }
+  ],
+  "internal_benchmarks": [
+    {
+      "name": "Padlet Quiz Extensions (just shipped)",
+      "path": "src/components/quiz/",
+      "reuse_targets": [
+        "QuizDraftEditor — MCQ question editor pattern",
+        "QuizReportModal — 학생×문항 매트릭스 + sticky header/col + CSV",
+        "quiz-report.ts — CSV builder + formula injection guard"
+      ]
+    },
+    {
+      "name": "Padlet AssignmentBoard",
+      "path": "src/components/AssignmentBoard.tsx",
+      "reuse_targets": [
+        "교사 채점/상태 매트릭스 패턴",
+        "AssignmentSlot submit/review 흐름"
+      ]
+    },
+    {
+      "name": "Padlet card-permissions",
+      "path": "src/lib/card-permissions.ts",
+      "reuse_targets": [
+        "Identities 3-tier bundle",
+        "canAddCardToBoard / canViewCard 패턴",
+        "vitest vi.mock Prisma shim 기법"
+      ]
+    }
+  ]
+}

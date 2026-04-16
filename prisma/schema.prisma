@@ -23,12 +23,42 @@ model User {
   emailVerified DateTime?
   createdAt     DateTime  @default(now())
 
-  memberships  BoardMember[]
-  cards        Card[]
-  submissions  Submission[]
-  accounts     Account[]
-  sessions     Session[]
-  classrooms   Classroom[]
+  memberships           BoardMember[]
+  cards                 Card[]
+  submissions           Submission[]
+  reviews               SubmissionReview[]
+  accounts              Account[]
+  sessions              Session[]
+  classrooms            Classroom[]
+  templatesOwned        BreakoutTemplate[]    @relation("TemplateOwner")
+  issuedParentInvites   ParentInviteCode[]    @relation("TeacherInvite")
+  canvaConnect          CanvaConnectAccount?
+  // parent-class-invite-v2 — issued codes + audit FKs into ParentChildLink
+  classInvitesIssued    ClassInviteCode[]     @relation("ClassInviteIssued")
+  approvedParentLinks   ParentChildLink[]     @relation("LinkApprovedBy")
+  rejectedParentLinks   ParentChildLink[]     @relation("LinkRejectedBy")
+  revokedParentLinks    ParentChildLink[]     @relation("LinkRevokedBy")
+}
+
+// ──── Canva Connect API token store ────
+// Canva as an IdP — teachers OAuth into their Canva account so we can call
+// Canva's REST API on their behalf (e.g. list designs, export PDF). Storing
+// tokens in DB (not in-memory Map) so Vercel Function cold starts don't
+// silently log the teacher out between requests.
+//
+// `pkceVerifier` holds the transient verifier during the authorize → callback
+// round-trip. It's cleared on successful exchangeCode. For a long-idle user
+// whose refresh token has also expired we simply require re-authorize.
+model CanvaConnectAccount {
+  userId        String    @id
+  accessToken   String?
+  refreshToken  String?
+  expiresAt     DateTime?
+  pkceVerifier  String?
+  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Account {
@@ -67,32 +97,46 @@ model Session {
 model Classroom {
   id        String   @id @default(cuid())
   name      String
-  code      String   @unique   // 6-char alphanumeric, teacher shares this
+  code      String   @unique // 6-char alphanumeric, teacher shares this
   teacherId String
   createdAt DateTime @default(now())
 
-  teacher     User                   @relation(fields: [teacherId], references: [id])
+  teacher     User                  @relation(fields: [teacherId], references: [id])
   students    Student[]
-  boards      Board[]                @relation("ClassroomBoards")
+  boards      Board[]               @relation("ClassroomBoards")
   plantAllows ClassroomPlantAllow[]
+  inviteCodes ClassInviteCode[]
+  assessments AssessmentTemplate[]
 
   @@index([teacherId])
   @@index([code])
 }
 
 model Student {
-  id          String   @id @default(cuid())
-  classroomId String
-  number      Int?              // 출석번호
-  name        String
-  qrToken     String   @unique   // UUID — encoded in QR
-  textCode    String   @unique   // 6-char alphanumeric — manual entry fallback
-  sessionVersion Int   @default(1)
-  createdAt   DateTime @default(now())
+  id             String   @id @default(cuid())
+  classroomId    String
+  number         Int? // 출석번호
+  name           String
+  qrToken        String   @unique // UUID — encoded in QR
+  textCode       String   @unique // 6-char alphanumeric — manual entry fallback
+  sessionVersion Int      @default(1)
+  createdAt      DateTime @default(now())
 
-  classroom     Classroom      @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  quizPlayers   QuizPlayer[]
-  studentPlants StudentPlant[]
+  classroom           Classroom            @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  quizPlayers         QuizPlayer[]
+  studentPlants       StudentPlant[]
+  assets              StudentAsset[]
+  breakoutMemberships BreakoutMembership[]
+  parents             ParentChildLink[]
+  parentInvites       ParentInviteCode[]
+  cardsAuthored       Card[]               @relation("StudentCardAuthor")
+  oauthAuthCodes      OAuthAuthCode[]
+  oauthAccessTokens   OAuthAccessToken[]
+  oauthRefreshTokens  OAuthRefreshToken[]
+  canvaAppLink        CanvaAppLink?
+  assignmentSlots     AssignmentSlot[]     @relation("StudentAssignmentSlots")
+  cardAuthors         CardAuthor[]         @relation("StudentCardAuthors")
+  assessmentSubmissions AssessmentSubmission[]
 
   @@unique([classroomId, number])
   @@index([classroomId])
@@ -100,7 +144,7 @@ model Student {
   @@index([textCode])
 }
 
-// layout: "freeform" | "grid" | "stream" | "columns" | "assignment" | "quiz" | "plant-roadmap"
+// layout: "freeform" | "grid" | "stream" | "columns" | "assignment" | "quiz" | "plant-roadmap" | "event-signup" | "drawing" | "breakout"
 // (validated in app via zod)
 model Board {
   id          String   @id @default(cuid())
@@ -111,13 +155,46 @@ model Board {
   classroomId String?
   createdAt   DateTime @default(now())
 
-  classroom     Classroom?     @relation("ClassroomBoards", fields: [classroomId], references: [id], onDelete: SetNull)
-  members       BoardMember[]
-  cards         Card[]
-  sections      Section[]
-  submissions   Submission[]
-  quizzes       Quiz[]
-  studentPlants StudentPlant[]
+  // ── Event-signup (ES-1) ────────────────────────────────────────────
+  // Public link access. "classroom" = NextAuth or classroom-scoped only.
+  // "public-link" = anyone with accessToken in URL can view the signup form.
+  accessMode          String    @default("classroom")
+  accessToken         String?   @unique
+  eventPosterUrl      String?
+  applicationStart    DateTime?
+  applicationEnd      DateTime?
+  eventStart          DateTime?
+  eventEnd            DateTime?
+  venue               String?
+  maxSelections       Int?
+  videoPolicy         String    @default("optional") // "none" | "optional" | "required"
+  videoProviders      String    @default("youtube") // csv
+  maxVideoDurationSec Int?
+  maxVideoSizeMb      Int?
+  allowTeam           Boolean   @default(false)
+  maxTeamSize         Int?
+  customQuestions     String    @default("[]") // JSON-encoded question[]
+  announceMode        String    @default("private") // "public-list" | "private-search" | "private"
+  requireApproval     Boolean   @default(false)
+  askName             Boolean   @default(true)
+  askGradeClass       Boolean   @default(true)
+  askStudentNumber    Boolean   @default(true)
+  askContact          Boolean   @default(false)
+
+  // ── Assignment board (AB-1) ────────────────────────────────────────
+  assignmentGuideText String?   @default("")
+  assignmentAllowLate Boolean   @default(true)
+  assignmentDeadline  DateTime?
+
+  classroom          Classroom?          @relation("ClassroomBoards", fields: [classroomId], references: [id], onDelete: SetNull)
+  members            BoardMember[]
+  cards              Card[]
+  sections           Section[]
+  submissions        Submission[]
+  quizzes            Quiz[]
+  studentPlants      StudentPlant[]
+  breakoutAssignment BreakoutAssignment?
+  assignmentSlots    AssignmentSlot[]
 }
 
 // Columns/Kanban용 섹션 (grid/stream에선 사용 안 함)
@@ -132,8 +209,9 @@ model Section {
   // previously distributed links. See src/lib/rbac.ts#viewSection.
   accessToken String? @unique
 
-  board Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  cards Card[] @relation("SectionCards")
+  board               Board                @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards               Card[]               @relation("SectionCards")
+  breakoutMemberships BreakoutMembership[]
 
   @@index([boardId])
 }
@@ -162,11 +240,27 @@ model Card {
   content   String
   color     String?
   imageUrl  String?
+  // 160×120 WebP thumbnail generated from imageUrl on assignment submit
+  // (AC-12). Populated by resizeToWebPThumbUrl → blob. Falls back to
+  // imageUrl in slotRowToDTO when null so legacy rows keep working.
+  thumbUrl  String?
   linkUrl   String?
   linkTitle String?
   linkDesc  String?
   linkImage String?
   videoUrl  String?
+  // Student author (when the card was published from the Canva Content
+  // Publisher app while the student was logged into Aura). Makes the card
+  // a first-class child artifact — parent viewer filters on this FK to show
+  // "내 자녀의 카드", and future reporting / ownership logic keys off here.
+  studentAuthorId    String?
+  // Denormalized display label (= student.name) captured at publish time so
+  // the board UI can render "작성: 가온" without joining Student.
+  externalAuthorName String?
+  // Canva design identifier when the card was published from the Canva
+  // Content Publisher app (or a pasted Canva design URL with successful
+  // resolve). Enables CanvaEmbedSlot's thumbnail+live toggle UX.
+  canvaDesignId      String?
   x         Float    @default(0)
   y         Float    @default(0)
   width     Float    @default(240)
@@ -175,48 +269,132 @@ model Card {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  board   Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  section Section? @relation("SectionCards", fields: [sectionId], references: [id], onDelete: SetNull)
-  author  User     @relation(fields: [authorId], references: [id])
+  board            Board             @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  section          Section?          @relation("SectionCards", fields: [sectionId], references: [id], onDelete: SetNull)
+  author           User              @relation(fields: [authorId], references: [id])
+  studentAuthor    Student?          @relation("StudentCardAuthor", fields: [studentAuthorId], references: [id], onDelete: SetNull)
+  assetAttachments AssetAttachment[] @relation("CardAssetAttachments")
+  assignmentSlot   AssignmentSlot?   @relation("AssignmentSlotCard")
+  authors          CardAuthor[]
 
   @@index([boardId])
   @@index([sectionId])
   @@index([authorId])
+  @@index([studentAuthorId])
 }
 
 model Submission {
   id        String   @id @default(cuid())
   boardId   String
-  userId    String
+  userId    String? // nullable for public event-signup submissions (ES-1)
   content   String   @default("")
   linkUrl   String?
   fileUrl   String?
-  status    String   @default("submitted") // "submitted" | "reviewed" | "returned"
+  // status (event-signup adds): "pending_approval" | "submitted" | "approved" | "rejected"
+  // status (assignment keeps): "submitted" | "reviewed" | "returned"
+  status    String   @default("submitted")
   feedback  String?
   grade     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id])
+  // ── Event-signup applicant fields (ES-1) ─────────────────────────
+  submitToken      String? @unique // public self-auth for /my page
+  applicantName    String?
+  applicantGrade   Int?
+  applicantClass   Int?
+  applicantNumber  Int?
+  applicantContact String?
+  ipHash           String?
+  teamName         String?
+  teamMembers      String  @default("[]") // JSON — {name,grade,class,number}[]
+  answers          String  @default("{}") // JSON — {questionId: value}
+  videoUrl         String?
+  videoProvider    String? // "youtube" | "cfstream"
+  videoId          String?
+  videoThumbnail   String?
+  scoreAvg         Float?
 
-  @@unique([boardId, userId])
+  // ── Assignment-slot linkage (AB-1) ─────────────────────────────────
+  // Nullable for backward-compat with event-signup submissions that never had
+  // a slot. When present, @unique pins one Submission to one slot so student
+  // overwrites happen in-place (no history — decisions Q2).
+  assignmentSlotId String?         @unique
+  assignmentSlot   AssignmentSlot? @relation(fields: [assignmentSlotId], references: [id], onDelete: SetNull)
+
+  board   Board              @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user    User?              @relation(fields: [userId], references: [id])
+  reviews SubmissionReview[]
+
   @@index([boardId])
   @@index([userId])
+  @@index([boardId, status])
+  @@index([ipHash, createdAt])
+}
+
+// ──── Assignment-board (AB-1) ────
+// One row per (boardId, studentId) captured at board creation time. v1 hard-
+// caps count ≤ 30 (Galaxy Tab S6 Lite perf budget). slotNumber is a snapshot
+// of Student.number at creation; Q6 decision — number changes don't propagate.
+model AssignmentSlot {
+  id               String    @id @default(cuid())
+  boardId          String
+  studentId        String
+  slotNumber       Int
+  cardId           String    @unique
+  // submissionStatus: "assigned"|"submitted"|"viewed"|"returned"|"reviewed"|"orphaned"
+  submissionStatus String    @default("assigned")
+  // gradingStatus: "not_graded"|"graded"|"released"
+  gradingStatus    String    @default("not_graded")
+  grade            String?
+  viewedAt         DateTime?
+  returnedAt       DateTime?
+  returnReason     String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  board      Board       @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  student    Student     @relation("StudentAssignmentSlots", fields: [studentId], references: [id], onDelete: Restrict)
+  card       Card        @relation("AssignmentSlotCard", fields: [cardId], references: [id], onDelete: Restrict)
+  submission Submission?
+
+  @@unique([boardId, studentId])
+  @@unique([boardId, slotNumber])
+  @@index([studentId])
+}
+
+// ── Event-signup reviews (ES-1, ES-9) ─────────────────────────────
+model SubmissionReview {
+  id           String   @id @default(cuid())
+  submissionId String
+  reviewerId   String
+  score        Int
+  comment      String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  reviewer   User       @relation(fields: [reviewerId], references: [id])
+
+  @@unique([submissionId, reviewerId])
+  @@index([submissionId])
+  @@index([reviewerId])
 }
 
 // ──── Quiz system ────
 
 model Quiz {
-  id          String   @id @default(cuid())
-  boardId     String
-  title       String   @default("")
-  sourceFile  String?  // uploaded PDF/PPT filename
-  sourceText  String?  // extracted text (for reference)
-  roomCode    String   @unique // 6-digit code for students to join
-  status      String   @default("waiting") // "waiting" | "active" | "finished"
-  currentQ    Int      @default(-1) // index of current question (-1 = not started)
-  createdAt   DateTime @default(now())
+  id           String   @id @default(cuid())
+  boardId      String
+  title        String   @default("")
+  sourceFile   String? // uploaded PDF/PPT filename
+  sourceText   String? // extracted text (for reference)
+  roomCode     String   @unique // 6-digit code for students to join
+  status       String   @default("waiting") // "waiting" | "active" | "finished"
+  currentQ     Int      @default(-1) // index of current question (-1 = not started)
+  difficulty   String? // "easy" | "medium" | "hard" (quiz-extensions B2)
+  parentQuizId String? // clone source Quiz.id — no FK so source delete is allowed (B4)
+  createdAt    DateTime @default(now())
 
   board     Board          @relation(fields: [boardId], references: [id], onDelete: Cascade)
   questions QuizQuestion[]
@@ -224,19 +402,20 @@ model Quiz {
 
   @@index([boardId])
   @@index([roomCode])
+  @@index([parentQuizId])
 }
 
 model QuizQuestion {
-  id       String @id @default(cuid())
-  quizId   String
-  order    Int    @default(0)
-  question String
-  optionA  String
-  optionB  String
-  optionC  String
-  optionD  String
-  answer   String // "A" | "B" | "C" | "D"
-  timeLimit Int   @default(20) // seconds
+  id        String @id @default(cuid())
+  quizId    String
+  order     Int    @default(0)
+  question  String
+  optionA   String
+  optionB   String
+  optionC   String
+  optionD   String
+  answer    String // "A" | "B" | "C" | "D"
+  timeLimit Int    @default(20) // seconds
 
   quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
   answers QuizAnswer[]
@@ -265,7 +444,7 @@ model QuizAnswer {
   id         String   @id @default(cuid())
   questionId String
   playerId   String
-  selected   String   // "A" | "B" | "C" | "D"
+  selected   String // "A" | "B" | "C" | "D"
   correct    Boolean
   timeMs     Int      @default(0) // answer time in ms
   createdAt  DateTime @default(now())
@@ -282,10 +461,10 @@ model QuizAnswer {
 
 model PlantSpecies {
   id         String   @id @default(cuid())
-  key        String   @unique   // "tomato", "strawberry" — program identifier
+  key        String   @unique // "tomato", "strawberry" — program identifier
   nameKo     String
   emoji      String
-  difficulty String   @default("easy")   // "easy" | "medium" | "hard"
+  difficulty String   @default("easy") // "easy" | "medium" | "hard"
   season     String   @default("spring") // "spring" | "summer" | "fall" | "winter" | "all"
   notes      String   @default("")
   createdAt  DateTime @default(now())
@@ -360,9 +539,10 @@ model PlantObservation {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  studentPlant StudentPlant            @relation(fields: [studentPlantId], references: [id], onDelete: Cascade)
-  stage        PlantStage              @relation(fields: [stageId], references: [id])
-  images       PlantObservationImage[]
+  studentPlant     StudentPlant            @relation(fields: [studentPlantId], references: [id], onDelete: Cascade)
+  stage            PlantStage              @relation(fields: [stageId], references: [id])
+  images           PlantObservationImage[]
+  assetAttachments AssetAttachment[]       @relation("PlantObservationAssetAttachments")
 
   @@index([studentPlantId])
   @@index([stageId])
@@ -380,4 +560,515 @@ model PlantObservationImage {
   observation PlantObservation @relation(fields: [observationId], references: [id], onDelete: Cascade)
 
   @@index([observationId])
+}
+
+// ──── Drawpile student-asset library (partial scope — schema + stub) ────
+// StudentAsset = a student-owned image (uploaded or produced by Drawpile).
+// classroomId is denormalized for fast classroom-scoped gallery scans.
+// source: "upload" (current path) | "drawpile" (set later when Drawpile fork
+// posts back via postMessage bridge — see docs/drawpile-protocol.md).
+model StudentAsset {
+  id              String   @id @default(cuid())
+  studentId       String
+  classroomId     String
+  title           String   @default("")
+  fileUrl         String
+  thumbnailUrl    String?
+  width           Int?
+  height          Int?
+  format          String   @default("image/png")
+  sizeBytes       Int      @default(0)
+  isSharedToClass Boolean  @default(false)
+  source          String   @default("upload")
+  drawpileFileId  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  student     Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  attachments AssetAttachment[]
+
+  @@index([studentId])
+  @@index([classroomId])
+  @@index([classroomId, isSharedToClass])
+}
+
+// CardAuthor = N:N join row between Card and Student, with a denormalised
+// displayName so author names survive student rename/soft-delete. Order
+// enforces a stable primary author (order=0) which Card.studentAuthorId +
+// Card.externalAuthorName mirror for backward-compatibility. See
+// tasks/2026-04-15-card-author-multi/phase3/design_doc.md §1.
+model CardAuthor {
+  id          String   @id @default(cuid())
+  cardId      String
+  studentId   String?
+  displayName String
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  card    Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  student Student? @relation("StudentCardAuthors", fields: [studentId], references: [id], onDelete: SetNull)
+
+  @@unique([cardId, studentId])
+  @@index([cardId, order])
+  @@index([studentId])
+}
+
+// AssetAttachment = join row linking a StudentAsset to a Card or
+// PlantObservation. Exactly one of (cardId, observationId) is expected to be
+// set at attach time. Both nullable to keep Prisma relation checks simple.
+model AssetAttachment {
+  id            String   @id @default(cuid())
+  assetId       String
+  cardId        String?
+  observationId String?
+  createdAt     DateTime @default(now())
+
+  asset       StudentAsset      @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  card        Card?             @relation("CardAssetAttachments", fields: [cardId], references: [id], onDelete: Cascade)
+  observation PlantObservation? @relation("PlantObservationAssetAttachments", fields: [observationId], references: [id], onDelete: Cascade)
+
+  @@index([assetId])
+  @@index([cardId])
+  @@index([observationId])
+}
+
+// ──── Breakout Room (BR-1 ~ BR-4) ────
+// BreakoutTemplate — reusable group-learning blueprints (8 system + teacher/school custom).
+// `structure` JSON schema:
+//   { sectionsPerGroup: [{title, role: "group-copy"|"role-expert"|"role-home",
+//                         defaultCards?: [{title, content}]}],
+//     sharedSections?: [{title, role: "teacher-pool"}] }
+// On board creation the structure is deep-cloned into Section rows → template
+// edits never retroactively affect existing boards (decisions Q6).
+model BreakoutTemplate {
+  id                    String   @id @default(cuid())
+  key                   String   @unique
+  name                  String
+  description           String
+  tier                  String   @default("free") // "free" | "pro"
+  requiresPro           Boolean  @default(false)
+  scope                 String   @default("system") // "system" | "teacher" | "school"
+  ownerId               String?
+  structure             Json
+  recommendedVisibility String   @default("own-only") // "own-only" | "peek-others"
+  defaultGroupCount     Int      @default(4)
+  defaultGroupCapacity  Int      @default(6)
+  createdAt             DateTime @default(now())
+
+  owner       User?                @relation("TemplateOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  assignments BreakoutAssignment[]
+
+  @@index([ownerId])
+  @@index([scope])
+}
+
+// BreakoutAssignment — one per Breakout Board. Tracks deploy + visibility state.
+model BreakoutAssignment {
+  id                 String   @id @default(cuid())
+  boardId            String   @unique
+  templateId         String
+  deployMode         String   @default("link-fixed") // "link-fixed" | "self-select" | "teacher-assign"
+  groupCount         Int      @default(4)
+  groupCapacity      Int      @default(6)
+  visibilityOverride String? // null = use template.recommendedVisibility
+  status             String   @default("active") // "active" | "archived"
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  board    Board                @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  template BreakoutTemplate     @relation(fields: [templateId], references: [id])
+  members  BreakoutMembership[]
+
+  @@index([templateId])
+}
+
+// BreakoutMembership — links a Student to their group Section (role for Jigsaw).
+// Foundation does not populate this; BR-5 (deploy modes) writes rows on self-select
+// or teacher-assign. `@@unique([sectionId, studentId])` prevents double-membership.
+model BreakoutMembership {
+  id           String   @id @default(cuid())
+  assignmentId String
+  sectionId    String
+  studentId    String
+  role         String? // "expert" | "home" (Jigsaw) | null
+  joinedAt     DateTime @default(now())
+
+  assignment BreakoutAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  section    Section            @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  student    Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([sectionId, studentId])
+  @@index([assignmentId])
+  @@index([studentId])
+}
+
+// ──── Parent Viewer Access (PV-1 ~ PV-5) ────
+// Seed 7 (2026-04-12-parent-viewer-access). Read-only viewer for guardians.
+// Crockford Base32 6-char invite codes + magic-link auth + 7-day sessions.
+// All queries in /parent/* must route through parentScopeMiddleware
+// (src/lib/parent-scope.ts). See canva project/plans/parent-viewer-roadmap.md
+// for the single-source-of-truth child-scope matrix.
+
+model Parent {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  name             String
+  tier             String    @default("free") // "free" | "pro"
+  parentDeletedAt  DateTime? // soft delete; 90d anonymization Cron (PV-11)
+  anonymizedAt     DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  children ParentChildLink[]
+  sessions ParentSession[]
+  invites  ParentInviteCode[] @relation("IssuedToEmail")
+
+  @@index([email])
+  @@index([parentDeletedAt])
+}
+
+// parent-class-invite-v2 — ParentLinkStatus lifecycle.
+//   pending  → (approve) → active
+//   pending  → (reject | code_rotated | auto_expired) → rejected
+//   active   → (teacher_revoked | classroom_deleted | year_end | parent_self_leave) → revoked
+// rejected/revoked are dead-end. See src/lib/parent-link-state.ts for the
+// transition validator used by every state-changing endpoint.
+enum ParentLinkStatus {
+  pending
+  active
+  rejected
+  revoked
+}
+
+// UI dropdown for teacher reject action exposes only the first 3 values.
+// System-originated reject uses code_rotated | auto_expired | classroom_deleted.
+enum ParentRejectedReason {
+  wrong_child
+  not_parent
+  other
+  code_rotated
+  auto_expired
+  classroom_deleted
+}
+
+// v1 had 3 revoked reasons; v2 adds 4 more (audit completeness — system
+// transitions that originate from pending→rejected ALSO get a matching
+// revokedReason row for downstream reporting).
+enum ParentRevokedReason {
+  teacher_revoked
+  year_end
+  parent_self_leave
+  rejected_by_teacher
+  auto_expired_pending
+  code_rotated
+  classroom_deleted
+}
+
+model ParentChildLink {
+  id             String                 @id @default(cuid())
+  parentId       String
+  studentId      String
+
+  // v2 lifecycle
+  status         ParentLinkStatus       @default(pending)
+
+  // audit — set as status transitions
+  requestedAt    DateTime               @default(now())
+  approvedAt     DateTime?
+  approvedById   String?
+  rejectedAt     DateTime?
+  rejectedById   String?
+  rejectedReason ParentRejectedReason?
+  revokedAt      DateTime?
+  revokedById    String?
+  revokedReason  ParentRevokedReason?
+
+  createdAt      DateTime               @default(now())
+  deletedAt      DateTime?              // soft delete (R-07 v1 compat)
+
+  parent     Parent  @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  student    Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  approvedBy User?   @relation("LinkApprovedBy", fields: [approvedById], references: [id])
+  rejectedBy User?   @relation("LinkRejectedBy", fields: [rejectedById], references: [id])
+  revokedBy  User?   @relation("LinkRevokedBy",  fields: [revokedById],  references: [id])
+
+  @@unique([parentId, studentId])
+  @@index([studentId])
+  @@index([parentId])
+  @@index([status, requestedAt])
+  @@index([deletedAt])
+}
+
+// parent-class-invite-v2 — classroom-scoped invite code.
+// One active (rotatedAt IS NULL) row per classroom, enforced by a partial
+// unique index declared in the migration SQL (Prisma schema doesn't support
+// partial uniques directly).
+model ClassInviteCode {
+  id          String    @id @default(cuid())
+  classroomId String
+  code        String    @unique
+  codeHash    String    @unique
+  issuedById  String
+  expiresAt   DateTime?
+  maxUses     Int?
+  rotatedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  issuedBy  User      @relation("ClassInviteIssued", fields: [issuedById], references: [id])
+
+  @@index([classroomId])
+  @@index([rotatedAt])
+}
+
+model ParentInviteCode {
+  id             String    @id @default(cuid())
+  studentId      String
+  issuedByUserId String // teacher
+  code           String    @unique // Crockford Base32 6 chars, normalized upper
+  codeHash       String    @unique // sha256 — timing-safe verify + revoke safety
+  maxUses        Int       @default(3)
+  usesCount      Int       @default(0)
+  failedAttempts Int       @default(0) // auto-revoke at 10
+  expiresAt      DateTime // +48h from issue
+  revokedAt      DateTime?
+  boundToEmail   String? // optional binding (teacher knows parent email)
+  createdAt      DateTime  @default(now())
+
+  student  Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  issuedBy User    @relation("TeacherInvite", fields: [issuedByUserId], references: [id])
+  parent   Parent? @relation("IssuedToEmail", fields: [boundToEmail], references: [email])
+
+  @@index([studentId])
+  @@index([expiresAt])
+  @@index([boundToEmail])
+}
+
+model ParentSession {
+  id               String    @id @default(cuid())
+  parentId         String
+  sessionToken     String    @unique // plaintext cookie value (32-byte base64url)
+  tokenHash        String    @unique // sha256 of sessionToken
+  userAgent        String?
+  ipHash           String?
+  expiresAt        DateTime // +7d
+  sessionRevokedAt DateTime?
+  createdAt        DateTime  @default(now())
+  lastSeenAt       DateTime?
+
+  parent Parent @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@index([parentId])
+  @@index([sessionToken])
+  @@index([tokenHash])
+  @@index([expiresAt])
+}
+
+// ──── OAuth 2.0 Provider (Seed — oauth2-provider task) ────
+// Aura acts as an OAuth 2.0 Authorization Server for the Canva Content
+// Publisher app. Students log into Aura, grant the Canva app `cards:write`
+// via an on-device consent screen, then Canva exchanges the auth code for
+// an access + refresh token pair that is STUDENT-scoped (not teacher-PAT).
+// This replaces bundling a shared teacher PAT in the Canva app binary.
+//
+// Protocol: RFC 6749 Authorization Code + RFC 7636 PKCE (S256).
+// Canva-specific details: https://www.canva.dev/docs/apps/authenticating-users/oauth/
+// See src/lib/oauth-server.ts for the runtime helpers.
+
+model OAuthClient {
+  id            String   @id          // e.g. "canva" — visible client_id
+  name          String
+  // bcrypt hash of the client secret. Client secrets are rotated by
+  // regenerating this row; no plaintext is kept.
+  secretHash    String
+  // JSON-encoded array of absolute redirect URIs the client is allowed to
+  // receive authorization codes at. Canva registers exactly one per app.
+  redirectUris  String
+  // JSON-encoded array of scope strings (e.g. ["cards:write"]). Authorize
+  // requests are rejected if they request a scope not in this list.
+  scopes        String
+  pkceRequired  Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+
+  authCodes     OAuthAuthCode[]
+  accessTokens  OAuthAccessToken[]
+  refreshTokens OAuthRefreshToken[]
+}
+
+model OAuthAuthCode {
+  // 40-char base64url random — surfaced as `code` query param to Canva.
+  // One-shot: consumedAt is set on the first /oauth/token exchange. Re-use
+  // triggers invalidation of the linked access/refresh tokens per RFC 6749.
+  code                String    @id
+  studentId           String
+  clientId            String
+  redirectUri         String
+  scope               String
+  codeChallenge       String    // PKCE S256 base64url
+  codeChallengeMethod String    @default("S256")
+  state               String?   // opaque, echoed back; stored for audit
+  expiresAt           DateTime  // +10 min from issuance
+  consumedAt          DateTime?
+  createdAt           DateTime  @default(now())
+
+  student Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  client  OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([clientId])
+  @@index([expiresAt])
+}
+
+model OAuthAccessToken {
+  // SHA-256 hex of the plaintext token. Plaintext is only ever returned in
+  // the token exchange response and never stored.
+  tokenHash     String    @id
+  // 8-char base62 prefix extracted from plaintext — O(1) lookup index. The
+  // plaintext returned to Canva is `aurastu_{prefix}_{secret}`.
+  tokenPrefix   String    @unique
+  studentId     String
+  clientId      String
+  scope         String
+  expiresAt     DateTime  // +30 days default
+  revokedAt     DateTime?
+  // When this access token was rotated out of a refresh_token grant we keep
+  // the id of the new refresh token so audits can trace chains.
+  refreshTokenId String?
+  createdAt     DateTime  @default(now())
+  lastUsedAt    DateTime?
+
+  student Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  client  OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([tokenPrefix])
+  @@index([studentId])
+  @@index([expiresAt])
+}
+
+model OAuthRefreshToken {
+  tokenHash     String    @id
+  tokenPrefix   String    @unique
+  studentId     String
+  clientId      String
+  scope         String
+  expiresAt     DateTime  // +180 days default
+  revokedAt     DateTime?
+  // Parent refresh token (set when the current token was rotated out of a
+  // prior refresh grant). Used to detect refresh-token reuse attacks — if a
+  // revoked refresh is presented, we also revoke the chain.
+  parentTokenHash String?
+  createdAt     DateTime  @default(now())
+
+  student Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  client  OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([tokenPrefix])
+  @@index([studentId])
+  @@index([expiresAt])
+}
+
+// Maps a Canva user (per the Canva Apps SDK's getCanvaUserToken JWT `sub`
+// claim) to one of our Student rows. Populated during OAuth consent when
+// the student authorizes the Canva app. Backend uses this table to resolve
+// Canva JWT Bearer tokens to an Aura-board student for external/* routes.
+model CanvaAppLink {
+  canvaUserId String   @id
+  studentId   String   @unique
+  scope       String   @default("cards:write")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+}
+
+// ──── Assessment (performance-assessment-autograde MVP-0) ────
+
+model AssessmentTemplate {
+  id          String   @id @default(cuid())
+  classroomId String
+  boardId     String?  // Board(layout="assessment") shell link. nullable — template can exist without a board.
+  title       String
+  durationMin Int      @default(30)
+  createdById String   // teacher User.id
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  classroom   Classroom              @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  questions   AssessmentQuestion[]
+  submissions AssessmentSubmission[]
+
+  @@index([classroomId])
+  @@index([boardId])
+}
+
+model AssessmentQuestion {
+  id         String   @id @default(cuid())
+  templateId String
+  order      Int
+  kind       String // MVP-0 accepts "MCQ" only; future: "SHORT"|"OX"|"NUMERIC"|"ESSAY".
+  prompt     String
+  // MCQ payload: { choices: [{id, text}], correctChoiceIds: string[] }
+  payload    Json
+  maxScore   Int      @default(1)
+  createdAt  DateTime @default(now())
+
+  template AssessmentTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  answers  AssessmentAnswer[]
+
+  @@unique([templateId, order])
+  @@index([templateId])
+}
+
+model AssessmentSubmission {
+  id          String    @id @default(cuid())
+  templateId  String
+  studentId   String
+  status      String    @default("in_progress") // "in_progress" | "submitted"
+  startedAt   DateTime  @default(now())
+  endAt       DateTime  // = startedAt + durationMin
+  submittedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  template       AssessmentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  student        Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  answers        AssessmentAnswer[]
+  gradebookEntry GradebookEntry?
+
+  @@unique([templateId, studentId])
+  @@index([templateId])
+  @@index([studentId])
+  @@index([status])
+}
+
+model AssessmentAnswer {
+  id           String   @id @default(cuid())
+  submissionId String
+  questionId   String
+  // MCQ payload: { selectedChoiceIds: string[] }
+  payload      Json
+  autoScore    Int?
+  updatedAt    DateTime @updatedAt
+
+  submission AssessmentSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  question   AssessmentQuestion   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, questionId])
+  @@index([submissionId])
+}
+
+model GradebookEntry {
+  id           String    @id @default(cuid())
+  submissionId String    @unique
+  finalScore   Int
+  releasedAt   DateTime? // Classroom.gradebookReleasePolicy="teacher_manual" gate
+  createdById  String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  submission AssessmentSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([releasedAt])
 }

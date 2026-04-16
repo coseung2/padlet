@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { DraggableCard, type CardData } from "./DraggableCard";
 import { AddCardButton } from "./AddCardButton";
+import { CardDetailModal } from "./cards/CardDetailModal";
+import { CardAuthorEditor, type SavedAuthor } from "./cards/CardAuthorEditor";
 
 type Role = "owner" | "editor" | "viewer";
 
@@ -11,6 +13,8 @@ type Props = {
   initialCards: CardData[];
   currentUserId: string;
   currentRole: Role;
+  isStudentViewer?: boolean;
+  classroomId?: string | null;
 };
 
 export function BoardCanvas({
@@ -18,10 +22,18 @@ export function BoardCanvas({
   initialCards,
   currentUserId,
   currentRole,
+  isStudentViewer,
+  classroomId,
 }: Props) {
   const [cards, setCards] = useState<CardData[]>(initialCards);
+  const [openCard, setOpenCard] = useState<CardData | null>(null);
+  const [authorEditCard, setAuthorEditCard] = useState<CardData | null>(null);
   const [, startTransition] = useTransition();
   const canEdit = currentRole === "owner" || currentRole === "editor";
+  // Students (role=viewer) can add cards on their own classroom's board.
+  // The POST /api/cards endpoint accepts the student_session cookie and
+  // stamps authorship via studentAuthorId + externalAuthorName.
+  const canAddCard = canEdit || !!isStudentViewer;
 
   function handlePositionChange(id: string, x: number, y: number) {
     let prevX = 0;
@@ -71,6 +83,7 @@ export function BoardCanvas({
     linkImage?: string;
     videoUrl?: string;
     color?: string;
+    attachAssetId?: string;
   }) {
     const nextPos = {
       x: 40 + (cards.length % 3) * 280,
@@ -97,6 +110,15 @@ export function BoardCanvas({
       if (res.ok) {
         const { card } = await res.json();
         setCards((prev) => [...prev, card]);
+        if (data.attachAssetId) {
+          // Fire-and-forget: create AssetAttachment row. Card already has the
+          // imageUrl from the picker so failures here are cosmetic.
+          void fetch(`/api/student-assets/${data.attachAssetId}/attach`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ cardId: card.id }),
+          }).catch(() => {});
+        }
       } else {
         const msg = await res.text();
         console.error("카드 추가 실패:", msg);
@@ -143,14 +165,46 @@ export function BoardCanvas({
             canEdit={canEdit}
             canDelete={
               currentRole === "owner" ||
-              (currentRole === "editor" && c.authorId === currentUserId)
+              (currentRole === "editor" && c.authorId === currentUserId) ||
+              // Student-authored card — let the student delete their own
+              // publish even though they come in as role=viewer. Matches
+              // the DELETE /api/cards/:id student-auth path.
+              c.studentAuthorId === currentUserId
             }
             onPositionChange={(x, y) => handlePositionChange(c.id, x, y)}
             onDelete={() => handleDelete(c.id)}
+            onOpen={() => setOpenCard(c)}
           />
         ))}
       </div>
-      {canEdit && <AddCardButton onAdd={handleAdd} />}
+      {canAddCard && <AddCardButton onAdd={handleAdd} />}
+      <CardDetailModal
+        card={openCard}
+        onClose={() => setOpenCard(null)}
+        cards={cards}
+        onChange={setOpenCard}
+        onEditAuthors={canEdit ? (c) => setAuthorEditCard(c) : undefined}
+      />
+      {authorEditCard && (
+        <CardAuthorEditor
+          cardId={authorEditCard.id}
+          classroomId={classroomId ?? null}
+          initialAuthors={(authorEditCard.authors ?? []).map((a) => ({
+            id: a.id,
+            studentId: a.studentId,
+            displayName: a.displayName,
+            order: a.order,
+          }))}
+          onSaved={(authors: SavedAuthor[]) => {
+            setCards((prev) =>
+              prev.map((c) =>
+                c.id === authorEditCard.id ? { ...c, authors } : c
+              )
+            );
+          }}
+          onClose={() => setAuthorEditCard(null)}
+        />
+      )}
     </div>
   );
 }

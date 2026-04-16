@@ -11,6 +11,9 @@ coverage/
 .env
 .env.local
 .env.*.local
+.env.production
+.env.preview
+.env.development
 
 *.log
 .DS_Store
@@ -28,3 +31,10 @@ public/uploads/*
 !public/uploads/.gitkeep
 .vercel
 .worktrees/
+
+# Session-pulled env (contains pepper, DB URL, etc.) — never commit
+.env.prod
+
+# Private one-off scripts (PAT issuance, DB inspection). Underscore prefix
+# marks them as not for distribution.
+scripts/_*

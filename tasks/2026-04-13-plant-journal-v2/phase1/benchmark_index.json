@@ -1,0 +1,36 @@
+{
+  "references": [
+    {
+      "id": "github-issue-timeline",
+      "url": "https://docs.github.com/en/issues/tracking-your-work-with-issues",
+      "pattern": "vertical-timeline-inline-entries",
+      "relevance": "Vertical rail with content rendered inline per event. Matches Part A target layout.",
+      "captured_at": null
+    },
+    {
+      "id": "notion-timeline-block",
+      "url": "https://www.notion.so/help/timeline-view",
+      "pattern": "vertical-timeline-inline-entries",
+      "relevance": "Inline milestone blocks with per-milestone content editable in place."
+    },
+    {
+      "id": "google-classroom-student-row",
+      "url": "https://support.google.com/edu/classroom/answer/6020294",
+      "pattern": "teacher-drilldown-from-student-row",
+      "relevance": "Teachers click a student in the grades/classwork list to drill into that student's submission view — analogous to Part B."
+    },
+    {
+      "id": "seesaw-teacher-view",
+      "url": "https://web.seesaw.me/teachers",
+      "pattern": "teacher-edit-on-behalf",
+      "relevance": "Teacher can add/edit journal items under a student account. Attribution is subtle."
+    },
+    {
+      "id": "linear-roadmap-vertical",
+      "url": "https://linear.app/docs/project-timeline",
+      "pattern": "vertical-rail-sticky-optional",
+      "relevance": "Considered for P2 sticky rail; not adopted in v2."
+    }
+  ],
+  "note": "No live captures taken in this worktree (no /browse skill available). Patterns validated against documentation + first-party behaviour knowledge."
+}

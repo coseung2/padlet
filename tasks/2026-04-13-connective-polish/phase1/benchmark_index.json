@@ -1,0 +1,29 @@
+{
+  "references": [
+    {
+      "product": "Seesaw",
+      "url": "https://web.seesaw.me/",
+      "pattern": "3-way CTA on landing (Family / Student / Teacher)",
+      "relevance": "subscope_C primary reference"
+    },
+    {
+      "product": "Padlet (original)",
+      "url": "https://padlet.com/",
+      "pattern": "Single Google OAuth + separate share-link entry",
+      "relevance": "baseline we are diverging from"
+    },
+    {
+      "product": "Canva Apps SDK docs",
+      "url": "https://www.canva.dev/docs/apps/api/platform-request-open-external-url/",
+      "pattern": "requestOpenExternalUrl replaces window.open in iframe-sandboxed apps",
+      "relevance": "subscope_B API contract"
+    },
+    {
+      "product": "/api/external/cards (this repo)",
+      "url": "internal: src/app/api/external/cards/route.ts",
+      "pattern": "PAT + student_session dual-gate, 403 on classroom mismatch",
+      "relevance": "subscope_A pattern to mirror on boards + sections"
+    }
+  ],
+  "captured_at": "2026-04-13T00:10:00+09:00"
+}

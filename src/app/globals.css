@@ -1,4 +1,5 @@
 @import "../styles/base.css";
+@import "../styles/tokens-responsive.css";
 @import "../styles/layout.css";
 @import "../styles/card.css";
 @import "../styles/modal.css";
@@ -17,4 +18,11 @@
 
 @import "../styles/plant.css";
 
+@import "../styles/side-panel.css";
+
 @import "../styles/responsive.css";
+
+@import "../styles/optimized-image.css";
+
+@import "../styles/drawing.css";
+@import "../styles/assessment.css";

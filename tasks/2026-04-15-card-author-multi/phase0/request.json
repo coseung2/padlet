@@ -1,0 +1,48 @@
+{
+  "task_id": "2026-04-15-card-author-multi",
+  "type": "feature",
+  "date": "2026-04-15",
+  "initiator": "user",
+  "title": "카드 작성자 지정 + 공동 작성자 (A+C) 정식 구현",
+  "problem_statement": "현재 Card 는 단일 `studentAuthorId` (FK, parent-viewer 연결용) + 자유 `externalAuthorName` (표시 이름) 만 가짐. 공동 작성자(여러 학생) 를 표현하려면 externalAuthorName 에 '오경민, 서현우' 처럼 문자열로 박아야 하고, 이 경우 (a) 두 번째 학생의 학부모가 자녀 카드로 볼 방법 없음, (b) 학생 삭제/전학 시 이름이 stale 됨, (c) 파싱 규칙이 없어 표시/연결 불일치 가능. 교사가 이미 올라간 카드의 작성자를 변경(A) + 공동 작성자 다수 지정(C) 하는 UX 도 부재.",
+  "goal": "`CardAuthor` 관계형 join 테이블을 도입하여 N:N (Card ↔ Student) 공동 작성자를 정식 표현. parent-scope.ts 가 join 을 타서 공동 작성자의 학부모도 자녀 카드를 조회 가능. 기존 `Card.studentAuthorId` 는 primary (order=0) 미러로 유지 → 하위 호환성 보존. 교사용 CardAuthorEditor 모달을 카드 ⋯ 메뉴에 추가 (A+C).",
+  "scope_hints": {
+    "must_add": [
+      "Prisma 모델 CardAuthor { id, cardId, studentId?, displayName, order, createdAt }",
+      "마이그레이션: CREATE TABLE + v1 backfill (Card.studentAuthorId → CardAuthor order=0)",
+      "PUT /api/cards/[id]/authors — 전체 교체 semantics (teacher only)",
+      "parent-scope.ts 확장 — studentAuthorId OR CardAuthor.studentId",
+      "CardAuthorEditor modal — 학급 학생 multi-select + reorder + free-form 추가 이름",
+      "CardAuthor 렌더 로직 — 다중 이름 chip + 'N명' 축약",
+      "ContextMenu '작성자 지정' 항목 (ColumnsBoard/BoardCanvas/GridBoard/StreamBoard)",
+      "Vitest 커버: CardAuthor CRUD + parent-scope 공동작성자 visibility"
+    ],
+    "must_preserve": [
+      "Card.studentAuthorId (primary 미러로 지속)",
+      "Card.externalAuthorName (primary displayName 미러로 지속 — 하위 호환)",
+      "POST /api/cards student path (자동으로 CardAuthor 1행 생성)",
+      "POST /api/external/cards Canva publish (자동 CardAuthor 1행 생성)",
+      "identity × card-permissions primitive — canEditCard 판정은 primary studentAuthorId 로 유지 (학생은 자기 primary 카드만 편집 가능)",
+      "parent-v2 status='active' narrowing"
+    ],
+    "out_of_scope": [
+      "primary 외 공동 작성자에게도 편집 권한 부여 (복잡도 폭발 — v2)",
+      "assignment-board AssignmentSlot 에 공동 작성자 도입 (slot = 1 학생 설계 철학 유지)",
+      "event-signup submissions 공동 신청자 (별 모델)",
+      "UI 의 isStudentViewer prop 제거 (role-cleanup 의 잔여 — 별 task)"
+    ]
+  },
+  "success_criteria_raw": [
+    "교사가 카드 ⋯ → '작성자 지정' 클릭 시 CardAuthorEditor 모달 열림",
+    "학급 연결 보드면 학급 학생 multi-select + reorder + optional display 텍스트",
+    "학급 미연결 보드면 display 텍스트만",
+    "저장 시 Card.studentAuthorId + Card.externalAuthorName + CardAuthor rows 3층 일관성 유지",
+    "학부모 A 가 자녀 primary 카드 + 공동 작성자 카드 모두 자녀 페이지에서 봄",
+    "학생 B 가 공동 작성자 카드 편집 시도 → 403 (primary 만 편집 가능)",
+    "Vitest 12+ 테스트 pass",
+    "tsc + build green",
+    "parent-scope.ts 기존 parent-v2 narrowing 보존",
+    "카드 렌더 footer 가 복수 작성자 이름 표시"
+  ],
+  "notes_for_researcher": "phase1 에서 확인 필요: (1) Card 에 author 추가 필드 없는지, (2) CardAuthorFooter / pickAuthorName 구조, (3) parent-scope.ts 의 ParentChildLink → Student → Card 쿼리 체인, (4) POST /api/external/cards 의 authorName 매핑, (5) 모달 재사용 가능한 classroom 학생 로더 있는지."
+}

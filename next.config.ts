@@ -13,6 +13,31 @@ const FRAME_SRC_ALLOWLIST = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   allowedDevOrigins: ["127.0.0.1", "egestive-sharron-farrandly.ngrok-free.dev"],
+  images: {
+    // Thumbnails we optimize via next/image. All other external hosts
+    // must flow through /api/canva/thumbnail (proxy) or be proxied
+    // through our own origin.
+    remotePatterns: [
+      { protocol: "https", hostname: "www.canva.com", pathname: "/**" },
+      { protocol: "https", hostname: "canva.com", pathname: "/**" },
+      { protocol: "https", hostname: "document-export.canva.com", pathname: "/**" },
+      { protocol: "https", hostname: "**.canva.com", pathname: "/**" },
+      { protocol: "https", hostname: "**.canva-web-files.com", pathname: "/**" },
+      // YouTube thumbnails (used for video preview posters)
+      { protocol: "https", hostname: "i.ytimg.com", pathname: "/**" },
+      { protocol: "https", hostname: "img.youtube.com", pathname: "/**" },
+      // Vercel Blob — Canva publisher PNGs and other uploaded assets.
+      // Each Blob store gets a unique <prefix>.public.blob.vercel-storage.com
+      // host, so wildcard the subdomain.
+      { protocol: "https", hostname: "**.public.blob.vercel-storage.com", pathname: "/**" },
+    ],
+    // Device size variants used to build the srcset for responsive images.
+    // Galaxy Tab S6 Lite viewport (1500×2000 CSS, DPR 2) is covered by
+    // 640/750/828/1080 widths.
+    deviceSizes: [360, 640, 750, 828, 1080, 1200, 1920],
+    imageSizes: [16, 32, 64, 96, 160, 320, 480, 640],
+    formats: ["image/webp"],
+  },
   async headers() {
     return [
       {
@@ -22,6 +47,32 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: `frame-src ${FRAME_SRC_ALLOWLIST.join(" ")}`,
           },
+        ],
+      },
+      // CORS for Canva Apps SDK origin. We need credentialed requests so the
+      // Aura student_session cookie rides along and the server can attribute
+      // the card to the logged-in student. Credentials require a concrete
+      // origin — wildcard origin + credentials is rejected by browsers.
+      // Canva hosts each app on a unique subdomain of canva-apps.com, so we
+      // match the two origins that matter for this app specifically.
+      {
+        source: "/api/external/:path*",
+        headers: [
+          {
+            key: "Access-Control-Allow-Origin",
+            value: "https://app-aahaamw43f4.canva-apps.com",
+          },
+          {
+            key: "Access-Control-Allow-Credentials",
+            value: "true",
+          },
+          { key: "Access-Control-Allow-Methods", value: "GET, POST, OPTIONS" },
+          {
+            key: "Access-Control-Allow-Headers",
+            value: "Authorization, Content-Type",
+          },
+          { key: "Access-Control-Max-Age", value: "86400" },
+          { key: "Vary", value: "Origin" },
         ],
       },
     ];

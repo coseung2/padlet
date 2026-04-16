@@ -1,0 +1,347 @@
+/* ── SidePanel primitive ───────────────────────────── */
+
+.side-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 90;
+  border: 0;
+  cursor: default;
+  padding: 0;
+}
+
+.side-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 420px;
+  max-width: 100%;
+  background: var(--color-surface);
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.08), var(--shadow-card);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(0);
+  transition: transform 250ms ease-out;
+}
+
+@media (max-width: 767px) {
+  .side-panel {
+    top: auto;
+    left: 0;
+    right: 0;
+    width: auto !important;
+    max-height: 85vh;
+    border-radius: 16px 16px 0 0;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .side-panel {
+    transition: none;
+  }
+}
+
+.side-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--color-border);
+  flex: 0 0 auto;
+}
+
+.side-panel-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--color-text);
+}
+
+.side-panel-close {
+  background: none;
+  border: 0;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  color: var(--color-text-muted);
+  border-radius: 6px;
+}
+
+.side-panel-close:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+}
+
+.side-panel-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+
+.side-panel-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--color-border);
+  flex: 0 0 auto;
+}
+
+/* ── Tablist (used by SectionActionsPanel) ───────────── */
+
+.side-panel-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--color-border);
+  flex: 0 0 auto;
+  background: var(--color-bg);
+}
+
+.side-panel-tab {
+  background: none;
+  border: 0;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.side-panel-tab:hover {
+  color: var(--color-text);
+}
+
+.side-panel-tab[aria-selected="true"] {
+  color: var(--color-text);
+  border-bottom-color: var(--color-accent);
+  background: var(--color-surface);
+}
+
+.side-panel-tab.danger[aria-selected="true"] {
+  color: var(--color-danger, #c62828);
+  border-bottom-color: var(--color-danger, #c62828);
+}
+
+/* ── Section actions trigger in ColumnsBoard header ──── */
+
+.section-actions-trigger {
+  background: none;
+  border: 0;
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 8px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  border-radius: 6px;
+}
+
+.section-actions-trigger:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+}
+
+/* ── Section rename / delete tab styles ──────────────── */
+
+.section-rename-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.section-rename-form label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.section-rename-form input {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-btn);
+  font-size: 14px;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.section-rename-form input:focus {
+  outline: 2px solid var(--color-accent-tinted-text);
+  outline-offset: 2px;
+}
+
+.section-rename-form .actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.section-rename-form button[type="submit"] {
+  background: var(--color-accent);
+  color: #fff;
+  border: 0;
+  padding: 10px 16px;
+  border-radius: var(--radius-btn);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.section-rename-form button[type="submit"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.section-delete-confirm {
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.section-delete-confirm p {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.section-delete-confirm .checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.section-delete-btn {
+  background: var(--color-danger, #c62828);
+  color: #fff;
+  border: 0;
+  padding: 10px 16px;
+  border-radius: var(--radius-btn);
+  font-weight: 600;
+  cursor: pointer;
+  align-self: flex-end;
+}
+
+.section-delete-btn:hover:not(:disabled) {
+  background: var(--color-danger-active, #a01b1b);
+}
+
+.section-delete-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.section-panel-notice {
+  padding: 12px;
+  border-radius: var(--radius-card);
+  background: var(--color-surface-alt);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+/* ── Board settings (gear launcher + panel rows) ─────── */
+
+.board-settings-trigger {
+  background: none;
+  border: 0;
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 8px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  border-radius: 6px;
+  margin-left: 4px;
+}
+
+.board-settings-trigger:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+}
+
+.board-settings-trigger:focus-visible {
+  outline: 2px solid var(--color-accent-tinted-text);
+  outline-offset: 2px;
+}
+
+.board-settings-tab-meta {
+  font-weight: 400;
+  color: var(--color-text-muted);
+  margin-left: 2px;
+  font-size: 12px;
+}
+
+.board-settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.board-settings-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+}
+
+.board-settings-row-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.board-settings-row-name {
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.board-settings-row-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.board-settings-row-badge.on {
+  background: var(--color-accent-tinted, #e0f2fe);
+  color: var(--color-accent-tinted-text, #0369a1);
+}
+
+.board-settings-row-badge.off {
+  background: var(--color-surface-alt);
+  color: var(--color-text-muted);
+}
+
+.board-settings-empty,
+.board-settings-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.board-settings-empty p,
+.board-settings-placeholder p {
+  margin: 0;
+}

@@ -1,0 +1,17 @@
+{
+  "type": "feature",
+  "slug": "board-settings-panel",
+  "task_id": "2026-04-13-board-settings-panel",
+  "change_type": "enhancement",
+  "motivation": "섹션 레벨 ⋯ 메뉴에 들어있는 브레이크아웃(섹션 격리 공유)은 사실 보드 전체 설정의 성격이다. 섹션 헤더에는 ⋯가 중복 렌더되고(Canva 컨텍스트 메뉴 + SectionActionsPanel 트리거), 공유 링크는 보드 소유자만 다루는 기능이라 섹션 단위 진입점이 UX를 흐린다. 브레이크아웃을 보드 레벨 설정 패널로 승격하고 섹션 ⋯를 rename/delete + Canva 옵션 단일 메뉴로 정리해 보드 헤더에 ⚙ 버튼 하나로 모둠 모드/링크 관리를 끝낼 수 있게 한다.",
+  "user_story": "보드 소유자로서 보드 헤더의 ⚙ 버튼을 눌러 모든 섹션의 공유 링크를 한 곳에서 관리하고, 섹션 헤더의 ⋯은 rename/delete/Canva 액션만 보여주길 원한다.",
+  "success_metric": "owner/editor 전원이 보드 헤더 ⚙ → BoardSettingsPanel '브레이크아웃' 탭에서 N개 섹션 전원의 토큰 generate/rotate/copy 3동작을 수행할 수 있고, columns 보드 섹션 헤더에는 ⋯ 트리거가 정확히 1개만 렌더되며(viewer는 0개), `/s/[sectionId]/share` fallback 배너는 ⚙ 경로로 문구가 업데이트되고, `npm run build`+`npx tsc --noEmit`이 모두 성공한다.",
+  "affected_surfaces": [
+    "/board/[id] (BoardHeader 내 EditableTitle 우측 ⚙ 버튼 신설)",
+    "src/components/BoardSettingsPanel.tsx (신규)",
+    "src/components/SectionActionsPanel.tsx (공유 탭 제거)",
+    "src/components/ColumnsBoard.tsx (⋯ 중복 해소, Canva 옵션 통합)",
+    "src/app/board/[id]/s/[sectionId]/share/page.tsx (안내 문구 업데이트)"
+  ],
+  "created_at": "2026-04-13T10:00:00+09:00"
+}

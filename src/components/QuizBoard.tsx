@@ -1,6 +1,10 @@
 "use client";
 
-import { memo, useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { memo, useState, useEffect, useMemo } from "react";
+import { QuizGenerateModal } from "@/components/quiz/QuizGenerateModal";
+import { QuizReportModal } from "@/components/quiz/QuizReportModal";
+import { QuizDraftEditor } from "@/components/quiz/QuizDraftEditor";
+import type { QuizDraftQuestion } from "@/types/quiz";
 
 export type QuizQuestion = {
   id: string;
@@ -21,7 +25,7 @@ export type QuizData = {
 };
 
 type Props = { boardId: string; quizzes: QuizData[] };
-type LLMSettings = { provider: "openai" | "anthropic"; apiKey: string };
+type LLMSettings = { provider: "openai" | "anthropic" | "gemini"; apiKey: string };
 
 const OPT_COLORS = ["#e21b3c", "#1368ce", "#d89e00", "#26890c"];
 const OPT_LABELS = ["A", "B", "C", "D"];
@@ -30,13 +34,12 @@ export function QuizBoard({ boardId, quizzes: initial }: Props) {
   const [quizzes, setQuizzes] = useState<QuizData[]>(initial);
   const [showLLM, setShowLLM] = useState(false);
   const [llm, setLlm] = useState<LLMSettings>({ provider: "openai", apiKey: "" });
-  const [text, setText] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [dragOver, setDragOver] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const [showGenerate, setShowGenerate] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+  const [editing, setEditing] = useState<QuizDraftQuestion[] | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
   const [copied, setCopied] = useState(false);
   const [dist, setDist] = useState<Record<string, number>>({});
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const quiz = quizzes[0] ?? null;
 
@@ -107,18 +110,81 @@ export function QuizBoard({ boardId, quizzes: initial }: Props) {
     document.cookie = `llm_api_key=${encodeURIComponent(s.apiKey)};path=/;max-age=31536000;SameSite=Lax`;
   }
 
-  async function handleCreate() {
-    setCreating(true);
+  function handleCreated(nq: { id: string } & Record<string, unknown>) {
+    // The API returns the raw Prisma shape; we normalize to the client
+    // QuizData (drops source fields we don't render, maps option letters
+    // to correctIndex) so SSE/render code can keep its existing types.
+    const answerToIndex: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 };
+    const raw = nq as unknown as {
+      id: string;
+      title: string;
+      roomCode: string;
+      status: "waiting" | "active" | "finished";
+      currentQ: number;
+      questions: Array<{
+        id: string;
+        question: string;
+        optionA: string;
+        optionB: string;
+        optionC: string;
+        optionD: string;
+        answer: string;
+        timeLimit: number;
+      }>;
+    };
+    const normalized: QuizData = {
+      id: raw.id,
+      title: raw.title,
+      roomCode: raw.roomCode,
+      status: raw.status,
+      currentQuestionIndex: raw.currentQ,
+      questions: raw.questions.map((qn) => ({
+        id: qn.id,
+        text: qn.question,
+        options: [qn.optionA, qn.optionB, qn.optionC, qn.optionD],
+        correctIndex: answerToIndex[qn.answer] ?? 0,
+        timeLimit: qn.timeLimit,
+      })),
+      players: [],
+    };
+    setQuizzes([normalized]);
+  }
+
+  function openEditor() {
+    if (!quiz) return;
+    setEditing(
+      quiz.questions.map((q) => ({
+        question: q.text,
+        optionA: q.options[0] ?? "",
+        optionB: q.options[1] ?? "",
+        optionC: q.options[2] ?? "",
+        optionD: q.options[3] ?? "",
+        answer: ["A", "B", "C", "D"][q.correctIndex] ?? "A",
+      }))
+    );
+  }
+
+  async function saveEdits(edited: QuizDraftQuestion[]) {
+    if (!quiz) return;
+    setSavingEdit(true);
     try {
-      const fd = new FormData();
-      fd.append("boardId", boardId);
-      fd.append("text", text);
-      if (file) fd.append("file", file);
-      const res = await fetch("/api/quiz/create", { method: "POST", body: fd });
-      if (res.ok) { const { quiz: nq } = await res.json(); setQuizzes([nq]); setText(""); setFile(null); }
-      else alert(`퀴즈 생성 실패: ${await res.text()}`);
-    } catch { alert("퀴즈 생성 중 오류가 발생했습니다."); }
-    finally { setCreating(false); }
+      const res = await fetch(`/api/quiz/${quiz.id}/questions`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ questions: edited }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message ?? err.error ?? `HTTP ${res.status}`);
+      }
+      const { quiz: u } = await res.json();
+      handleCreated(u);
+      setEditing(null);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "저장 실패");
+    } finally {
+      setSavingEdit(false);
+    }
   }
 
   async function action(a: "start" | "next" | "finish") {
@@ -132,34 +198,29 @@ export function QuizBoard({ boardId, quizzes: initial }: Props) {
     } catch (e) { console.error(e); }
   }
 
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault(); setDragOver(false);
-    const f = e.dataTransfer.files[0];
-    if (f && (f.type === "application/pdf" || f.type.startsWith("text/"))) setFile(f);
-  }, []);
-
   // ---- No quiz yet ----
   if (!quiz) {
     return (
       <div className="board-canvas-wrap"><div className="quiz-board">
-        <div className={`quiz-upload ${dragOver ? "drag-over" : ""}`}
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)} onDrop={onDrop}
-          onClick={() => fileRef.current?.click()}>
-          <div className="quiz-upload-icon">📄</div>
-          <div className="quiz-upload-title">{file ? file.name : "PDF 또는 텍스트 파일을 드래그하세요"}</div>
-          <div className="quiz-upload-hint">클릭하여 파일 선택</div>
-          <input ref={fileRef} type="file" accept=".pdf,.txt,.md" hidden onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-        </div>
-        <div className="quiz-upload-or">또는 직접 입력</div>
-        <textarea className="quiz-text-input" placeholder="퀴즈를 만들 내용을 입력하세요..." value={text} onChange={(e) => setText(e.target.value)} />
-        <div className="quiz-actions">
-          <button type="button" className="quiz-btn quiz-btn-secondary" onClick={() => setShowLLM(true)}>LLM 설정</button>
-          <button type="button" className="quiz-btn quiz-btn-primary" disabled={creating || (!file && !text.trim())} onClick={handleCreate}>
-            {creating ? "생성 중..." : "퀴즈 생성"}
-          </button>
+        <div className="quiz-empty">
+          <div className="quiz-empty-icon">📄</div>
+          <div className="quiz-empty-title">아직 만들어진 퀴즈가 없습니다</div>
+          <div className="quiz-actions">
+            <button type="button" className="quiz-btn quiz-btn-secondary" onClick={() => setShowLLM(true)}>LLM 설정</button>
+            <button type="button" className="quiz-btn quiz-btn-primary" onClick={() => setShowGenerate(true)} disabled={!llm.apiKey}>
+              + 퀴즈 만들기
+            </button>
+          </div>
+          {!llm.apiKey && <div className="quiz-empty-hint">먼저 LLM 설정에서 API 키를 저장하세요.</div>}
         </div>
         {showLLM && <LLMModal settings={llm} onSave={(s) => { saveLLM(s); setShowLLM(false); }} onClose={() => setShowLLM(false)} />}
+        {showGenerate && (
+          <QuizGenerateModal
+            boardId={boardId}
+            onClose={() => setShowGenerate(false)}
+            onCreated={handleCreated}
+          />
+        )}
       </div></div>
     );
   }
@@ -192,11 +253,15 @@ export function QuizBoard({ boardId, quizzes: initial }: Props) {
       </div>
 
       <div className="quiz-actions">
-        {quiz.status === "waiting" && <button type="button" className="quiz-btn quiz-btn-success" onClick={() => action("start")}>시작</button>}
+        {quiz.status === "waiting" && <>
+          <button type="button" className="quiz-btn quiz-btn-success" onClick={() => action("start")}>시작</button>
+          <button type="button" className="quiz-btn quiz-btn-secondary" onClick={openEditor}>편집</button>
+        </>}
         {isActive && curQ && <>
           <button type="button" className="quiz-btn quiz-btn-primary" onClick={() => action("next")}>다음 문제</button>
           <button type="button" className="quiz-btn quiz-btn-danger" onClick={() => action("finish")}>종료</button>
         </>}
+        {isFinished && <button type="button" className="quiz-btn quiz-btn-primary" onClick={() => setShowReport(true)}>리포트 보기</button>}
       </div>
 
       {isActive && curQ && (
@@ -210,6 +275,30 @@ export function QuizBoard({ boardId, quizzes: initial }: Props) {
       <PlayerList players={sorted} />
 
       {isFinished && <Leaderboard players={sorted} />}
+
+      {showReport && (
+        <QuizReportModal quizId={quiz.id} onClose={() => setShowReport(false)} />
+      )}
+      {editing && (
+        <>
+          <div className="modal-backdrop" onClick={() => !savingEdit && setEditing(null)} />
+          <div className="quiz-modal" role="dialog" aria-modal="true" aria-label="퀴즈 편집">
+            <div className="quiz-modal-header">
+              <h2 className="quiz-modal-title">퀴즈 편집</h2>
+              <button type="button" className="quiz-modal-close" onClick={() => !savingEdit && setEditing(null)} aria-label="닫기">×</button>
+            </div>
+            <div className="quiz-modal-body">
+              <QuizDraftEditor
+                questions={editing}
+                onChange={setEditing}
+                onBack={() => setEditing(null)}
+                onSave={saveEdits}
+                saving={savingEdit}
+              />
+            </div>
+          </div>
+        </>
+      )}
     </div></div>
   );
 }
@@ -314,11 +403,11 @@ function LLMModal({ settings, onSave, onClose }: { settings: LLMSettings; onSave
       <div className="modal-body">
         <div className="llm-settings-field"><label className="llm-settings-label">AI 제공자</label>
           <select className="modal-select" value={provider} onChange={(e) => setProvider(e.target.value as LLMSettings["provider"])}>
-            <option value="openai">OpenAI</option><option value="anthropic">Anthropic</option>
+            <option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="gemini">Google Gemini</option>
           </select>
         </div>
         <div className="llm-settings-field"><label className="llm-settings-label">API Key</label>
-          <input className="modal-input" type="password" placeholder={provider === "openai" ? "sk-..." : "sk-ant-..."} value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
+          <input className="modal-input" type="password" placeholder={provider === "openai" ? "sk-..." : provider === "anthropic" ? "sk-ant-..." : "AIza..."} value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
         </div>
         <div className="modal-actions">
           <button type="button" className="modal-btn-cancel" onClick={onClose}>취소</button>

@@ -1,13 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export function StudentLoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // ?from=... / ?return=... allow flows like /student/canva-pair and
+  // /oauth/authorize to bounce through login and return to the intended
+  // page. Restricted to same-origin relative paths to prevent open-redirect.
+  function safeReturnTarget(): string {
+    const raw = searchParams.get("from") ?? searchParams.get("return");
+    if (!raw) return "/student";
+    if (raw.startsWith("/") && !raw.startsWith("//")) return raw;
+    return "/student";
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -25,7 +36,7 @@ export function StudentLoginForm() {
       });
 
       if (res.ok) {
-        router.push("/student");
+        router.push(safeReturnTarget());
       } else {
         const data = await res.json().catch(() => null);
         setError(data?.error ?? "로그인에 실패했습니다");

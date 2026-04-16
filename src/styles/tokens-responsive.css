@@ -1,0 +1,35 @@
+/* Responsive primitives — 2026-04-15 (task responsive-tablet).
+ *
+ * Target device: Galaxy Tab S6 Lite portrait 1200×2000, Android Chrome.
+ * This is the single student device in use — no iOS/iPad deployment.
+ * These custom properties centralise touch-target, fluid typography,
+ * and modal-width values so each CSS module can reference them instead
+ * of hard-coding pixel breakpoints.
+ */
+:root {
+  /* Touch targets — minimum 44px. Tradition from iOS HIG but also
+     Google's Material "48dp minimum" ≈ 44 CSS px on standard DPR.
+     Use on every interactive element exposed to students on the tablet. */
+  --tap-min: 44px;
+
+  /* Body text scale — fluid between 14px (phone) and 16px (tablet /
+     desktop). Clamp floor + cap prevents overlarge text on 4K screens
+     while keeping mobile readable. */
+  --text-body: clamp(14px, 1.1vw, 16px);
+  --text-small: clamp(12px, 0.95vw, 13px);
+
+  /* Modal width — always fits viewport with breathing room. Use --modal-max
+     for single-column content and --modal-max-wide for 2-panel layouts
+     that collapse to a single column under 1199px. */
+  --modal-max: min(92vw, 640px);
+  --modal-max-wide: min(94vw, 960px);
+
+  /* Safe gap between stacked touch targets. Slightly larger than the
+     base spacing scale so errant thumb taps don't hit two buttons. */
+  --gap-tap: 10px;
+
+  /* FAB bottom offset. env(safe-area-inset-bottom) is 0 on Android
+     Chrome (no home indicator) so this is effectively `32px` today.
+     Left as-is so any future iOS/PWA install still behaves correctly. */
+  --fab-bottom-safe: calc(32px + env(safe-area-inset-bottom, 0px));
+}

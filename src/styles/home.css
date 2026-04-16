@@ -110,6 +110,10 @@
   transform: translateY(-3px);
 }
 
+.board-grid-card--menu-open:hover {
+  transform: none;
+}
+
 .board-grid-emoji {
   font-size: 36px;
 }

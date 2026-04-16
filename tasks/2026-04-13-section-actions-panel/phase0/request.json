@@ -1,0 +1,23 @@
+{
+  "type": "feature",
+  "slug": "section-actions-panel",
+  "task_id": "2026-04-13-section-actions-panel",
+  "change_type": "enhancement",
+  "motivation": "columns 보드에서 섹션 공유/이름변경/삭제를 별도 페이지로 옮기지 않고 우측 슬라이드 패널 한 곳에서 처리해 컨텍스트 유지. 동시에 plant-journal의 StageDetailSheet 패턴을 범용 SidePanel 프리미티브로 추출.",
+  "user_story": "소유자로서 columns 보드 섹션 헤더에서 ⋯ 버튼을 눌러 우측 패널을 열고 페이지 전환 없이 공유 링크 발급/회전/복사, 이름 변경, 삭제를 한 번에 처리할 수 있다.",
+  "success_metric": "섹션 헤더 ⋯ → 패널 열기까지 0 페이지 전환, 3개 탭(공유/이름/삭제) 모두 해당 API 호출 성공, ESC/backdrop 닫기 동작, 비소유/뷰어에 버튼 미노출, typecheck+build PASS",
+  "affected_surfaces": [
+    "src/components/ColumnsBoard.tsx",
+    "src/components/SectionActionsPanel.tsx (new)",
+    "src/components/ui/SidePanel.tsx (new)",
+    "src/components/plant/StageDetailSheet.tsx (refactor to use SidePanel)",
+    "src/styles/*.css (SidePanel base styles)",
+    "/board/[id]/s/[sectionId]/share (fallback retained)"
+  ],
+  "created_at": "2026-04-13T10:00:00+09:00",
+  "feedback_source": "tasks/2026-04-12-breakout-section-isolation/FEEDBACK_pending.md",
+  "coordination": {
+    "parallel_branches": ["feat/plant-journal-v2"],
+    "notes": "plant-journal-v2 가 학생 경로에서 StageDetailSheet 제거 예정. 본 task는 teacher matrix 경로의 Sheet 사용만 리팩터하고, v2 와의 머지 충돌은 문서화."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "task_id": "2026-04-13-image-pipeline-t0-4",
+  "type": "feature",
+  "slug": "image-pipeline-t0-4",
+  "title": "Image & Thumbnail Pipeline (T0-④)",
+  "source_of_truth": [
+    "canva project/plans/tablet-performance-roadmap.md §8 (referenced — not present in repo; scope taken from orchestrator prompt)",
+    "phase0-requests.md §T0-④ (referenced — not present in repo; scope taken from orchestrator prompt)"
+  ],
+  "perf_baseline": "Galaxy Tab S6 Lite, Chrome Android (1500x2000, DPR 2)",
+  "branch": "feat/image-pipeline-t0-4",
+  "change_type": "feature"
+}

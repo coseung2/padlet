@@ -1,0 +1,26 @@
+{
+  "patterns": [
+    {
+      "pattern_id": "board_settings_side_panel",
+      "description": "보드 헤더 타이틀 옆 ⚙ 버튼 → 우측 SidePanel. 탭: 브레이크아웃 / (준비 중) 접근 권한·Canva·테마",
+      "source_url": "https://padlet.com/help/en/board-settings",
+      "pros": ["owner scope 명확", "추후 멤버/테마 탭 확장 쉬움"],
+      "cons": ["섹션 수 많을 때 리스트 스크롤 필요"]
+    },
+    {
+      "pattern_id": "consolidated_section_ellipsis",
+      "description": "섹션 헤더 ⋯ 1개에 rename/delete/Canva 옵션 통합",
+      "source_url": "https://help.miro.com",
+      "pros": ["⋯ 중복 해소", "코드 변경폭 작음"],
+      "cons": ["메뉴 항목이 5개로 늘어 시각 잡음 소폭 증가"]
+    },
+    {
+      "pattern_id": "placeholder_future_tabs",
+      "description": "브레이크아웃 외 탭은 '준비 중' 라벨로 스텁",
+      "source_url": "https://www.nngroup.com/articles/progressive-disclosure/",
+      "pros": ["미래 확장 의사 표시"],
+      "cons": ["잘못 설계 시 버려진 UI 느낌"]
+    }
+  ],
+  "selected": "board_settings_side_panel + consolidated_section_ellipsis"
+}

@@ -1,0 +1,37 @@
+{
+  "type": "feature",
+  "slug": "assignment-board",
+  "task_id": "2026-04-14-assignment-board-impl",
+  "change_type": "new_feature",
+  "motivation": "교사가 학급 로스터로부터 과제 수집 보드를 1-클릭 생성하고, 학생별 카드를 결정론적 5×6 격자로 자동 배치해 제출/미제출 상태를 시각적으로 구분하며 풀스크린 모달로만 검토·반려 가능한 제출물 수집 워크플로 도입. Seesaw·Classroom 수준 UX를 Aura-board 기존 Board.layout 확장 + AssignmentSlot 단일 신규 엔티티만으로 달성해 태블릿(갤럭시 탭 S6 Lite) 성능을 보전한다.",
+  "user_story": "교사로서 학급 명렬표로부터 과제 보드를 만들고, 학생들이 제출한 카드를 풀스크린 모달로 검토·반려할 수 있다",
+  "success_metric": "30명 학급(5×6 격자) 보드에서 DOM 노드 ≤30카드×≤6자식=180 유지, 썸네일 160×120 WebP lazy-load 적용 시 갤럭시 탭 S6 Lite Chrome Android에서 초기 렌더 TTI ≤ 3s·스크롤 프레임레이트 ≥ 45fps; submissionStatus 5전이(assigned→submitted→viewed→returned→submitted, assigned→submitted→reviewed) 100% 결정론적 동작; ambiguity_score ≤ 0.2 (현 0.083).",
+  "affected_surfaces": [
+    "Board 엔티티 — layout enum에 'assignment' 값 확장 + assignmentGuideText·assignmentAllowLate 필드 추가",
+    "AssignmentSlot 엔티티 — 신규 테이블 (slotNumber·cardId FK·studentId FK·submissionStatus·gradingStatus·viewedAt·returnedAt·returnReason)",
+    "Submission 엔티티 — feedback 필드 재사용 (returnReason 저장), updatedAt 갱신 로직",
+    "Board 생성 API — 학급 기반 보드 생성 시 N≤30 카드·슬롯 자동 인스턴스화",
+    "/board/:id (owner) — 상단 교사 가이드 영역 + 하단 5×6 격자 + 썸네일 + 상태 뱃지 (Seesaw+Moodle 하이브리드)",
+    "/board/:id (editor=학생) — 자기 슬롯 1개만 렌더, 반려 사유 banner, gradingStatus 기반 편집 버튼 게이팅",
+    "/board/:id fullscreen modal — 제출 검토·반려(returnReason ≤200자) 유일 진입점",
+    "/board/:id matrix view — owner+desktop 전용 (editor·viewer·태블릿 제외)",
+    "학부모 PV — /parent/child/[id]/assignment 라우트 (자녀 슬롯 1개만, 5×6 미렌더)",
+    "WebSocket 채널 board:${id}:assignment — 상태 전이 실시간 동기화",
+    "썸네일 서버 리사이즈 서비스 — 160×120 WebP 출력 파이프라인 재사용",
+    "RBAC/RLS — AssignmentSlot.studentId 기반 API+DOM+RLS 3-레이어 격리 (학생 간 교차 열람 차단)",
+    "In-app 뱃지/알림 시스템 — 미제출 리마인더 채널 (v1 이메일 없음)"
+  ],
+  "context_refs": [
+    "../ideation/tasks/2026-04-14-assignment-board-impl/phase4/seed.yaml",
+    "../ideation/tasks/2026-04-14-assignment-board-impl/phase3/decisions.md",
+    "../ideation/tasks/2026-04-14-assignment-board-impl/phase2/sketch.md",
+    "../ideation/tasks/2026-04-14-assignment-board-impl/phase1/exploration.md",
+    "../ideation/plans/assignment-board-roadmap.md",
+    "../ideation/plans/tablet-performance-roadmap.md",
+    "../ideation/plans/event-signup-roadmap.md",
+    "../ideation/plans/parent-viewer-roadmap.md",
+    "../ideation/plans/phase0-requests.md",
+    "../ideation/plans/seeds-index.md"
+  ],
+  "created_at": "2026-04-14T14:05:00+09:00"
+}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { CardData } from "./DraggableCard";
+import { OptimizedImage } from "./ui/OptimizedImage";
 
 type Props = {
   sectionTitle: string;
@@ -185,7 +186,9 @@ export function ExportModal({ sectionTitle, cards, onClose }: Props) {
                       className="export-item-check"
                     />
                     {d.thumbnail && (
-                      <img src={d.thumbnail} alt="" className="export-design-thumb" />
+                      <div className="export-design-thumb optimized-img-wrap">
+                        <OptimizedImage src={d.thumbnail} alt="" sizes="160px" />
+                      </div>
                     )}
                     <div className="export-design-info">
                       <div className="export-design-title">{d.title}</div>

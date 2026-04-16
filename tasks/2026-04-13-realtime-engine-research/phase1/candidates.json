@@ -1,0 +1,61 @@
+[
+  {
+    "name": "Liveblocks",
+    "package": "@liveblocks/client",
+    "version_observed": "3.18.0 (core 3.18.0)",
+    "license": "Apache-2.0 (SDK) / proprietary backend",
+    "pricing_model": "per monthly active room — Free 500 rooms/mo, Pro $30/mo + $0.03/room overage, Team $600/mo",
+    "free_tier": "500 monthly active rooms, 10 simultaneous connections/room, unlimited MAU",
+    "hosting": "SaaS (vendor-hosted). Self-host not available.",
+    "docs_url": "https://liveblocks.io/docs",
+    "bundle_min_gz_kb": 49.9,
+    "bundle_measurement_method": "esbuild bundle --minify --format=esm --platform=browser, gzip -c, 2026-04-13",
+    "payload_limits_on_wire": {
+      "LiveObject_max_size": "2 MB total (keys+values) on Storage v2",
+      "LiveMap_LiveList_value_max": "2 MB per value",
+      "broadcast_event_max": "32 MB (v≥3.14), 1 MB below"
+    },
+    "channel_primitive": "Room (one room = one document). Rooms are isolated by roomId at the edge.",
+    "maintenance_signal": "Active — monthly changelog ('What's new in Liveblocks: February 2026'); v3.18 tagged weeks before research date.",
+    "typescript_support": "First-class (generated types via Liveblocks Types)"
+  },
+  {
+    "name": "Yjs",
+    "package": "yjs + y-websocket",
+    "version_observed": "yjs 13.6.30, y-websocket 3.0.0",
+    "license": "MIT",
+    "pricing_model": "Free (OSS). Infra cost = your own WebSocket node(s) + optional Redis.",
+    "free_tier": "N/A (self-hosted)",
+    "hosting": "Self-hosted. y-websocket ships a reference server; y-redis for horizontal scale.",
+    "docs_url": "https://docs.yjs.dev/",
+    "bundle_min_gz_kb": "yjs 29.4 + y-websocket 27.6 ≈ 57.0 (shares lib0)",
+    "bundle_measurement_method": "esbuild bundle --minify --format=esm --platform=browser, gzip -c, 2026-04-13",
+    "payload_limits_on_wire": {
+      "note": "Binary CRDT updates. Each op encoded as Y.Item (~few bytes). Version vector ~4KB, grows with op count, not with content size.",
+      "typical_move_op_bytes": "< 100 bytes for a single key-value update in a Y.Map",
+      "awareness_update_bytes": "~50-200 bytes per cursor/presence tick"
+    },
+    "channel_primitive": "Y.Doc instance = one document/room. Channel isolation by WS URL path + doc name. Sub-docs API allows sharing one WS for multiple scopes.",
+    "maintenance_signal": "Active — Kevin Jahns + contributors; y-websocket 3.0 (breaking: new wire protocol) shipped 2024.",
+    "typescript_support": "First-class (TS definitions shipped)"
+  },
+  {
+    "name": "자체 WS (ws + custom protocol)",
+    "package": "ws (server) + native WebSocket (browser) — OR — socket.io + socket.io-client",
+    "version_observed": "ws 8.20.0, socket.io-client 4.8.3",
+    "license": "MIT (both)",
+    "pricing_model": "Free (OSS). Infra cost = Node host. Vercel Functions do not support long-lived WS — need separate Node process (Fly.io / Railway / VPS).",
+    "free_tier": "N/A",
+    "hosting": "Self-hosted. Does NOT run inside Vercel Functions (HTTP request/response only).",
+    "docs_url": "https://github.com/websockets/ws | https://socket.io/docs/v4/",
+    "bundle_min_gz_kb": "socket.io-client 13.5 | native WebSocket 0 (platform API)",
+    "bundle_measurement_method": "esbuild bundle --minify --format=esm --platform=browser, gzip -c, 2026-04-13",
+    "payload_limits_on_wire": {
+      "note": "You define the wire format. JSON card-move event ≈ 120-180 bytes gz uncompressed-friendly; binary (msgpack/cbor) cuts ~30%.",
+      "ws_server_memory_per_conn": "~3 KB with ws; ~15 KB with socket.io (literature)"
+    },
+    "channel_primitive": "You implement it. Room concept = in-memory Map<channelKey, Set<WebSocket>>. Maps cleanly to src/lib/realtime.ts keys (board:{id}, board:{id}:section:{id}).",
+    "maintenance_signal": "Active — ws 8.x; socket.io 4.8 (2026 edition guides published).",
+    "typescript_support": "Solid; types shipped with both."
+  }
+]

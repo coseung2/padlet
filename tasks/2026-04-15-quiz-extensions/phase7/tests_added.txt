@@ -1,0 +1,11 @@
+/mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet/src/lib/__tests__/quiz-permissions.vitest.ts
+
+Covers:
+- teacher owns the quiz's board → can manage (true)
+- teacher does not own the board → denied (false)
+- student identity → denied, db.quiz.findUnique NOT called
+- anonymous → denied, db.quiz.findUnique NOT called
+- quiz not found → denied (false)
+
+Run: npx vitest run src/lib/__tests__/quiz-permissions.vitest.ts
+Result: 5 passed / 0 failed (2026-04-16).

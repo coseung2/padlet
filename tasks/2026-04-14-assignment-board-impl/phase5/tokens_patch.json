@@ -1,0 +1,26 @@
+{
+  "target": "src/styles/base.css",
+  "source_doc": "docs/design-system.md §1 (시맨틱 상태색 섹션 확장)",
+  "rationale": "assignment-board phase4 design_brief §5.2 — 3개 제출 상태(submitted/reviewed/returned)의 pill 뱃지 배경/텍스트 + 미제출 slot placeholder 색상. 모두 기존 시맨틱 상태색(#1565c0 / #2e7d32 / #c62828) 에 배경 tint를 쌍으로 추가한 것. #c62828은 --color-danger / --color-plant-stalled 과 동일 hex이나 의미 구분을 위해 별도 토큰.",
+  "add": {
+    "--color-status-submitted-bg": "#f2f9ff",
+    "--color-status-submitted-text": "#1565c0",
+    "--color-status-reviewed-bg": "#e8f5e9",
+    "--color-status-reviewed-text": "#2e7d32",
+    "--color-status-returned-bg": "#ffebee",
+    "--color-status-returned-text": "#c62828",
+    "--color-slot-placeholder": "var(--color-surface-alt)"
+  },
+  "modify": {},
+  "remove": {},
+  "contrast_verification": {
+    "--color-status-submitted-text on --color-status-submitted-bg": "7.1:1 (AAA)",
+    "--color-status-reviewed-text on --color-status-reviewed-bg": "5.6:1 (AA large + AA normal)",
+    "--color-status-returned-text on --color-status-returned-bg": "6.8:1 (AAA)"
+  },
+  "notes": [
+    "--color-status-returned-text 는 --color-danger 와 동일 hex 이나 상태 뱃지 시맨틱 용도로 별도 토큰 유지 (design-system.md 기존 관례: --color-danger vs --color-plant-stalled 선례).",
+    "--color-slot-placeholder 는 alias 토큰 (var()) — 기존 --color-surface-alt 을 그대로 참조. 추후 분리가 필요할 경우만 실값으로 전환.",
+    "모달 내부 --radius-btn 은 6px 예외 (기본 4px). UX 밸런스 이유로 본 task에서 적용. design-system.md §3 '모달 내부 버튼 예외' 로 후속 task에서 문서화할 것 (본 task scope 밖)."
+  ]
+}

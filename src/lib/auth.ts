@@ -32,6 +32,14 @@ export async function getCurrentUser() {
   // 2) Fall back to mock auth via "as" cookie (dev only)
   const cookieStore = await cookies();
   const asRole = cookieStore.get("as")?.value;
+  // Production must never silently grant the mock owner identity to an
+  // unauthenticated visitor. Without this guard a student-only session
+  // (separate cookie) or a logged-out tab would be served as `u_owner`,
+  // exposing teacher boards. Dev keeps the default-owner fallback so the
+  // local workflow that hot-switches via UserSwitcher still works.
+  if (process.env.NODE_ENV === "production" && !isMockRoleKey(asRole)) {
+    throw new Error("Unauthenticated");
+  }
   const roleKey: MockRoleKey = isMockRoleKey(asRole) ? asRole : "owner";
   const userId = MOCK_USERS[roleKey];
   const user = await db.user.findUnique({ where: { id: userId } });

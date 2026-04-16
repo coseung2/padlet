@@ -1,0 +1,93 @@
+/* =====================================================
+   Optimized image wrapper (next/image fill-mode support)
+   T0-④ image pipeline — ensures every <OptimizedImage>
+   parent has the required position:relative + dimensions
+   so `fill` can pin the image inside it.
+   ===================================================== */
+
+.optimized-img-wrap {
+  position: relative;
+  width: 100%;
+  background: var(--color-bg, #f5f5f5);
+  overflow: hidden;
+}
+
+/* next/image in fill mode injects position:absolute; inset:0
+   on the <img>. We just need to make sure the parent sizing
+   rules (max-height etc.) remain intact. */
+.optimized-img-wrap img {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
+
+.optimized-img-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 60px;
+  background: var(--color-bg, #f5f5f5);
+  color: var(--color-text-muted, #888);
+  font-size: 0.875rem;
+  padding: 12px;
+  text-align: center;
+}
+
+/* Per-slot overrides so existing layouts keep their intent. */
+
+/* Card image slot: match old .card-attach-image img max-height */
+.card-attach-image.optimized-img-wrap {
+  height: 180px;
+  border-radius: 8px;
+}
+
+/* Card link preview image slot */
+.card-link-preview-image.optimized-img-wrap {
+  height: 140px;
+}
+
+/* Modal file preview */
+.modal-file-preview.optimized-img-wrap {
+  height: 200px;
+}
+
+/* Link preview in AddCardModal */
+.link-preview-card-image.optimized-img-wrap {
+  height: 100px;
+  width: 140px;
+  flex: 0 0 140px;
+}
+
+/* Export / folder thumbnail */
+.export-design-thumb.optimized-img-wrap {
+  width: 120px;
+  height: 80px;
+  border-radius: 6px;
+  flex: 0 0 120px;
+}
+
+/* Plant observation strip images */
+.plant-obs-img.optimized-img-wrap {
+  width: 80px;
+  height: 80px;
+  flex: 0 0 80px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* Plant thumb (editor) */
+.plant-thumb.optimized-img-wrap {
+  aspect-ratio: 1 / 1;
+}
+
+/* Plant lightbox frame — 90vw fill container */
+.plant-lightbox-frame.optimized-img-wrap {
+  width: 94vw;
+  height: 94vh;
+  background: transparent;
+}
+.plant-lightbox-frame.optimized-img-wrap img {
+  object-fit: contain !important;
+}

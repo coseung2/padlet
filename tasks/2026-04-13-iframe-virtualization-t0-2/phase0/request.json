@@ -1,0 +1,20 @@
+{
+  "task_id": "2026-04-13-iframe-virtualization-t0-2",
+  "slug": "iframe-virtualization-t0-2",
+  "type": "feature",
+  "title": "T0-2 iframe Virtualization + Live Mode Toggle",
+  "origin": "tablet-performance-roadmap.md §6 / phase0-requests.md §T0-2",
+  "branch": "feat/iframe-virtualization-t0-2",
+  "worktree_local": true,
+  "do_not_push": true,
+  "perf_baseline_device": "Galaxy Tab S6 Lite, Chrome Android",
+  "port": 3000,
+  "coordination_risk": "feat/image-pipeline-t0-4 touches DraggableCard.tsx simultaneously",
+  "musts": [
+    "src/hooks/useIframeBudget.ts (LRU-3 module store via useSyncExternalStore)",
+    "src/hooks/useInViewport.ts (IntersectionObserver wrapper)",
+    "src/components/CanvaEmbedSlot.tsx (thumbnail-first virtualized slot + live-mode badge)",
+    "Refactor src/components/CardAttachments.tsx to use CanvaEmbedSlot",
+    "Zero DraggableCard.tsx edits (conflict avoidance with image-pipeline-t0-4)"
+  ]
+}

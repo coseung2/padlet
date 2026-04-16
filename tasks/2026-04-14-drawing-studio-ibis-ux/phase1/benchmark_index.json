@@ -1,0 +1,47 @@
+{
+  "references": [
+    {
+      "product": "Ibis Paint X (Android)",
+      "url": "https://play.google.com/store/apps/details?id=jp.ne.ibis.ibispaintx.app",
+      "pattern": "하단 가로 툴바, 우측 세로 사이즈 슬라이더, HSV 색상 모달, 레이어 슬라이드 시트, 멀티터치 제스처",
+      "relevance": "우리 v2 UI/UX 의 핵심 벤치마크"
+    },
+    {
+      "product": "Ibis Paint X (iPad)",
+      "url": "https://apps.apple.com/app/id450722833",
+      "pattern": "태블릿 landscape 에서 동일 레이아웃 + S-Pen/Apple Pencil 필압",
+      "relevance": "Galaxy Tab S6 Lite + S-Pen 과 동일 타깃"
+    },
+    {
+      "product": "Ibis Paint 공식 튜토리얼",
+      "url": "https://ibispaint.com/",
+      "pattern": "UI 구성 요소 명명 레퍼런스",
+      "relevance": "용어 확인 (Stabilizer, memory color 등)"
+    },
+    {
+      "product": "Procreate",
+      "url": "https://procreate.com/",
+      "pattern": "4-finger tap fullscreen, brush library 슬라이드 패널",
+      "relevance": "Ibis 와 공유하는 태블릿 페인팅 UX 표준"
+    },
+    {
+      "product": "Krita (데스크톱)",
+      "url": "https://krita.org/",
+      "pattern": "HSV 링 + 삼각형 색상 선택기",
+      "relevance": "색상 모달 디자인 원형"
+    },
+    {
+      "product": "Pointer Events Level 3",
+      "url": "https://www.w3.org/TR/pointerevents3/",
+      "pattern": "pressure/tilt/getCoalescedEvents/setPointerCapture — 멀티포인터/펜 표준",
+      "relevance": "제스처 핸들링 구현 기준"
+    },
+    {
+      "product": "Perfect Freehand",
+      "url": "https://github.com/steveruizok/perfect-freehand",
+      "pattern": "포인터 좌표 → 매끄러운 벡터 path",
+      "relevance": "Stabilizer 보완 대안 (이번 판단에선 단순 EMA 로 충분)"
+    }
+  ],
+  "captured_at": "2026-04-14T00:00:00+09:00"
+}

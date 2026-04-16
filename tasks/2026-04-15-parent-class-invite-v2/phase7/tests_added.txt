@@ -1,0 +1,27 @@
+# parent-class-invite-v2 · phase7 tests_added
+# All tests use Vitest + @testing-library (new harness introduced in phase7).
+# Discovery pattern: src/**/*.vitest.{ts,tsx}
+
+src/lib/parent-link-state.vitest.ts
+  10 tests — state transition validator
+  - pending → active allowed
+  - pending → rejected allowed
+  - active → revoked allowed
+  - pending → pending blocked (no self-transition)
+  - active → rejected blocked (must revoke, not reject)
+  - rejected → active blocked (dead-end)
+  - revoked → active blocked (dead-end)
+  - assertTransition throws on invalid
+  - assertTransition passes on valid
+  - rejected + revoked have no outgoing transitions
+
+src/lib/class-invite-codes.vitest.ts
+  6 tests — code generation / normalisation / verify
+  - generateCode returns 8-char Crockford Base32
+  - normalizeCode strips whitespace + hyphens, uppercases
+  - normalizeCode Crockford aliases (I→1, L→1, O→0)
+  - formatCodeForDisplay produces 4-4 split (or pass-through on bad length)
+  - verifyCode timing-safe round-trip + negative cases
+  - hashCode deterministic
+
+Total: 16 tests, all passing.
