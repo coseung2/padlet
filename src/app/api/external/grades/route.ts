@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { isCorrectMcq } from "@/lib/assessment-grading";
-import type { McqQuestionPayload, McqAnswerPayload } from "@/types/assessment";
+import { isCorrectMcq, isCorrectShort } from "@/lib/assessment-grading";
+import type {
+  McqQuestionPayload,
+  McqAnswerPayload,
+  ShortQuestionPayload,
+  ShortAnswerPayload,
+} from "@/types/assessment";
 
 /**
  * GET /api/external/grades?classroomCode=XXXXXX
@@ -75,11 +80,16 @@ export async function GET(req: Request) {
         const wrongQuestions: number[] = [];
         for (const q of t.questions) {
           const a = answerByQid.get(q.id);
-          const qPayload = q.payload as McqQuestionPayload;
-          const aPayload = a ? (a.payload as McqAnswerPayload) : null;
-          const correct = aPayload
-            ? isCorrectMcq(qPayload.correctChoiceIds, aPayload.selectedChoiceIds)
-            : false;
+          let correct = false;
+          if (q.kind === "SHORT") {
+            const qp = q.payload as ShortQuestionPayload;
+            const text = a ? (a.payload as ShortAnswerPayload).textAnswer : "";
+            correct = isCorrectShort(qp.correctAnswers, text);
+          } else {
+            const qp = q.payload as McqQuestionPayload;
+            const selected = a ? (a.payload as McqAnswerPayload).selectedChoiceIds : [];
+            correct = isCorrectMcq(qp.correctChoiceIds, selected);
+          }
           if (!correct) wrongQuestions.push(q.order + 1);
         }
         return {

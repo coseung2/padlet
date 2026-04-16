@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { resolveIdentities } from "@/lib/identity";
-import { gradeMcq } from "@/lib/assessment-grading";
-import type { McqAnswerPayload, McqQuestionPayload } from "@/types/assessment";
+import { gradeMcq, gradeShort } from "@/lib/assessment-grading";
+import type {
+  McqAnswerPayload,
+  McqQuestionPayload,
+  ShortAnswerPayload,
+  ShortQuestionPayload,
+} from "@/types/assessment";
 
 export async function POST(
   _req: Request,
@@ -37,11 +42,22 @@ export async function POST(
   const updates: Array<Promise<unknown>> = [];
   for (const q of submission.template.questions) {
     const row = answerByQid.get(q.id);
-    const payload = row ? (row.payload as McqAnswerPayload) : null;
-    const score = gradeMcq(
-      { maxScore: q.maxScore, payload: q.payload as McqQuestionPayload },
-      payload
-    );
+    let score: number;
+    if (q.kind === "MCQ") {
+      const payload = row ? (row.payload as McqAnswerPayload) : null;
+      score = gradeMcq(
+        { maxScore: q.maxScore, payload: q.payload as McqQuestionPayload },
+        payload
+      );
+    } else if (q.kind === "SHORT") {
+      const payload = row ? (row.payload as ShortAnswerPayload) : null;
+      score = gradeShort(
+        { maxScore: q.maxScore, payload: q.payload as ShortQuestionPayload },
+        payload
+      );
+    } else {
+      score = 0;
+    }
     total += score;
     if (row) {
       updates.push(
@@ -51,14 +67,17 @@ export async function POST(
         })
       );
     } else {
-      // Create a placeholder 0-score row so the gradebook knows we
-      // evaluated this question (null payload distinguishes skipped).
+      // Placeholder row so the gradebook can distinguish "skipped" from
+      // "not-yet-graded". Shape matches the question kind.
       updates.push(
         db.assessmentAnswer.create({
           data: {
             submissionId,
             questionId: q.id,
-            payload: { selectedChoiceIds: [] } satisfies McqAnswerPayload,
+            payload:
+              q.kind === "MCQ"
+                ? ({ selectedChoiceIds: [] } satisfies McqAnswerPayload)
+                : ({ textAnswer: "" } satisfies ShortAnswerPayload),
             autoScore: 0,
           },
         })

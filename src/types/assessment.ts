@@ -9,16 +9,32 @@ export type McqQuestionPayload = {
   correctChoiceIds: string[];
 };
 
+export type ShortQuestionPayload = {
+  correctAnswers: string[]; // 공백 제거 + 소문자 정규화 후 비교 (복수 정답 허용)
+};
+
 export type McqAnswerPayload = {
   selectedChoiceIds: string[];
 };
 
-export type AssessmentQuestionCreate = {
-  prompt: string;
-  choices: AssessmentChoice[];
-  correctChoiceIds: string[];
-  maxScore?: number;
+export type ShortAnswerPayload = {
+  textAnswer: string;
 };
+
+export type AssessmentQuestionCreate =
+  | {
+      kind: "MCQ";
+      prompt: string;
+      choices: AssessmentChoice[];
+      correctChoiceIds: string[];
+      maxScore?: number;
+    }
+  | {
+      kind: "SHORT";
+      prompt: string;
+      correctAnswers: string[];
+      maxScore?: number;
+    };
 
 export type AssessmentTemplateCreate = {
   classroomId: string;
@@ -28,24 +44,41 @@ export type AssessmentTemplateCreate = {
   questions: AssessmentQuestionCreate[];
 };
 
-export type TeacherQuestionDTO = {
-  id: string;
-  order: number;
-  kind: "MCQ";
-  prompt: string;
-  maxScore: number;
-  choices: AssessmentChoice[];
-  correctChoiceIds: string[];
-};
+export type TeacherQuestionDTO =
+  | {
+      id: string;
+      order: number;
+      kind: "MCQ";
+      prompt: string;
+      maxScore: number;
+      choices: AssessmentChoice[];
+      correctChoiceIds: string[];
+    }
+  | {
+      id: string;
+      order: number;
+      kind: "SHORT";
+      prompt: string;
+      maxScore: number;
+      correctAnswers: string[];
+    };
 
-export type StudentQuestionDTO = {
-  id: string;
-  order: number;
-  kind: "MCQ";
-  prompt: string;
-  maxScore: number;
-  choices: AssessmentChoice[];
-};
+export type StudentQuestionDTO =
+  | {
+      id: string;
+      order: number;
+      kind: "MCQ";
+      prompt: string;
+      maxScore: number;
+      choices: AssessmentChoice[];
+    }
+  | {
+      id: string;
+      order: number;
+      kind: "SHORT";
+      prompt: string;
+      maxScore: number;
+    };
 
 export type AssessmentTemplateTeacherDTO = {
   id: string;
@@ -92,7 +125,8 @@ export type GradebookRow = {
   } | null;
   answers: Array<{
     questionId: string;
-    selectedChoiceIds: string[];
+    selectedChoiceIds: string[]; // MCQ only — empty for SHORT
+    textAnswer: string | null; // SHORT only
     correct: boolean | null;
     autoScore: number | null;
   }>;
@@ -110,18 +144,30 @@ export type AssessmentGradebookPayload = {
   maxScoreTotal: number;
 };
 
+export type ResultQuestionMcq = {
+  id: string;
+  kind: "MCQ";
+  prompt: string;
+  choices: AssessmentChoice[];
+  correctChoiceIds: string[];
+  selectedChoiceIds: string[];
+  correct: boolean;
+};
+
+export type ResultQuestionShort = {
+  id: string;
+  kind: "SHORT";
+  prompt: string;
+  correctAnswers: string[];
+  textAnswer: string;
+  correct: boolean;
+};
+
 export type AssessmentResultPayload =
   | { released: false }
   | {
       released: true;
       finalScore: number;
       maxScoreTotal: number;
-      questions: Array<{
-        id: string;
-        prompt: string;
-        choices: AssessmentChoice[];
-        correctChoiceIds: string[];
-        selectedChoiceIds: string[];
-        correct: boolean;
-      }>;
+      questions: Array<ResultQuestionMcq | ResultQuestionShort>;
     };
