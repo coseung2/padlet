@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { resolveIdentities } from "@/lib/identity";
 import { canManageAssessment } from "@/lib/assessment-permissions";
-import { isCorrectMcq } from "@/lib/assessment-grading";
+import { isCorrectMcq, isCorrectShort } from "@/lib/assessment-grading";
 import type {
   AssessmentGradebookPayload,
   McqAnswerPayload,
   McqQuestionPayload,
+  ShortAnswerPayload,
+  ShortQuestionPayload,
   TeacherQuestionDTO,
 } from "@/types/assessment";
 
@@ -47,29 +49,55 @@ export async function GET(
   );
 
   const teacherQuestions: TeacherQuestionDTO[] = template.questions.map((q) => {
-    const payload = q.payload as McqQuestionPayload;
+    if (q.kind === "MCQ") {
+      const p = q.payload as McqQuestionPayload;
+      return {
+        id: q.id,
+        order: q.order,
+        kind: "MCQ" as const,
+        prompt: q.prompt,
+        maxScore: q.maxScore,
+        choices: p.choices,
+        correctChoiceIds: p.correctChoiceIds,
+      };
+    }
+    const p = q.payload as ShortQuestionPayload;
     return {
       id: q.id,
       order: q.order,
-      kind: "MCQ" as const,
+      kind: "SHORT" as const,
       prompt: q.prompt,
       maxScore: q.maxScore,
-      choices: payload.choices,
-      correctChoiceIds: payload.correctChoiceIds,
+      correctAnswers: p.correctAnswers,
     };
   });
 
   const rows = template.classroom.students.map((student) => {
     const submission = submissionByStudent.get(student.id) ?? null;
     const answers = (submission?.answers ?? []).map((a) => {
-      const selected = (a.payload as McqAnswerPayload).selectedChoiceIds ?? [];
       const q = template.questions.find((x) => x.id === a.questionId);
+      if (q?.kind === "SHORT") {
+        const text = (a.payload as ShortAnswerPayload).textAnswer ?? "";
+        const correct = isCorrectShort(
+          (q.payload as ShortQuestionPayload).correctAnswers,
+          text
+        );
+        return {
+          questionId: a.questionId,
+          selectedChoiceIds: [],
+          textAnswer: text,
+          correct,
+          autoScore: a.autoScore,
+        };
+      }
+      const selected = (a.payload as McqAnswerPayload).selectedChoiceIds ?? [];
       const correctIds =
         q && (q.payload as McqQuestionPayload).correctChoiceIds;
       const correct = correctIds ? isCorrectMcq(correctIds, selected) : null;
       return {
         questionId: a.questionId,
         selectedChoiceIds: selected,
+        textAnswer: null,
         correct,
         autoScore: a.autoScore,
       };

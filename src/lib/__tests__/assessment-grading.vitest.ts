@@ -51,3 +51,49 @@ describe("isCorrectMcq", () => {
     expect(isCorrectMcq([], [])).toBe(true);
   });
 });
+
+import {
+  gradeShort,
+  isCorrectShort,
+  normalizeShort,
+} from "../assessment-grading";
+
+describe("normalizeShort", () => {
+  it("strips whitespace and lowercases", () => {
+    expect(normalizeShort("세종 대왕")).toBe("세종대왕");
+    expect(normalizeShort("  Apple \n")).toBe("apple");
+    expect(normalizeShort("")).toBe("");
+  });
+});
+
+describe("isCorrectShort", () => {
+  it("matches any correct after normalization", () => {
+    expect(isCorrectShort(["세종", "세종대왕"], "세종 대왕")).toBe(true);
+    expect(isCorrectShort(["42"], "42")).toBe(true);
+    expect(isCorrectShort(["apple"], "APPLE ")).toBe(true);
+  });
+  it("returns false when no match", () => {
+    expect(isCorrectShort(["세종"], "이순신")).toBe(false);
+    expect(isCorrectShort(["42"], "43")).toBe(false);
+  });
+  it("empty student answer → false", () => {
+    expect(isCorrectShort(["x"], "")).toBe(false);
+    expect(isCorrectShort(["x"], "   ")).toBe(false);
+  });
+});
+
+describe("gradeShort", () => {
+  const q = (answers: string[], max = 2) => ({
+    maxScore: max,
+    payload: { correctAnswers: answers },
+  });
+  it("awards maxScore on match", () => {
+    expect(gradeShort(q(["세종대왕"]), { textAnswer: "세종 대왕" })).toBe(2);
+  });
+  it("0 on miss", () => {
+    expect(gradeShort(q(["세종대왕"]), { textAnswer: "이순신" })).toBe(0);
+  });
+  it("0 on null answer", () => {
+    expect(gradeShort(q(["x"]), null)).toBe(0);
+  });
+});

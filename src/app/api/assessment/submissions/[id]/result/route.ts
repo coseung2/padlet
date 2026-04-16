@@ -2,11 +2,15 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { resolveIdentities } from "@/lib/identity";
 import { canAccessSubmission } from "@/lib/assessment-permissions";
-import { isCorrectMcq } from "@/lib/assessment-grading";
+import { isCorrectMcq, isCorrectShort } from "@/lib/assessment-grading";
 import type {
   AssessmentResultPayload,
   McqAnswerPayload,
   McqQuestionPayload,
+  ResultQuestionMcq,
+  ResultQuestionShort,
+  ShortAnswerPayload,
+  ShortQuestionPayload,
 } from "@/types/assessment";
 
 export async function GET(
@@ -42,19 +46,35 @@ export async function GET(
     0
   );
   const answerByQid = new Map(submission.answers.map((a) => [a.questionId, a]));
-  const questions = submission.template.questions.map((q) => {
-    const qp = q.payload as McqQuestionPayload;
-    const row = answerByQid.get(q.id);
-    const selected = row ? (row.payload as McqAnswerPayload).selectedChoiceIds : [];
-    return {
-      id: q.id,
-      prompt: q.prompt,
-      choices: qp.choices,
-      correctChoiceIds: qp.correctChoiceIds,
-      selectedChoiceIds: selected,
-      correct: isCorrectMcq(qp.correctChoiceIds, selected),
-    };
-  });
+  const questions: Array<ResultQuestionMcq | ResultQuestionShort> =
+    submission.template.questions.map((q) => {
+      const row = answerByQid.get(q.id);
+      if (q.kind === "SHORT") {
+        const qp = q.payload as ShortQuestionPayload;
+        const text = row ? (row.payload as ShortAnswerPayload).textAnswer : "";
+        return {
+          id: q.id,
+          kind: "SHORT" as const,
+          prompt: q.prompt,
+          correctAnswers: qp.correctAnswers,
+          textAnswer: text,
+          correct: isCorrectShort(qp.correctAnswers, text),
+        };
+      }
+      const qp = q.payload as McqQuestionPayload;
+      const selected = row
+        ? (row.payload as McqAnswerPayload).selectedChoiceIds
+        : [];
+      return {
+        id: q.id,
+        kind: "MCQ" as const,
+        prompt: q.prompt,
+        choices: qp.choices,
+        correctChoiceIds: qp.correctChoiceIds,
+        selectedChoiceIds: selected,
+        correct: isCorrectMcq(qp.correctChoiceIds, selected),
+      };
+    });
 
   const finalScore =
     submission.gradebookEntry?.finalScore ??

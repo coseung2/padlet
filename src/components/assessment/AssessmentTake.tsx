@@ -42,6 +42,7 @@ export interface AssessmentTakeProps {
 export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [answers, setAnswers] = useState<Record<string, string[]>>({});
+  const [shortAnswers, setShortAnswers] = useState<Record<string, string>>({});
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [submitting, setSubmitting] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -129,6 +130,33 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
     [state, answers]
   );
 
+  const saveShort = useCallback(
+    (questionId: string, raw: string) => {
+      const cleaned = raw.replace(/\s+/g, "");
+      setShortAnswers((prev) => ({ ...prev, [questionId]: cleaned }));
+      if (state.kind !== "ready") return;
+      const submissionId = state.submission.id;
+      clearTimeout(timers.current[questionId]);
+      setSaveState("saving");
+      timers.current[questionId] = setTimeout(async () => {
+        try {
+          const res = await fetch(
+            `/api/assessment/submissions/${submissionId}/answer`,
+            {
+              method: "PATCH",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ questionId, textAnswer: cleaned }),
+            }
+          );
+          setSaveState(res.ok ? "saved" : "idle");
+        } catch {
+          setSaveState("idle");
+        }
+      }, 300);
+    },
+    [state]
+  );
+
   async function handleSubmit() {
     if (state.kind !== "ready") return;
     if (!confirm("제출하면 수정할 수 없어요. 계속할까요?")) return;
@@ -172,8 +200,21 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
   const mm = String(Math.floor(remainingSec / 60)).padStart(2, "0");
   const ss = String(remainingSec % 60).padStart(2, "0");
 
-  const answeredCount = Object.keys(answers).length;
   const totalCount = state.template.questions.length;
+  const answeredCount = state.template.questions.filter((q) => {
+    if (q.kind === "SHORT") return (shortAnswers[q.id] ?? "").length > 0;
+    return (answers[q.id] ?? []).length > 0;
+  }).length;
+  // Derive column headers from the first MCQ question; fallback to 5-choice
+  // layout if the template is all SHORT.
+  const firstMcq = state.template.questions.find((q) => q.kind === "MCQ");
+  const choiceHeaders = firstMcq?.kind === "MCQ" ? firstMcq.choices : [
+    { id: "①", text: "①" },
+    { id: "②", text: "②" },
+    { id: "③", text: "③" },
+    { id: "④", text: "④" },
+    { id: "⑤", text: "⑤" },
+  ];
 
   return (
     <div className="assessment-take">
@@ -199,31 +240,57 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
           <div key={ci} className="omr-grid">
             <div className="omr-grid-header">
               <div className="omr-grid-num">번호</div>
-              {state.template.questions[0]?.choices.map((c) => (
+              <div className="omr-grid-kind">유형</div>
+              {choiceHeaders.map((c) => (
                 <div key={c.id} className="omr-grid-col-header">{c.id}</div>
               ))}
             </div>
             {range.map((qi) => {
               const q = state.template.questions[qi];
-              const selected = answers[q.id] ?? [];
               return (
                 <div key={q.id} className="omr-grid-row">
                   <div className="omr-grid-num">{qi + 1}</div>
-                  {q.choices.map((c) => {
-                    const filled = selected.includes(c.id);
-                    return (
-                      <button
-                        key={c.id}
-                        type="button"
-                        className={`omr-bubble${filled ? " is-filled" : ""}`}
-                        onClick={() => selectAnswer(q.id, c.id)}
+                  <div
+                    className={`omr-kind-chip omr-kind-chip-${q.kind === "MCQ" ? "mcq" : "short"} is-readonly`}
+                    aria-label={`유형: ${q.kind === "MCQ" ? "객관식" : "단답형"}`}
+                  >
+                    {q.kind === "MCQ" ? "객" : "단"}
+                  </div>
+                  {q.kind === "MCQ" ? (
+                    q.choices.map((c) => {
+                      const selected = answers[q.id] ?? [];
+                      const filled = selected.includes(c.id);
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          className={`omr-bubble${filled ? " is-filled" : ""}`}
+                          onClick={() => selectAnswer(q.id, c.id)}
+                          disabled={expired || submitting}
+                          aria-label={`${qi + 1}번 ${c.id} ${filled ? "선택됨" : ""}`}
+                        >
+                          {filled ? "●" : "○"}
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div
+                      className="omr-grid-short"
+                      style={{ ["--choice-span" as string]: choiceHeaders.length }}
+                    >
+                      <input
+                        type="text"
+                        className="assessment-input omr-short-input"
+                        placeholder="정답 (띄어쓰기 없이)"
+                        value={shortAnswers[q.id] ?? ""}
+                        onChange={(e) => saveShort(q.id, e.target.value)}
+                        onKeyDown={(e) => { if (e.key === " ") e.preventDefault(); }}
+                        maxLength={50}
                         disabled={expired || submitting}
-                        aria-label={`${qi + 1}번 ${c.id} ${filled ? "선택됨" : ""}`}
-                      >
-                        {filled ? "●" : "○"}
-                      </button>
-                    );
-                  })}
+                        aria-label={`${qi + 1}번 단답형 답안`}
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })}

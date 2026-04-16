@@ -33,22 +33,33 @@ export async function GET(
       createdById: template.createdById,
       createdAt: template.createdAt.toISOString(),
       questions: template.questions.map((q) => {
-        const payload = q.payload as { choices: { id: string; text: string }[]; correctChoiceIds: string[] };
+        if (q.kind === "MCQ") {
+          const p = q.payload as { choices: { id: string; text: string }[]; correctChoiceIds: string[] };
+          return {
+            id: q.id,
+            order: q.order,
+            kind: "MCQ" as const,
+            prompt: q.prompt,
+            maxScore: q.maxScore,
+            choices: p.choices,
+            correctChoiceIds: p.correctChoiceIds,
+          };
+        }
+        const p = q.payload as { correctAnswers: string[] };
         return {
           id: q.id,
           order: q.order,
-          kind: "MCQ" as const,
+          kind: "SHORT" as const,
           prompt: q.prompt,
           maxScore: q.maxScore,
-          choices: payload.choices,
-          correctChoiceIds: payload.correctChoiceIds,
+          correctAnswers: p.correctAnswers,
         };
       }),
     };
     return NextResponse.json({ template: dto, viewer: "teacher" });
   }
 
-  // Student view — correctChoiceIds stripped.
+  // Student view — answer keys stripped (correctChoiceIds and correctAnswers).
   const dto: AssessmentTemplateStudentDTO = {
     id: template.id,
     classroomId: template.classroomId,
@@ -56,14 +67,23 @@ export async function GET(
     title: template.title,
     durationMin: template.durationMin,
     questions: template.questions.map((q) => {
-      const payload = q.payload as { choices: { id: string; text: string }[] };
+      if (q.kind === "MCQ") {
+        const p = q.payload as { choices: { id: string; text: string }[] };
+        return {
+          id: q.id,
+          order: q.order,
+          kind: "MCQ" as const,
+          prompt: q.prompt,
+          maxScore: q.maxScore,
+          choices: p.choices,
+        };
+      }
       return {
         id: q.id,
         order: q.order,
-        kind: "MCQ" as const,
+        kind: "SHORT" as const,
         prompt: q.prompt,
         maxScore: q.maxScore,
-        choices: payload.choices,
       };
     }),
   };
