@@ -93,7 +93,19 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const selectAnswer = useCallback(
     (questionId: string, choiceId: string) => {
-      setAnswers((prev) => ({ ...prev, [questionId]: [choiceId] }));
+      // 같은 버블 재클릭 시 해제. 그렇지 않으면 교체.
+      const willBeEmpty =
+        (answers[questionId] ?? []).length === 1 &&
+        answers[questionId]![0] === choiceId;
+      const nextSelected = willBeEmpty ? [] : [choiceId];
+      setAnswers((prev) => {
+        if (willBeEmpty) {
+          const copy = { ...prev };
+          delete copy[questionId];
+          return copy;
+        }
+        return { ...prev, [questionId]: nextSelected };
+      });
       if (state.kind !== "ready") return;
       const submissionId = state.submission.id;
       clearTimeout(timers.current[questionId]);
@@ -105,7 +117,7 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
             {
               method: "PATCH",
               headers: { "content-type": "application/json" },
-              body: JSON.stringify({ questionId, selectedChoiceIds: [choiceId] }),
+              body: JSON.stringify({ questionId, selectedChoiceIds: nextSelected }),
             }
           );
           setSaveState(res.ok ? "saved" : "idle");
@@ -114,7 +126,7 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
         }
       }, 300);
     },
-    [state]
+    [state, answers]
   );
 
   async function handleSubmit() {

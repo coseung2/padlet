@@ -58,7 +58,14 @@ export function AssessmentComposer({
   const choiceIds = choiceCount === 5 ? CHOICE_IDS_5 : CHOICE_IDS_4;
 
   function pick(qi: number, choiceId: string) {
-    setAnswers((prev) => ({ ...prev, [qi]: choiceId }));
+    setAnswers((prev) => {
+      if (prev[qi] === choiceId) {
+        const next = { ...prev };
+        delete next[qi];
+        return next;
+      }
+      return { ...prev, [qi]: choiceId };
+    });
   }
 
   async function save() {
