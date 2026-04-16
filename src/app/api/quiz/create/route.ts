@@ -91,7 +91,7 @@ export async function POST(req: Request) {
       const cookies = req.headers.get("cookie") ?? "";
       const providerMatch = cookies.match(/llm_provider=([^;]+)/);
       const keyMatch = cookies.match(/llm_api_key=([^;]+)/);
-      const provider = (providerMatch?.[1] ?? "openai") as "openai" | "anthropic";
+      const provider = (providerMatch?.[1] ?? "openai") as "openai" | "anthropic" | "gemini";
       const apiKey = keyMatch?.[1] ? decodeURIComponent(keyMatch[1]) : "";
 
       if (!apiKey) {

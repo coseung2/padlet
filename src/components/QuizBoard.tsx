@@ -25,7 +25,7 @@ export type QuizData = {
 };
 
 type Props = { boardId: string; quizzes: QuizData[] };
-type LLMSettings = { provider: "openai" | "anthropic"; apiKey: string };
+type LLMSettings = { provider: "openai" | "anthropic" | "gemini"; apiKey: string };
 
 const OPT_COLORS = ["#e21b3c", "#1368ce", "#d89e00", "#26890c"];
 const OPT_LABELS = ["A", "B", "C", "D"];
@@ -403,11 +403,11 @@ function LLMModal({ settings, onSave, onClose }: { settings: LLMSettings; onSave
       <div className="modal-body">
         <div className="llm-settings-field"><label className="llm-settings-label">AI 제공자</label>
           <select className="modal-select" value={provider} onChange={(e) => setProvider(e.target.value as LLMSettings["provider"])}>
-            <option value="openai">OpenAI</option><option value="anthropic">Anthropic</option>
+            <option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="gemini">Google Gemini</option>
           </select>
         </div>
         <div className="llm-settings-field"><label className="llm-settings-label">API Key</label>
-          <input className="modal-input" type="password" placeholder={provider === "openai" ? "sk-..." : "sk-ant-..."} value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
+          <input className="modal-input" type="password" placeholder={provider === "openai" ? "sk-..." : provider === "anthropic" ? "sk-ant-..." : "AIza..."} value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
         </div>
         <div className="modal-actions">
           <button type="button" className="modal-btn-cancel" onClick={onClose}>취소</button>
