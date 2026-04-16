@@ -522,10 +522,16 @@
 }
 
 /* ─── OMR Grid (shared between Composer answer-key & Take) ─── */
+.omr-grid-wrap {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  flex-wrap: wrap;
+}
 .omr-grid {
   width: 100%;
-  max-width: 720px;
-  margin: 0 auto;
+  max-width: 360px;
+  flex: 0 1 360px;
 }
 .omr-grid-header {
   display: flex;
@@ -550,7 +556,7 @@
   display: flex;
   align-items: center;
   border-bottom: 1px solid var(--color-border);
-  min-height: 44px;
+  min-height: 40px;
 }
 .omr-grid-row:nth-child(5n+1) {
   border-bottom: 1px solid var(--color-border-hover);
@@ -577,20 +583,27 @@
   padding: 6px 0;
   min-width: 44px;
   min-height: 44px;
-  transition: color 80ms ease, background-color 80ms ease;
-  border-radius: 50%;
+  transition: color 120ms ease;
   -webkit-tap-highlight-color: transparent;
 }
 .omr-bubble:hover:not(:disabled) {
-  color: var(--color-accent);
-  background: var(--color-accent-tinted-bg);
+  color: var(--color-text-muted);
 }
 .omr-bubble.is-filled {
   color: var(--color-accent);
   font-size: 22px;
 }
+.omr-bubble.is-filled:hover:not(:disabled) {
+  color: var(--color-accent-active);
+}
+.omr-bubble:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -6px;
+  border-radius: 50%;
+}
 .omr-bubble:active:not(:disabled) {
-  transform: scale(0.9);
+  transform: scale(0.92);
+  transition: transform 80ms ease;
 }
 .omr-bubble:disabled {
   cursor: not-allowed;
@@ -625,8 +638,9 @@
   align-items: center;
 }
 
-@media (max-width: 600px) {
-  .omr-grid { max-width: 100%; }
+@media (max-width: 767px) {
+  .omr-grid-wrap { gap: 0; }
+  .omr-grid { max-width: 100%; flex: 0 1 100%; }
   .omr-bubble { min-width: 40px; min-height: 40px; font-size: 18px; }
   .omr-grid-num { width: 36px; font-size: 13px; }
   .omr-grid-row { min-height: 40px; }
