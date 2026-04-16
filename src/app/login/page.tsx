@@ -2,10 +2,10 @@
 
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { RoleIcon } from "@/components/login/RoleIcon";
 
 type Role = {
   id: "teacher" | "student" | "parent";
-  emoji: string;
   title: string;
   desc: string;
   cta: string;
@@ -18,7 +18,6 @@ export default function LoginPage() {
   const roles: Role[] = [
     {
       id: "teacher",
-      emoji: "👨‍🏫",
       title: "교사",
       desc: "학급과 보드를 관리해요",
       cta: "Google로 로그인",
@@ -26,7 +25,6 @@ export default function LoginPage() {
     },
     {
       id: "student",
-      emoji: "👨‍🎓",
       title: "학생",
       desc: "QR/코드로 학급에 참여해요",
       cta: "학생 로그인",
@@ -34,7 +32,6 @@ export default function LoginPage() {
     },
     {
       id: "parent",
-      emoji: "👨‍👩‍👧",
       title: "학부모",
       desc: "초대 코드로 자녀 작품을 봐요",
       cta: "초대 코드 입력",
@@ -58,8 +55,8 @@ export default function LoginPage() {
               onClick={role.onSelect}
               aria-label={`${role.title}으로 계속`}
             >
-              <div className="login-role-emoji" aria-hidden="true">
-                {role.emoji}
+              <div className="login-role-icon">
+                <RoleIcon role={role.id} />
               </div>
               <div className="login-role-title">{role.title}</div>
               <div className="login-role-desc">{role.desc}</div>
