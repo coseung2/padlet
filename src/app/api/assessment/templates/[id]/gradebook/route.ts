@@ -5,6 +5,7 @@ import { canManageAssessment } from "@/lib/assessment-permissions";
 import { isCorrectMcq, isCorrectShort } from "@/lib/assessment-grading";
 import type {
   AssessmentGradebookPayload,
+  ManualAnswerPayload,
   McqAnswerPayload,
   McqQuestionPayload,
   ShortAnswerPayload,
@@ -61,21 +62,47 @@ export async function GET(
         correctChoiceIds: p.correctChoiceIds,
       };
     }
-    const p = q.payload as ShortQuestionPayload;
+    if (q.kind === "SHORT") {
+      const p = q.payload as ShortQuestionPayload;
+      return {
+        id: q.id,
+        order: q.order,
+        kind: "SHORT" as const,
+        prompt: q.prompt,
+        maxScore: q.maxScore,
+        correctAnswers: p.correctAnswers,
+      };
+    }
     return {
       id: q.id,
       order: q.order,
-      kind: "SHORT" as const,
+      kind: "MANUAL" as const,
       prompt: q.prompt,
       maxScore: q.maxScore,
-      correctAnswers: p.correctAnswers,
     };
   });
 
   const rows = template.classroom.students.map((student) => {
     const submission = submissionByStudent.get(student.id) ?? null;
+    let pendingManualCount = 0;
     const answers = (submission?.answers ?? []).map((a) => {
       const q = template.questions.find((x) => x.id === a.questionId);
+      if (q?.kind === "MANUAL") {
+        const text = (a.payload as ManualAnswerPayload).textAnswer ?? "";
+        const manualScore = a.manualScore;
+        const needsManual = manualScore === null;
+        if (needsManual) pendingManualCount += 1;
+        return {
+          questionId: a.questionId,
+          kind: "MANUAL" as const,
+          selectedChoiceIds: [],
+          textAnswer: text,
+          correct: manualScore === null ? null : manualScore === q.maxScore,
+          autoScore: null,
+          manualScore,
+          needsManual,
+        };
+      }
       if (q?.kind === "SHORT") {
         const text = (a.payload as ShortAnswerPayload).textAnswer ?? "";
         const correct = isCorrectShort(
@@ -84,10 +111,13 @@ export async function GET(
         );
         return {
           questionId: a.questionId,
+          kind: "SHORT" as const,
           selectedChoiceIds: [],
           textAnswer: text,
           correct,
           autoScore: a.autoScore,
+          manualScore: null,
+          needsManual: false,
         };
       }
       const selected = (a.payload as McqAnswerPayload).selectedChoiceIds ?? [];
@@ -96,10 +126,13 @@ export async function GET(
       const correct = correctIds ? isCorrectMcq(correctIds, selected) : null;
       return {
         questionId: a.questionId,
+        kind: "MCQ" as const,
         selectedChoiceIds: selected,
         textAnswer: null,
         correct,
         autoScore: a.autoScore,
+        manualScore: null,
+        needsManual: false,
       };
     });
     return {
@@ -121,8 +154,9 @@ export async function GET(
               submission.gradebookEntry.releasedAt?.toISOString() ?? null,
           }
         : null,
+      pendingManualCount,
       totalAutoScore: answers.reduce(
-        (acc, a) => acc + (a.autoScore ?? 0),
+        (acc, a) => acc + (a.manualScore ?? a.autoScore ?? 0),
         0
       ),
     };

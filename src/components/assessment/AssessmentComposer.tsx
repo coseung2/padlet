@@ -11,7 +11,7 @@ import type { AssessmentQuestionCreate } from "@/types/assessment";
 const CHOICE_IDS_4 = ["①", "②", "③", "④"];
 const CHOICE_IDS_5 = ["①", "②", "③", "④", "⑤"];
 
-type QKind = "MCQ" | "SHORT";
+type QKind = "MCQ" | "SHORT" | "MANUAL";
 
 function splitIntoColumns(n: number): number[][] {
   if (n <= 10) return [Array.from({ length: n }, (_, i) => i)];
@@ -32,6 +32,9 @@ function buildQuestions(
   const cids = choiceCount === 5 ? CHOICE_IDS_5 : CHOICE_IDS_4;
   return Array.from({ length: count }, (_, i) => {
     const kind = kinds[i] ?? "MCQ";
+    if (kind === "MANUAL") {
+      return { kind: "MANUAL", prompt: `${i + 1}`, maxScore: 1 };
+    }
     if (kind === "SHORT") {
       const raw = (shortAnswers[i] ?? "").replace(/\s+/g, "");
       return {
@@ -79,10 +82,13 @@ export function AssessmentComposer({
   }
 
   function toggleKind(qi: number) {
-    setKinds((prev) => ({
-      ...prev,
-      [qi]: getKind(qi) === "MCQ" ? "SHORT" : "MCQ",
-    }));
+    // 3-way rotate: MCQ → SHORT → MANUAL → MCQ.
+    setKinds((prev) => {
+      const current = prev[qi] ?? "MCQ";
+      const next: QKind =
+        current === "MCQ" ? "SHORT" : current === "SHORT" ? "MANUAL" : "MCQ";
+      return { ...prev, [qi]: next };
+    });
   }
 
   function setAllKind(k: QKind) {
@@ -116,7 +122,8 @@ export function AssessmentComposer({
   function isAnswered(qi: number): boolean {
     const k = getKind(qi);
     if (k === "MCQ") return (mcqAnswers[qi]?.length ?? 0) > 0;
-    return (shortAnswers[qi] ?? "").length > 0;
+    if (k === "SHORT") return (shortAnswers[qi] ?? "").length > 0;
+    return true; // MANUAL 은 정답표 불필요 — 항상 답변됨 처리
   }
 
   async function save() {
@@ -241,6 +248,14 @@ export function AssessmentComposer({
         >
           모두 단답형
         </button>
+        <button
+          type="button"
+          className="assessment-btn assessment-btn-ghost"
+          onClick={() => setAllKind("MANUAL")}
+          disabled={saving}
+        >
+          모두 수동채점
+        </button>
       </div>
 
       {error && (
@@ -266,12 +281,12 @@ export function AssessmentComposer({
                   <div className="omr-grid-num">{qi + 1}</div>
                   <button
                     type="button"
-                    className={`omr-kind-chip omr-kind-chip-${kind === "MCQ" ? "mcq" : "short"}`}
+                    className={`omr-kind-chip omr-kind-chip-${kind === "MCQ" ? "mcq" : kind === "SHORT" ? "short" : "manual"}`}
                     onClick={() => toggleKind(qi)}
                     disabled={saving}
-                    aria-label={`${qi + 1}번 유형: ${kind === "MCQ" ? "객관식" : "단답형"} (클릭하여 전환)`}
+                    aria-label={`${qi + 1}번 유형: ${kind === "MCQ" ? "객관식" : kind === "SHORT" ? "단답형" : "수동채점"} (클릭하여 전환)`}
                   >
-                    {kind === "MCQ" ? "객" : "단"}
+                    {kind === "MCQ" ? "객" : kind === "SHORT" ? "단" : "수"}
                   </button>
                   {kind === "MCQ" ? (
                     choiceIds.map((id) => {
@@ -289,7 +304,7 @@ export function AssessmentComposer({
                         </button>
                       );
                     })
-                  ) : (
+                  ) : kind === "SHORT" ? (
                     <div
                       className="omr-grid-short"
                       style={{ ["--choice-span" as string]: choiceIds.length }}
@@ -305,6 +320,13 @@ export function AssessmentComposer({
                         disabled={saving}
                         aria-label={`${qi + 1}번 단답형 정답`}
                       />
+                    </div>
+                  ) : (
+                    <div
+                      className="omr-grid-short omr-grid-manual"
+                      style={{ ["--choice-span" as string]: choiceIds.length }}
+                    >
+                      수동채점 (채점 시 교사가 판정)
                     </div>
                   )}
                 </div>

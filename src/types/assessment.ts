@@ -21,6 +21,10 @@ export type ShortAnswerPayload = {
   textAnswer: string;
 };
 
+export type ManualAnswerPayload = {
+  textAnswer: string;
+};
+
 export type AssessmentQuestionCreate =
   | {
       kind: "MCQ";
@@ -33,6 +37,11 @@ export type AssessmentQuestionCreate =
       kind: "SHORT";
       prompt: string;
       correctAnswers: string[];
+      maxScore?: number;
+    }
+  | {
+      kind: "MANUAL";
+      prompt: string;
       maxScore?: number;
     };
 
@@ -61,6 +70,13 @@ export type TeacherQuestionDTO =
       prompt: string;
       maxScore: number;
       correctAnswers: string[];
+    }
+  | {
+      id: string;
+      order: number;
+      kind: "MANUAL";
+      prompt: string;
+      maxScore: number;
     };
 
 export type StudentQuestionDTO =
@@ -76,6 +92,13 @@ export type StudentQuestionDTO =
       id: string;
       order: number;
       kind: "SHORT";
+      prompt: string;
+      maxScore: number;
+    }
+  | {
+      id: string;
+      order: number;
+      kind: "MANUAL";
       prompt: string;
       maxScore: number;
     };
@@ -125,11 +148,15 @@ export type GradebookRow = {
   } | null;
   answers: Array<{
     questionId: string;
-    selectedChoiceIds: string[]; // MCQ only — empty for SHORT
-    textAnswer: string | null; // SHORT only
-    correct: boolean | null;
+    kind: "MCQ" | "SHORT" | "MANUAL";
+    selectedChoiceIds: string[]; // MCQ only
+    textAnswer: string | null; // SHORT or MANUAL
+    correct: boolean | null; // null for MANUAL pending, bool for scored
     autoScore: number | null;
+    manualScore: number | null;
+    needsManual: boolean; // true when kind=MANUAL and manualScore is null
   }>;
+  pendingManualCount: number;
   entry: {
     id: string;
     finalScore: number;
@@ -163,11 +190,42 @@ export type ResultQuestionShort = {
   correct: boolean;
 };
 
+export type ResultQuestionManual = {
+  id: string;
+  kind: "MANUAL";
+  prompt: string;
+  textAnswer: string;
+  manualScore: number; // 0 or maxScore, teacher-assigned
+  maxScore: number;
+  correct: boolean; // manualScore === maxScore
+};
+
 export type AssessmentResultPayload =
   | { released: false }
   | {
       released: true;
       finalScore: number;
       maxScoreTotal: number;
-      questions: Array<ResultQuestionMcq | ResultQuestionShort>;
+      questions: Array<
+        ResultQuestionMcq | ResultQuestionShort | ResultQuestionManual
+      >;
     };
+
+// Manual grading queue — /templates/[id]/manual-queue response
+export type ManualQueueItem = {
+  questionId: string;
+  questionOrder: number;
+  questionMaxScore: number;
+  entries: Array<{
+    submissionId: string;
+    studentId: string;
+    studentNumber: number | null;
+    studentName: string;
+    textAnswer: string;
+    manualScore: number | null; // null = pending
+  }>;
+};
+
+export type ManualQueuePayload = {
+  items: ManualQueueItem[];
+};
