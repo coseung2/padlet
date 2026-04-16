@@ -1,31 +1,28 @@
 "use client";
 
-// Teacher-only composer for a new AssessmentTemplate. MVP-0 accepts MCQ
-// only — the UI doesn't even offer a kind dropdown. On save the route
-// returns the created template and the parent switches view.
+// OMR-style answer key composer. The teacher sets the number of
+// questions, number of choices (4 or 5), and clicks the correct
+// answer for each row. No question text — the exam paper is printed
+// separately.
 
 import { useState } from "react";
-import type {
-  AssessmentChoice,
-  AssessmentQuestionCreate,
-} from "@/types/assessment";
+import type { AssessmentQuestionCreate } from "@/types/assessment";
 
-const MAX_QUESTIONS = 20;
-const MIN_CHOICES = 2;
-const MAX_CHOICES = 6;
-const CHOICE_LETTERS = ["A", "B", "C", "D", "E", "F"] as const;
+const CHOICE_IDS_4 = ["①", "②", "③", "④"];
+const CHOICE_IDS_5 = ["①", "②", "③", "④", "⑤"];
 
-function blankChoice(i: number): AssessmentChoice {
-  return { id: CHOICE_LETTERS[i] ?? String(i), text: "" };
-}
-
-function blankQuestion(): AssessmentQuestionCreate {
-  return {
-    prompt: "",
-    choices: [blankChoice(0), blankChoice(1), blankChoice(2), blankChoice(3)],
-    correctChoiceIds: ["A"],
+function buildQuestions(
+  count: number,
+  choiceCount: 4 | 5,
+  answers: Record<number, string>
+): AssessmentQuestionCreate[] {
+  const ids = choiceCount === 5 ? CHOICE_IDS_5 : CHOICE_IDS_4;
+  return Array.from({ length: count }, (_, i) => ({
+    prompt: `${i + 1}`,
+    choices: ids.map((id) => ({ id, text: id })),
+    correctChoiceIds: answers[i] ? [answers[i]] : [ids[0]],
     maxScore: 1,
-  };
+  }));
 }
 
 export interface AssessmentComposerProps {
@@ -40,89 +37,31 @@ export function AssessmentComposer({
   onCreated,
 }: AssessmentComposerProps) {
   const [title, setTitle] = useState("");
-  const [durationMin, setDurationMin] = useState<number>(30);
-  const [questions, setQuestions] = useState<AssessmentQuestionCreate[]>([
-    blankQuestion(),
-  ]);
+  const [durationMin, setDurationMin] = useState(30);
+  const [questionCount, setQuestionCount] = useState(20);
+  const [choiceCount, setChoiceCount] = useState<4 | 5>(5);
+  const [answers, setAnswers] = useState<Record<number, string>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function updateQ(i: number, patch: Partial<AssessmentQuestionCreate>) {
-    setQuestions((prev) =>
-      prev.map((q, idx) => (idx === i ? { ...q, ...patch } : q))
-    );
-  }
-  function updateChoice(qi: number, ci: number, text: string) {
-    setQuestions((prev) =>
-      prev.map((q, idx) => {
-        if (idx !== qi) return q;
-        const choices = q.choices.map((c, j) => (j === ci ? { ...c, text } : c));
-        return { ...q, choices };
-      })
-    );
-  }
-  function toggleCorrect(qi: number, choiceId: string) {
-    setQuestions((prev) =>
-      prev.map((q, idx) => {
-        if (idx !== qi) return q;
-        const set = new Set(q.correctChoiceIds);
-        if (set.has(choiceId)) set.delete(choiceId);
-        else set.add(choiceId);
-        if (set.size === 0) set.add(choiceId); // never empty
-        return { ...q, correctChoiceIds: Array.from(set) };
-      })
-    );
-  }
-  function addChoice(qi: number) {
-    setQuestions((prev) =>
-      prev.map((q, idx) => {
-        if (idx !== qi) return q;
-        if (q.choices.length >= MAX_CHOICES) return q;
-        return { ...q, choices: [...q.choices, blankChoice(q.choices.length)] };
-      })
-    );
-  }
-  function removeChoice(qi: number, ci: number) {
-    setQuestions((prev) =>
-      prev.map((q, idx) => {
-        if (idx !== qi) return q;
-        if (q.choices.length <= MIN_CHOICES) return q;
-        const removed = q.choices[ci];
-        const choices = q.choices.filter((_, j) => j !== ci);
-        const correct = q.correctChoiceIds.filter((id) => id !== removed.id);
-        return {
-          ...q,
-          choices,
-          correctChoiceIds: correct.length ? correct : [choices[0].id],
-        };
-      })
-    );
-  }
-  function removeQuestion(i: number) {
-    setQuestions((prev) => {
-      if (prev.length <= 1) return prev;
-      return prev.filter((_, idx) => idx !== i);
-    });
-  }
-  function addQuestion() {
-    setQuestions((prev) =>
-      prev.length >= MAX_QUESTIONS ? prev : [...prev, blankQuestion()]
-    );
+  const choiceIds = choiceCount === 5 ? CHOICE_IDS_5 : CHOICE_IDS_4;
+
+  function pick(qi: number, choiceId: string) {
+    setAnswers((prev) => ({ ...prev, [qi]: choiceId }));
   }
 
   async function save() {
     setError(null);
     if (!title.trim()) return setError("제목을 입력해주세요");
-    if (durationMin < 1 || durationMin > 240)
-      return setError("시간은 1~240분 사이여야 해요");
-    for (const [i, q] of questions.entries()) {
-      if (!q.prompt.trim()) return setError(`문항 ${i + 1} 질문이 비어있어요`);
-      for (const c of q.choices)
-        if (!c.text.trim())
-          return setError(`문항 ${i + 1} 보기가 비어있어요`);
+    const unanswered = Array.from({ length: questionCount }, (_, i) => i).filter(
+      (i) => !answers[i]
+    );
+    if (unanswered.length > 0) {
+      return setError(`${unanswered.map((i) => i + 1).join(", ")}번 정답을 선택해주세요`);
     }
     setSaving(true);
     try {
+      const questions = buildQuestions(questionCount, choiceCount, answers);
       const res = await fetch("/api/assessment/templates", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -149,9 +88,8 @@ export function AssessmentComposer({
 
   return (
     <div className="assessment-composer">
-      <div className="assessment-composer-head">
-        <h2 className="assessment-composer-title">수행평가 만들기</h2>
-      </div>
+      <h2 className="assessment-composer-title">정답표 입력</h2>
+
       <div className="assessment-composer-meta">
         <label className="assessment-field">
           <span>제목</span>
@@ -164,22 +102,44 @@ export function AssessmentComposer({
             disabled={saving}
           />
         </label>
-        <label className="assessment-field assessment-field-duration">
+        <label className="assessment-field assessment-field-sm">
           <span>시간</span>
+          <div className="assessment-field-row">
+            <input
+              type="number"
+              className="assessment-input"
+              min={1}
+              max={240}
+              value={durationMin}
+              onChange={(e) => setDurationMin(Math.min(240, Math.max(1, parseInt(e.target.value || "1", 10))))}
+              disabled={saving}
+            />
+            <span className="assessment-field-suffix">분</span>
+          </div>
+        </label>
+        <label className="assessment-field assessment-field-sm">
+          <span>문항 수</span>
           <input
             type="number"
             className="assessment-input"
             min={1}
-            max={240}
-            value={durationMin}
-            onChange={(e) =>
-              setDurationMin(
-                Math.min(240, Math.max(1, parseInt(e.target.value || "1", 10)))
-              )
-            }
+            max={50}
+            value={questionCount}
+            onChange={(e) => setQuestionCount(Math.min(50, Math.max(1, parseInt(e.target.value || "1", 10))))}
             disabled={saving}
           />
-          <span className="assessment-field-suffix">분</span>
+        </label>
+        <label className="assessment-field assessment-field-sm">
+          <span>선지</span>
+          <select
+            className="assessment-input"
+            value={choiceCount}
+            onChange={(e) => setChoiceCount(parseInt(e.target.value) as 4 | 5)}
+            disabled={saving}
+          >
+            <option value={4}>4개</option>
+            <option value={5}>5개</option>
+          </select>
         </label>
       </div>
 
@@ -189,105 +149,39 @@ export function AssessmentComposer({
         </div>
       )}
 
-      <div className="assessment-question-list">
-        {questions.map((q, qi) => (
-          <div key={qi} className="assessment-question-card">
-            <div className="assessment-question-head">
-              <span className="assessment-question-num">문항 {qi + 1}</span>
-              <button
-                type="button"
-                className="assessment-question-remove"
-                onClick={() => removeQuestion(qi)}
-                disabled={questions.length <= 1 || saving}
-                aria-label={`문항 ${qi + 1} 삭제`}
-              >
-                🗑
-              </button>
-            </div>
-            <input
-              type="text"
-              className="assessment-input"
-              placeholder="질문을 입력하세요"
-              value={q.prompt}
-              onChange={(e) => updateQ(qi, { prompt: e.target.value })}
-              disabled={saving}
-            />
-            <div className="assessment-choice-list">
-              {q.choices.map((c, ci) => (
-                <div key={c.id} className="assessment-choice">
-                  <label className="assessment-choice-check">
-                    <input
-                      type="checkbox"
-                      checked={q.correctChoiceIds.includes(c.id)}
-                      onChange={() => toggleCorrect(qi, c.id)}
-                      disabled={saving}
-                      aria-label={`보기 ${c.id} 정답 지정`}
-                    />
-                    <span className="assessment-choice-letter">{c.id}</span>
-                  </label>
-                  <input
-                    type="text"
-                    className="assessment-input assessment-choice-input"
-                    placeholder={`보기 ${c.id}`}
-                    value={c.text}
-                    onChange={(e) => updateChoice(qi, ci, e.target.value)}
-                    disabled={saving}
-                  />
-                  <button
-                    type="button"
-                    className="assessment-choice-remove"
-                    onClick={() => removeChoice(qi, ci)}
-                    disabled={q.choices.length <= MIN_CHOICES || saving}
-                    aria-label={`보기 ${c.id} 삭제`}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-              <button
-                type="button"
-                className="assessment-btn assessment-btn-ghost"
-                onClick={() => addChoice(qi)}
-                disabled={q.choices.length >= MAX_CHOICES || saving}
-              >
-                + 보기 추가 ({q.choices.length}/{MAX_CHOICES})
-              </button>
-            </div>
-            <div className="assessment-question-meta">
-              <label>
-                배점{" "}
-                <input
-                  type="number"
-                  className="assessment-input assessment-score-input"
-                  min={1}
-                  max={100}
-                  value={q.maxScore ?? 1}
-                  onChange={(e) =>
-                    updateQ(qi, {
-                      maxScore: Math.min(
-                        100,
-                        Math.max(1, parseInt(e.target.value || "1", 10))
-                      ),
-                    })
-                  }
+      <div className="omr-grid">
+        <div className="omr-grid-header">
+          <div className="omr-grid-num">번호</div>
+          {choiceIds.map((id) => (
+            <div key={id} className="omr-grid-col-header">{id}</div>
+          ))}
+        </div>
+        {Array.from({ length: questionCount }, (_, qi) => (
+          <div key={qi} className="omr-grid-row">
+            <div className="omr-grid-num">{qi + 1}</div>
+            {choiceIds.map((id) => {
+              const selected = answers[qi] === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  className={`omr-bubble${selected ? " is-filled" : ""}`}
+                  onClick={() => pick(qi, id)}
                   disabled={saving}
-                />
-                점
-              </label>
-            </div>
+                  aria-label={`${qi + 1}번 ${id} ${selected ? "선택됨" : ""}`}
+                >
+                  {selected ? "●" : "○"}
+                </button>
+              );
+            })}
           </div>
         ))}
       </div>
 
       <div className="assessment-composer-actions">
-        <button
-          type="button"
-          className="assessment-btn assessment-btn-ghost"
-          onClick={addQuestion}
-          disabled={questions.length >= MAX_QUESTIONS || saving}
-        >
-          + 문항 추가 ({questions.length}/{MAX_QUESTIONS})
-        </button>
+        <div className="assessment-composer-progress">
+          {Object.keys(answers).length}/{questionCount} 입력됨
+        </div>
         <button
           type="button"
           className="assessment-btn assessment-btn-primary"

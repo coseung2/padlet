@@ -520,3 +520,108 @@
   .assessment-gradebook-head { grid-template-columns: 1fr; }
   .assessment-gradebook-head .assessment-btn-primary { grid-column: 1; grid-row: 3; margin-top: 8px; }
 }
+
+/* ─── OMR Grid (shared between Composer answer-key & Take) ─── */
+.omr-grid {
+  width: 100%;
+  max-width: 420px;
+}
+.omr-grid-header {
+  display: flex;
+  align-items: center;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--color-text);
+  margin-bottom: 2px;
+}
+.omr-grid-header .omr-grid-num {
+  font-weight: 600;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+.omr-grid-col-header {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.omr-grid-row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--color-border);
+  min-height: 36px;
+}
+.omr-grid-row:nth-child(5n+1) {
+  border-bottom: 1px solid var(--color-border-hover);
+}
+.omr-grid-num {
+  width: 48px;
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+.omr-bubble {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  color: var(--color-border-hover);
+  padding: 4px 0;
+  min-width: 36px;
+  min-height: 36px;
+  transition: color 80ms ease;
+  border-radius: 50%;
+}
+.omr-bubble:hover:not(:disabled) {
+  color: var(--color-accent);
+  background: var(--color-accent-tinted-bg);
+}
+.omr-bubble.is-filled {
+  color: var(--color-accent);
+  font-size: 20px;
+}
+.omr-bubble:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.assessment-field-sm {
+  flex: 0 0 100px;
+}
+.assessment-field-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.assessment-composer-progress {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.assessment-take-progress {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.assessment-take-submit-bar {
+  position: sticky;
+  bottom: 0;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  padding: 12px 0;
+  margin-top: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+@media (max-width: 600px) {
+  .omr-grid { max-width: 100%; }
+  .omr-bubble { min-width: 32px; min-height: 32px; font-size: 16px; }
+  .omr-grid-num { width: 36px; font-size: 13px; }
+}
