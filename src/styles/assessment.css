@@ -77,10 +77,7 @@
 /* ─── Composer ─── */
 .assessment-composer {
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  padding: 20px;
-  box-shadow: var(--shadow-card);
+  padding: 20px 0;
 }
 .assessment-composer-head {
   display: flex;
@@ -126,15 +123,19 @@
 .assessment-question-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
 }
 .assessment-question-card {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  padding: 14px;
+  border: none;
+  border-radius: 0;
+  border-top: 1px solid var(--color-border);
+  padding: 16px 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+.assessment-question-card:last-child {
+  border-bottom: 1px solid var(--color-border);
 }
 .assessment-question-head {
   display: flex;
@@ -200,9 +201,7 @@
 /* ─── Take ─── */
 .assessment-take {
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  padding: 20px 20px 80px;
+  padding: 20px 0 80px;
 }
 .assessment-take-timer {
   position: sticky;
@@ -215,7 +214,7 @@
   align-items: center;
   gap: 12px;
   font-size: 14px;
-  margin: -20px -20px 16px;
+  margin: 0 0 16px;
 }
 .assessment-take-timer-icon {
   font-size: 18px;
@@ -269,9 +268,13 @@
   gap: 16px;
 }
 .assessment-take-question {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  padding: 14px;
+  border: none;
+  border-radius: 0;
+  border-top: 1px solid var(--color-border);
+  padding: 16px 0;
+}
+.assessment-take-question:last-child {
+  border-bottom: 1px solid var(--color-border);
 }
 .assessment-take-q-num {
   font-size: 12px;
@@ -316,7 +319,7 @@
   background: var(--color-surface);
   border-top: 1px solid var(--color-border);
   padding: 12px 0;
-  margin: 20px -20px -20px;
+  margin: 20px 0 0;
   display: flex;
   justify-content: center;
 }
@@ -332,9 +335,7 @@
 /* ─── Gradebook ─── */
 .assessment-gradebook {
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  padding: 20px;
+  padding: 20px 0;
 }
 .assessment-gradebook-head {
   display: grid;
@@ -432,16 +433,12 @@
 /* ─── Result ─── */
 .assessment-result {
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  padding: 24px;
+  padding: 24px 0;
 }
 .assessment-result-pending,
 .assessment-result-error {
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  padding: 60px 20px;
+  padding: 60px 0;
   text-align: center;
   color: var(--color-text-muted);
 }
@@ -480,15 +477,21 @@
   gap: 10px;
 }
 .assessment-result-question {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-btn);
-  padding: 12px;
+  border: none;
+  border-radius: 0;
+  border-top: 1px solid var(--color-border);
+  padding: 14px 0;
+}
+.assessment-result-question:last-child {
+  border-bottom: 1px solid var(--color-border);
 }
 .assessment-result-question-correct {
-  background: var(--color-status-reviewed-bg);
+  border-left: 3px solid var(--color-status-reviewed-text);
+  padding-left: 12px;
 }
 .assessment-result-question-wrong {
-  background: var(--color-status-returned-bg);
+  border-left: 3px solid var(--color-status-returned-text);
+  padding-left: 12px;
 }
 .assessment-result-q-head {
   display: flex;
