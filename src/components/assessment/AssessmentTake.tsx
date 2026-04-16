@@ -93,13 +93,13 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const selectAnswer = useCallback(
     (questionId: string, choiceId: string) => {
-      // 같은 버블 재클릭 시 해제. 그렇지 않으면 교체.
-      const willBeEmpty =
-        (answers[questionId] ?? []).length === 1 &&
-        answers[questionId]![0] === choiceId;
-      const nextSelected = willBeEmpty ? [] : [choiceId];
+      // 복수 정답 허용 — 같은 버블 재클릭 시 해제, 아니면 set 에 추가.
+      const current = answers[questionId] ?? [];
+      const nextSelected = current.includes(choiceId)
+        ? current.filter((id) => id !== choiceId)
+        : [...current, choiceId];
       setAnswers((prev) => {
-        if (willBeEmpty) {
+        if (nextSelected.length === 0) {
           const copy = { ...prev };
           delete copy[questionId];
           return copy;
@@ -205,12 +205,12 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
             </div>
             {range.map((qi) => {
               const q = state.template.questions[qi];
-              const selected = answers[q.id]?.[0] ?? null;
+              const selected = answers[q.id] ?? [];
               return (
                 <div key={q.id} className="omr-grid-row">
                   <div className="omr-grid-num">{qi + 1}</div>
                   {q.choices.map((c) => {
-                    const filled = selected === c.id;
+                    const filled = selected.includes(c.id);
                     return (
                       <button
                         key={c.id}

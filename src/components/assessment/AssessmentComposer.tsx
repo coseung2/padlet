@@ -25,13 +25,13 @@ function splitIntoColumns(n: number): number[][] {
 function buildQuestions(
   count: number,
   choiceCount: 4 | 5,
-  answers: Record<number, string>
+  answers: Record<number, string[]>
 ): AssessmentQuestionCreate[] {
   const ids = choiceCount === 5 ? CHOICE_IDS_5 : CHOICE_IDS_4;
   return Array.from({ length: count }, (_, i) => ({
     prompt: `${i + 1}`,
     choices: ids.map((id) => ({ id, text: id })),
-    correctChoiceIds: answers[i] ? [answers[i]] : [ids[0]],
+    correctChoiceIds: answers[i]?.length ? answers[i] : [ids[0]],
     maxScore: 1,
   }));
 }
@@ -51,7 +51,8 @@ export function AssessmentComposer({
   const [durationMin, setDurationMin] = useState(30);
   const [questionCount, setQuestionCount] = useState(20);
   const [choiceCount, setChoiceCount] = useState<4 | 5>(5);
-  const [answers, setAnswers] = useState<Record<number, string>>({});
+  // 복수 정답 허용 — 한 문항에 여러 버블 마킹 가능.
+  const [answers, setAnswers] = useState<Record<number, string[]>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,12 +60,17 @@ export function AssessmentComposer({
 
   function pick(qi: number, choiceId: string) {
     setAnswers((prev) => {
-      if (prev[qi] === choiceId) {
+      const current = prev[qi] ?? [];
+      const has = current.includes(choiceId);
+      const nextList = has
+        ? current.filter((id) => id !== choiceId)
+        : [...current, choiceId];
+      if (nextList.length === 0) {
         const next = { ...prev };
         delete next[qi];
         return next;
       }
-      return { ...prev, [qi]: choiceId };
+      return { ...prev, [qi]: nextList };
     });
   }
 
@@ -72,7 +78,7 @@ export function AssessmentComposer({
     setError(null);
     if (!title.trim()) return setError("제목을 입력해주세요");
     const unanswered = Array.from({ length: questionCount }, (_, i) => i).filter(
-      (i) => !answers[i]
+      (i) => !answers[i]?.length
     );
     if (unanswered.length > 0) {
       return setError(`${unanswered.map((i) => i + 1).join(", ")}번 정답을 선택해주세요`);
@@ -180,7 +186,7 @@ export function AssessmentComposer({
               <div key={qi} className="omr-grid-row">
                 <div className="omr-grid-num">{qi + 1}</div>
                 {choiceIds.map((id) => {
-                  const selected = answers[qi] === id;
+                  const selected = (answers[qi] ?? []).includes(id);
                   return (
                     <button
                       key={id}
