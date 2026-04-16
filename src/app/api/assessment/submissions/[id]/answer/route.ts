@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { resolveIdentities } from "@/lib/identity";
-import type { McqAnswerPayload } from "@/types/assessment";
+import type { McqAnswerPayload, ShortAnswerPayload } from "@/types/assessment";
 
 export async function PATCH(
   req: Request,
@@ -15,9 +15,13 @@ export async function PATCH(
 
   const body = (await req.json()) as {
     questionId: string;
-    selectedChoiceIds: string[];
+    selectedChoiceIds?: string[];
+    textAnswer?: string;
   };
-  if (!body?.questionId || !Array.isArray(body.selectedChoiceIds)) {
+  if (!body?.questionId) {
+    return NextResponse.json({ error: "bad_request" }, { status: 400 });
+  }
+  if (!Array.isArray(body.selectedChoiceIds) && typeof body.textAnswer !== "string") {
     return NextResponse.json({ error: "bad_request" }, { status: 400 });
   }
 
@@ -36,19 +40,32 @@ export async function PATCH(
     return NextResponse.json({ error: "expired" }, { status: 409 });
   }
 
-  // Verify the question actually belongs to this template so a student
-  // can't write an answer for a sibling template's question id.
+  // Verify the question belongs to this template AND matches the answer kind.
   const question = await db.assessmentQuestion.findUnique({
     where: { id: body.questionId },
-    select: { templateId: true },
+    select: { templateId: true, kind: true },
   });
   if (!question || question.templateId !== submission.templateId) {
     return NextResponse.json({ error: "question_mismatch" }, { status: 400 });
   }
 
-  const payload: McqAnswerPayload = {
-    selectedChoiceIds: body.selectedChoiceIds,
-  };
+  let payload: McqAnswerPayload | ShortAnswerPayload;
+  if (question.kind === "MCQ") {
+    if (!Array.isArray(body.selectedChoiceIds)) {
+      return NextResponse.json({ error: "kind_mismatch" }, { status: 400 });
+    }
+    payload = { selectedChoiceIds: body.selectedChoiceIds };
+  } else if (question.kind === "SHORT") {
+    if (typeof body.textAnswer !== "string") {
+      return NextResponse.json({ error: "kind_mismatch" }, { status: 400 });
+    }
+    // Server normalization: strip whitespace (client already does this but
+    // we defend in depth for anyone hitting the API directly).
+    payload = { textAnswer: body.textAnswer.replace(/\s+/g, "") };
+  } else {
+    return NextResponse.json({ error: "unsupported_kind" }, { status: 400 });
+  }
+
   const answer = await db.assessmentAnswer.upsert({
     where: {
       submissionId_questionId: { submissionId, questionId: body.questionId },

@@ -101,22 +101,31 @@ export function AssessmentResult({ submissionId }: AssessmentResultProps) {
               </span>
             </div>
             <div className="assessment-result-q-prompt">{q.prompt}</div>
-            <div className="assessment-result-q-detail">
-              내 답: {q.selectedChoiceIds.length === 0
-                ? "(선택 안 함)"
-                : q.selectedChoiceIds
-                    .map((cid) => q.choices.find((c) => c.id === cid)?.text ?? cid)
-                    .join(", ")}
-              {!q.correct && (
-                <>
-                  {" "}
-                  → 정답:{" "}
-                  {q.correctChoiceIds
-                    .map((cid) => q.choices.find((c) => c.id === cid)?.text ?? cid)
-                    .join(", ")}
-                </>
-              )}
-            </div>
+            {q.kind === "MCQ" ? (
+              <div className="assessment-result-q-detail">
+                내 답: {q.selectedChoiceIds.length === 0
+                  ? "(선택 안 함)"
+                  : q.selectedChoiceIds
+                      .map((cid) => q.choices.find((c) => c.id === cid)?.text ?? cid)
+                      .join(", ")}
+                {!q.correct && (
+                  <>
+                    {" "}
+                    → 정답:{" "}
+                    {q.correctChoiceIds
+                      .map((cid) => q.choices.find((c) => c.id === cid)?.text ?? cid)
+                      .join(", ")}
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="assessment-result-q-detail">
+                내 답: {q.textAnswer || "(입력 안 함)"}
+                {!q.correct && q.correctAnswers.length > 0 && (
+                  <> → 정답: {q.correctAnswers.join(", ")}</>
+                )}
+              </div>
+            )}
           </li>
         ))}
       </ol>

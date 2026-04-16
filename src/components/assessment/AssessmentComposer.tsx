@@ -1,8 +1,8 @@
 "use client";
 
-// OMR-style answer key composer. The teacher sets the number of
-// questions, number of choices (4 or 5), and clicks the correct
-// answer for each row. No question text — the exam paper is printed
+// OMR-style answer key composer. Per-question kind (MCQ | SHORT) with
+// a row-level pill toggle. "모두 객관식" / "모두 단답형" bulk controls
+// above the grid. No question text — the exam paper is printed
 // separately.
 
 import { useState } from "react";
@@ -11,18 +11,44 @@ import type { AssessmentQuestionCreate } from "@/types/assessment";
 const CHOICE_IDS_4 = ["①", "②", "③", "④"];
 const CHOICE_IDS_5 = ["①", "②", "③", "④", "⑤"];
 
+type QKind = "MCQ" | "SHORT";
+
+function splitIntoColumns(n: number): number[][] {
+  if (n <= 10) return [Array.from({ length: n }, (_, i) => i)];
+  const left = Math.ceil(n / 2);
+  return [
+    Array.from({ length: left }, (_, i) => i),
+    Array.from({ length: n - left }, (_, i) => left + i),
+  ];
+}
+
 function buildQuestions(
   count: number,
   choiceCount: 4 | 5,
-  answers: Record<number, string>
+  kinds: Record<number, QKind>,
+  mcqAnswers: Record<number, string[]>,
+  shortAnswers: Record<number, string>
 ): AssessmentQuestionCreate[] {
-  const ids = choiceCount === 5 ? CHOICE_IDS_5 : CHOICE_IDS_4;
-  return Array.from({ length: count }, (_, i) => ({
-    prompt: `${i + 1}`,
-    choices: ids.map((id) => ({ id, text: id })),
-    correctChoiceIds: answers[i] ? [answers[i]] : [ids[0]],
-    maxScore: 1,
-  }));
+  const cids = choiceCount === 5 ? CHOICE_IDS_5 : CHOICE_IDS_4;
+  return Array.from({ length: count }, (_, i) => {
+    const kind = kinds[i] ?? "MCQ";
+    if (kind === "SHORT") {
+      const raw = (shortAnswers[i] ?? "").replace(/\s+/g, "");
+      return {
+        kind: "SHORT",
+        prompt: `${i + 1}`,
+        correctAnswers: raw ? [raw] : [""],
+        maxScore: 1,
+      };
+    }
+    return {
+      kind: "MCQ",
+      prompt: `${i + 1}`,
+      choices: cids.map((id) => ({ id, text: id })),
+      correctChoiceIds: mcqAnswers[i]?.length ? mcqAnswers[i] : [cids[0]],
+      maxScore: 1,
+    };
+  });
 }
 
 export interface AssessmentComposerProps {
@@ -40,28 +66,77 @@ export function AssessmentComposer({
   const [durationMin, setDurationMin] = useState(30);
   const [questionCount, setQuestionCount] = useState(20);
   const [choiceCount, setChoiceCount] = useState<4 | 5>(5);
-  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [kinds, setKinds] = useState<Record<number, QKind>>({});
+  const [mcqAnswers, setMcqAnswers] = useState<Record<number, string[]>>({});
+  const [shortAnswers, setShortAnswers] = useState<Record<number, string>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const choiceIds = choiceCount === 5 ? CHOICE_IDS_5 : CHOICE_IDS_4;
 
+  function getKind(qi: number): QKind {
+    return kinds[qi] ?? "MCQ";
+  }
+
+  function toggleKind(qi: number) {
+    setKinds((prev) => ({
+      ...prev,
+      [qi]: getKind(qi) === "MCQ" ? "SHORT" : "MCQ",
+    }));
+  }
+
+  function setAllKind(k: QKind) {
+    const next: Record<number, QKind> = {};
+    for (let i = 0; i < questionCount; i++) next[i] = k;
+    setKinds(next);
+  }
+
   function pick(qi: number, choiceId: string) {
-    setAnswers((prev) => ({ ...prev, [qi]: choiceId }));
+    setMcqAnswers((prev) => {
+      const current = prev[qi] ?? [];
+      const has = current.includes(choiceId);
+      const nextList = has
+        ? current.filter((id) => id !== choiceId)
+        : [...current, choiceId];
+      if (nextList.length === 0) {
+        const next = { ...prev };
+        delete next[qi];
+        return next;
+      }
+      return { ...prev, [qi]: nextList };
+    });
+  }
+
+  function onShortInputChange(qi: number, raw: string) {
+    // 띄어쓰기 제거 — space/tab/newline 모두 차단.
+    const cleaned = raw.replace(/\s+/g, "");
+    setShortAnswers((prev) => ({ ...prev, [qi]: cleaned }));
+  }
+
+  function isAnswered(qi: number): boolean {
+    const k = getKind(qi);
+    if (k === "MCQ") return (mcqAnswers[qi]?.length ?? 0) > 0;
+    return (shortAnswers[qi] ?? "").length > 0;
   }
 
   async function save() {
     setError(null);
     if (!title.trim()) return setError("제목을 입력해주세요");
     const unanswered = Array.from({ length: questionCount }, (_, i) => i).filter(
-      (i) => !answers[i]
+      (i) => !isAnswered(i)
     );
     if (unanswered.length > 0) {
-      return setError(`${unanswered.map((i) => i + 1).join(", ")}번 정답을 선택해주세요`);
+      return setError(`${unanswered.map((i) => i + 1).join(", ")}번 정답을 입력해주세요`);
     }
     setSaving(true);
     try {
-      const questions = buildQuestions(questionCount, choiceCount, answers);
+      const questions = buildQuestions(
+        questionCount,
+        choiceCount,
+        kinds,
+        mcqAnswers,
+        shortAnswers
+      );
       const res = await fetch("/api/assessment/templates", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -85,6 +160,11 @@ export function AssessmentComposer({
       setSaving(false);
     }
   }
+
+  const answeredCount = Array.from(
+    { length: questionCount },
+    (_, i) => i
+  ).filter(isAnswered).length;
 
   return (
     <div className="assessment-composer">
@@ -143,35 +223,91 @@ export function AssessmentComposer({
         </label>
       </div>
 
+      <div className="assessment-composer-bulk">
+        <span className="assessment-composer-bulk-label">전체 설정</span>
+        <button
+          type="button"
+          className="assessment-btn assessment-btn-ghost"
+          onClick={() => setAllKind("MCQ")}
+          disabled={saving}
+        >
+          모두 객관식
+        </button>
+        <button
+          type="button"
+          className="assessment-btn assessment-btn-ghost"
+          onClick={() => setAllKind("SHORT")}
+          disabled={saving}
+        >
+          모두 단답형
+        </button>
+      </div>
+
       {error && (
         <div className="assessment-error" role="alert">
           ⚠ {error}
         </div>
       )}
 
-      <div className="omr-grid">
-        <div className="omr-grid-header">
-          <div className="omr-grid-num">번호</div>
-          {choiceIds.map((id) => (
-            <div key={id} className="omr-grid-col-header">{id}</div>
-          ))}
-        </div>
-        {Array.from({ length: questionCount }, (_, qi) => (
-          <div key={qi} className="omr-grid-row">
-            <div className="omr-grid-num">{qi + 1}</div>
-            {choiceIds.map((id) => {
-              const selected = answers[qi] === id;
+      <div className="omr-grid-wrap">
+        {splitIntoColumns(questionCount).map((range, ci) => (
+          <div key={ci} className="omr-grid">
+            <div className="omr-grid-header">
+              <div className="omr-grid-num">번호</div>
+              <div className="omr-grid-kind">유형</div>
+              {choiceIds.map((id) => (
+                <div key={id} className="omr-grid-col-header">{id}</div>
+              ))}
+            </div>
+            {range.map((qi) => {
+              const kind = getKind(qi);
               return (
-                <button
-                  key={id}
-                  type="button"
-                  className={`omr-bubble${selected ? " is-filled" : ""}`}
-                  onClick={() => pick(qi, id)}
-                  disabled={saving}
-                  aria-label={`${qi + 1}번 ${id} ${selected ? "선택됨" : ""}`}
-                >
-                  {selected ? "●" : "○"}
-                </button>
+                <div key={qi} className="omr-grid-row">
+                  <div className="omr-grid-num">{qi + 1}</div>
+                  <button
+                    type="button"
+                    className={`omr-kind-chip omr-kind-chip-${kind === "MCQ" ? "mcq" : "short"}`}
+                    onClick={() => toggleKind(qi)}
+                    disabled={saving}
+                    aria-label={`${qi + 1}번 유형: ${kind === "MCQ" ? "객관식" : "단답형"} (클릭하여 전환)`}
+                  >
+                    {kind === "MCQ" ? "객" : "단"}
+                  </button>
+                  {kind === "MCQ" ? (
+                    choiceIds.map((id) => {
+                      const selected = (mcqAnswers[qi] ?? []).includes(id);
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          className={`omr-bubble${selected ? " is-filled" : ""}`}
+                          onClick={() => pick(qi, id)}
+                          disabled={saving}
+                          aria-label={`${qi + 1}번 ${id} ${selected ? "선택됨" : ""}`}
+                        >
+                          {selected ? "●" : "○"}
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div
+                      className="omr-grid-short"
+                      style={{ ["--choice-span" as string]: choiceIds.length }}
+                    >
+                      <input
+                        type="text"
+                        className="assessment-input omr-short-input"
+                        placeholder="정답 (띄어쓰기 없이)"
+                        value={shortAnswers[qi] ?? ""}
+                        onChange={(e) => onShortInputChange(qi, e.target.value)}
+                        onKeyDown={(e) => { if (e.key === " ") e.preventDefault(); }}
+                        maxLength={50}
+                        disabled={saving}
+                        aria-label={`${qi + 1}번 단답형 정답`}
+                      />
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -180,7 +316,7 @@ export function AssessmentComposer({
 
       <div className="assessment-composer-actions">
         <div className="assessment-composer-progress">
-          {Object.keys(answers).length}/{questionCount} 입력됨
+          {answeredCount}/{questionCount} 입력됨
         </div>
         <button
           type="button"

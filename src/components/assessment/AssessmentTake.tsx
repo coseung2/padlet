@@ -7,6 +7,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AssessmentTemplateStudentDTO } from "@/types/assessment";
 
+// 10문항 이하는 1단. 11문항 이상은 2단으로 쪼갠다.
+function splitIntoColumns(n: number): number[][] {
+  if (n <= 10) return [Array.from({ length: n }, (_, i) => i)];
+  const left = Math.ceil(n / 2);
+  return [
+    Array.from({ length: left }, (_, i) => i),
+    Array.from({ length: n - left }, (_, i) => left + i),
+  ];
+}
+
 type SubmissionRow = {
   id: string;
   status: "in_progress" | "submitted";
@@ -32,6 +42,7 @@ export interface AssessmentTakeProps {
 export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [answers, setAnswers] = useState<Record<string, string[]>>({});
+  const [shortAnswers, setShortAnswers] = useState<Record<string, string>>({});
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [submitting, setSubmitting] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -83,7 +94,19 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const selectAnswer = useCallback(
     (questionId: string, choiceId: string) => {
-      setAnswers((prev) => ({ ...prev, [questionId]: [choiceId] }));
+      // 복수 정답 허용 — 같은 버블 재클릭 시 해제, 아니면 set 에 추가.
+      const current = answers[questionId] ?? [];
+      const nextSelected = current.includes(choiceId)
+        ? current.filter((id) => id !== choiceId)
+        : [...current, choiceId];
+      setAnswers((prev) => {
+        if (nextSelected.length === 0) {
+          const copy = { ...prev };
+          delete copy[questionId];
+          return copy;
+        }
+        return { ...prev, [questionId]: nextSelected };
+      });
       if (state.kind !== "ready") return;
       const submissionId = state.submission.id;
       clearTimeout(timers.current[questionId]);
@@ -95,7 +118,34 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
             {
               method: "PATCH",
               headers: { "content-type": "application/json" },
-              body: JSON.stringify({ questionId, selectedChoiceIds: [choiceId] }),
+              body: JSON.stringify({ questionId, selectedChoiceIds: nextSelected }),
+            }
+          );
+          setSaveState(res.ok ? "saved" : "idle");
+        } catch {
+          setSaveState("idle");
+        }
+      }, 300);
+    },
+    [state, answers]
+  );
+
+  const saveShort = useCallback(
+    (questionId: string, raw: string) => {
+      const cleaned = raw.replace(/\s+/g, "");
+      setShortAnswers((prev) => ({ ...prev, [questionId]: cleaned }));
+      if (state.kind !== "ready") return;
+      const submissionId = state.submission.id;
+      clearTimeout(timers.current[questionId]);
+      setSaveState("saving");
+      timers.current[questionId] = setTimeout(async () => {
+        try {
+          const res = await fetch(
+            `/api/assessment/submissions/${submissionId}/answer`,
+            {
+              method: "PATCH",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ questionId, textAnswer: cleaned }),
             }
           );
           setSaveState(res.ok ? "saved" : "idle");
@@ -150,8 +200,21 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
   const mm = String(Math.floor(remainingSec / 60)).padStart(2, "0");
   const ss = String(remainingSec % 60).padStart(2, "0");
 
-  const answeredCount = Object.keys(answers).length;
   const totalCount = state.template.questions.length;
+  const answeredCount = state.template.questions.filter((q) => {
+    if (q.kind === "SHORT") return (shortAnswers[q.id] ?? "").length > 0;
+    return (answers[q.id] ?? []).length > 0;
+  }).length;
+  // Derive column headers from the first MCQ question; fallback to 5-choice
+  // layout if the template is all SHORT.
+  const firstMcq = state.template.questions.find((q) => q.kind === "MCQ");
+  const choiceHeaders = firstMcq?.kind === "MCQ" ? firstMcq.choices : [
+    { id: "①", text: "①" },
+    { id: "②", text: "②" },
+    { id: "③", text: "③" },
+    { id: "④", text: "④" },
+    { id: "⑤", text: "⑤" },
+  ];
 
   return (
     <div className="assessment-take">
@@ -172,36 +235,67 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
 
       <h2 className="assessment-take-title">{state.template.title}</h2>
 
-      <div className="omr-grid">
-        <div className="omr-grid-header">
-          <div className="omr-grid-num">번호</div>
-          {state.template.questions[0]?.choices.map((c) => (
-            <div key={c.id} className="omr-grid-col-header">{c.id}</div>
-          ))}
-        </div>
-        {state.template.questions.map((q, qi) => {
-          const selected = answers[q.id]?.[0] ?? null;
-          return (
-            <div key={q.id} className="omr-grid-row">
-              <div className="omr-grid-num">{qi + 1}</div>
-              {q.choices.map((c) => {
-                const filled = selected === c.id;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className={`omr-bubble${filled ? " is-filled" : ""}`}
-                    onClick={() => selectAnswer(q.id, c.id)}
-                    disabled={expired || submitting}
-                    aria-label={`${qi + 1}번 ${c.id} ${filled ? "선택됨" : ""}`}
-                  >
-                    {filled ? "●" : "○"}
-                  </button>
-                );
-              })}
+      <div className="omr-grid-wrap">
+        {splitIntoColumns(state.template.questions.length).map((range, ci) => (
+          <div key={ci} className="omr-grid">
+            <div className="omr-grid-header">
+              <div className="omr-grid-num">번호</div>
+              <div className="omr-grid-kind">유형</div>
+              {choiceHeaders.map((c) => (
+                <div key={c.id} className="omr-grid-col-header">{c.id}</div>
+              ))}
             </div>
-          );
-        })}
+            {range.map((qi) => {
+              const q = state.template.questions[qi];
+              return (
+                <div key={q.id} className="omr-grid-row">
+                  <div className="omr-grid-num">{qi + 1}</div>
+                  <div
+                    className={`omr-kind-chip omr-kind-chip-${q.kind === "MCQ" ? "mcq" : "short"} is-readonly`}
+                    aria-label={`유형: ${q.kind === "MCQ" ? "객관식" : "단답형"}`}
+                  >
+                    {q.kind === "MCQ" ? "객" : "단"}
+                  </div>
+                  {q.kind === "MCQ" ? (
+                    q.choices.map((c) => {
+                      const selected = answers[q.id] ?? [];
+                      const filled = selected.includes(c.id);
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          className={`omr-bubble${filled ? " is-filled" : ""}`}
+                          onClick={() => selectAnswer(q.id, c.id)}
+                          disabled={expired || submitting}
+                          aria-label={`${qi + 1}번 ${c.id} ${filled ? "선택됨" : ""}`}
+                        >
+                          {filled ? "●" : "○"}
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div
+                      className="omr-grid-short"
+                      style={{ ["--choice-span" as string]: choiceHeaders.length }}
+                    >
+                      <input
+                        type="text"
+                        className="assessment-input omr-short-input"
+                        placeholder="정답 (띄어쓰기 없이)"
+                        value={shortAnswers[q.id] ?? ""}
+                        onChange={(e) => saveShort(q.id, e.target.value)}
+                        onKeyDown={(e) => { if (e.key === " ") e.preventDefault(); }}
+                        maxLength={50}
+                        disabled={expired || submitting}
+                        aria-label={`${qi + 1}번 단답형 답안`}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
 
       <div className="assessment-take-submit-bar">

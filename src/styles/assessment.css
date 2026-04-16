@@ -4,9 +4,13 @@
    ========================================================= */
 
 .assessment-shell {
-  max-width: 720px;
+  max-width: 1040px;
   margin: 24px auto;
-  padding: 0 20px;
+  padding: 24px 32px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
 .assessment-empty {
@@ -76,8 +80,7 @@
 
 /* ─── Composer ─── */
 .assessment-composer {
-  background: var(--color-surface);
-  padding: 20px 0;
+  padding: 0;
 }
 .assessment-composer-head {
   display: flex;
@@ -200,8 +203,7 @@
 
 /* ─── Take ─── */
 .assessment-take {
-  background: var(--color-surface);
-  padding: 20px 0 80px;
+  padding: 0 0 80px;
 }
 .assessment-take-timer {
   position: sticky;
@@ -334,8 +336,7 @@
 
 /* ─── Gradebook ─── */
 .assessment-gradebook {
-  background: var(--color-surface);
-  padding: 20px 0;
+  padding: 0;
 }
 .assessment-gradebook-head {
   display: grid;
@@ -432,8 +433,7 @@
 
 /* ─── Result ─── */
 .assessment-result {
-  background: var(--color-surface);
-  padding: 24px 0;
+  padding: 0;
 }
 .assessment-result-pending,
 .assessment-result-error {
@@ -522,10 +522,16 @@
 }
 
 /* ─── OMR Grid (shared between Composer answer-key & Take) ─── */
+.omr-grid-wrap {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  flex-wrap: wrap;
+}
 .omr-grid {
   width: 100%;
-  max-width: 560px;
-  margin: 0 auto;
+  max-width: 360px;
+  flex: 0 1 360px;
 }
 .omr-grid-header {
   display: flex;
@@ -550,7 +556,7 @@
   display: flex;
   align-items: center;
   border-bottom: 1px solid var(--color-border);
-  min-height: 44px;
+  min-height: 40px;
 }
 .omr-grid-row:nth-child(5n+1) {
   border-bottom: 1px solid var(--color-border-hover);
@@ -577,20 +583,27 @@
   padding: 6px 0;
   min-width: 44px;
   min-height: 44px;
-  transition: color 80ms ease, background-color 80ms ease;
-  border-radius: 50%;
+  transition: color 120ms ease;
   -webkit-tap-highlight-color: transparent;
 }
 .omr-bubble:hover:not(:disabled) {
-  color: var(--color-accent);
-  background: var(--color-accent-tinted-bg);
+  color: var(--color-text-muted);
 }
 .omr-bubble.is-filled {
   color: var(--color-accent);
   font-size: 22px;
 }
+.omr-bubble.is-filled:hover:not(:disabled) {
+  color: var(--color-accent-active);
+}
+.omr-bubble:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -6px;
+  border-radius: 50%;
+}
 .omr-bubble:active:not(:disabled) {
-  transform: scale(0.9);
+  transform: scale(0.92);
+  transition: transform 80ms ease;
 }
 .omr-bubble:disabled {
   cursor: not-allowed;
@@ -625,9 +638,86 @@
   align-items: center;
 }
 
-@media (max-width: 600px) {
-  .omr-grid { max-width: 100%; }
+@media (max-width: 767px) {
+  .omr-grid-wrap { gap: 0; }
+  .omr-grid { max-width: 100%; flex: 0 1 100%; }
   .omr-bubble { min-width: 40px; min-height: 40px; font-size: 18px; }
   .omr-grid-num { width: 36px; font-size: 13px; }
   .omr-grid-row { min-height: 40px; }
+}
+
+/* ─── Per-question kind toggle (MCQ ↔ SHORT) ─── */
+.omr-grid-kind {
+  width: 44px;
+  flex-shrink: 0;
+  text-align: center;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.omr-kind-chip {
+  width: 36px;
+  height: 28px;
+  flex-shrink: 0;
+  margin-right: 8px;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+  -webkit-tap-highlight-color: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.omr-kind-chip-mcq {
+  background: var(--color-accent-tinted-bg);
+  color: var(--color-accent-tinted-text);
+  border-color: transparent;
+}
+.omr-kind-chip-short {
+  background: var(--color-warning-tinted-bg);
+  color: #a46a00;
+  border-color: transparent;
+}
+.omr-kind-chip.is-readonly {
+  cursor: default;
+  pointer-events: none;
+}
+.omr-kind-chip:hover:not(:disabled):not(.is-readonly) {
+  filter: brightness(0.95);
+}
+.omr-kind-chip:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+/* ─── SHORT input cell that spans the bubble columns ─── */
+.omr-grid-short {
+  flex: calc(var(--choice-span, 5));
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+}
+.omr-short-input {
+  width: 100%;
+  min-height: 36px;
+  font-size: 14px;
+}
+
+/* ─── Bulk kind setters above the grid ─── */
+.assessment-composer-bulk {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 16px;
+  flex-wrap: wrap;
+}
+.assessment-composer-bulk-label {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  margin-right: 4px;
 }
