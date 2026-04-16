@@ -1,11 +1,10 @@
 "use client";
 
-// Student-only take view. Fetches the template (student-DTO = no correct
-// answers), starts/resumes a submission, renders a timer + question list
-// with 300ms debounced answer autosave, and submits at the end. The
-// result screen is a sibling (AssessmentResult) that polls for release.
+// OMR-style student take view. Shows a bubble grid (question × choice)
+// with a sticky timer. Answers auto-save with 300ms debounce. The exam
+// text is on the printed paper — only the answer grid is digital.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AssessmentTemplateStudentDTO } from "@/types/assessment";
 
 type SubmissionRow = {
@@ -13,7 +12,6 @@ type SubmissionRow = {
   status: "in_progress" | "submitted";
   startedAt: string;
   endAt: string;
-  submittedAt: string | null;
 };
 
 type LoadState =
@@ -38,7 +36,6 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
   const [submitting, setSubmitting] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
-  // 1. Fetch template + start/resume submission.
   useEffect(() => {
     let cancelled = false;
     async function boot() {
@@ -60,13 +57,11 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
           serverTime: string;
         };
         if (cancelled) return;
-        const clockSkewMs =
-          Date.now() - new Date(sjson.serverTime).getTime();
         setState({
           kind: "ready",
           template: tjson.template,
           submission: sjson.submission,
-          clockSkewMs,
+          clockSkewMs: Date.now() - new Date(sjson.serverTime).getTime(),
         });
       } catch (e) {
         if (!cancelled)
@@ -77,42 +72,40 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
       }
     }
     boot();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [templateId]);
 
-  // 2. Timer tick.
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  // 3. Debounced autosave per question.
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  function selectAnswer(questionId: string, choiceIds: string[]) {
-    setAnswers((prev) => ({ ...prev, [questionId]: choiceIds }));
-    if (state.kind !== "ready") return;
-    const submissionId = state.submission.id;
-    clearTimeout(timers.current[questionId]);
-    setSaveState("saving");
-    timers.current[questionId] = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `/api/assessment/submissions/${submissionId}/answer`,
-          {
-            method: "PATCH",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ questionId, selectedChoiceIds: choiceIds }),
-          }
-        );
-        if (res.ok) setSaveState("saved");
-        else setSaveState("idle");
-      } catch {
-        setSaveState("idle");
-      }
-    }, 300);
-  }
+  const selectAnswer = useCallback(
+    (questionId: string, choiceId: string) => {
+      setAnswers((prev) => ({ ...prev, [questionId]: [choiceId] }));
+      if (state.kind !== "ready") return;
+      const submissionId = state.submission.id;
+      clearTimeout(timers.current[questionId]);
+      setSaveState("saving");
+      timers.current[questionId] = setTimeout(async () => {
+        try {
+          const res = await fetch(
+            `/api/assessment/submissions/${submissionId}/answer`,
+            {
+              method: "PATCH",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ questionId, selectedChoiceIds: [choiceId] }),
+            }
+          );
+          setSaveState(res.ok ? "saved" : "idle");
+        } catch {
+          setSaveState("idle");
+        }
+      }, 300);
+    },
+    [state]
+  );
 
   async function handleSubmit() {
     if (state.kind !== "ready") return;
@@ -137,8 +130,7 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
 
   const remainingSec = useMemo(() => {
     if (state.kind !== "ready") return 0;
-    const endMs =
-      new Date(state.submission.endAt).getTime() + state.clockSkewMs;
+    const endMs = new Date(state.submission.endAt).getTime() + state.clockSkewMs;
     return Math.max(0, Math.floor((endMs - now) / 1000));
   }, [state, now]);
   const expired = remainingSec === 0;
@@ -158,6 +150,9 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
   const mm = String(Math.floor(remainingSec / 60)).padStart(2, "0");
   const ss = String(remainingSec % 60).padStart(2, "0");
 
+  const answeredCount = Object.keys(answers).length;
+  const totalCount = state.template.questions.length;
+
   return (
     <div className="assessment-take">
       <div
@@ -166,9 +161,7 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
         aria-live="polite"
       >
         <span className="assessment-take-timer-icon">⏱</span>
-        <span className="assessment-take-timer-value">
-          {mm}:{ss}
-        </span>
+        <span className="assessment-take-timer-value">{mm}:{ss}</span>
         <span className="assessment-take-timer-label">
           {expired ? "시간 종료 — 제출해주세요" : "남은 시간"}
         </span>
@@ -179,51 +172,42 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
 
       <h2 className="assessment-take-title">{state.template.title}</h2>
 
-      <ol className="assessment-take-questions">
-        {state.template.questions.map((q, i) => {
-          const selected = answers[q.id] ?? [];
-          // Every MCQ uses checkboxes so multi-correct questions work.
-          // The correct-count itself is not revealed to the student —
-          // they just see "하나 이상 선택" helper text.
+      <div className="omr-grid">
+        <div className="omr-grid-header">
+          <div className="omr-grid-num">번호</div>
+          {state.template.questions[0]?.choices.map((c) => (
+            <div key={c.id} className="omr-grid-col-header">{c.id}</div>
+          ))}
+        </div>
+        {state.template.questions.map((q, qi) => {
+          const selected = answers[q.id]?.[0] ?? null;
           return (
-            <li key={q.id} className="assessment-take-question">
-              <div className="assessment-take-q-num">문항 {i + 1} / {state.template.questions.length}</div>
-              <div className="assessment-take-q-prompt">{q.prompt}</div>
-              <div
-                role="group"
-                aria-label={`문항 ${i + 1} 보기 선택`}
-                className="assessment-take-choices"
-              >
-                {q.choices.map((c) => {
-                  const checked = selected.includes(c.id);
-                  return (
-                    <label
-                      key={c.id}
-                      className={`assessment-take-choice${checked ? " is-checked" : ""}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => {
-                          const next = checked
-                            ? selected.filter((id) => id !== c.id)
-                            : [...selected, c.id];
-                          selectAnswer(q.id, next);
-                        }}
-                        disabled={expired || submitting}
-                      />
-                      <span className="assessment-take-choice-letter">{c.id}</span>
-                      <span className="assessment-take-choice-text">{c.text}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </li>
+            <div key={q.id} className="omr-grid-row">
+              <div className="omr-grid-num">{qi + 1}</div>
+              {q.choices.map((c) => {
+                const filled = selected === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={`omr-bubble${filled ? " is-filled" : ""}`}
+                    onClick={() => selectAnswer(q.id, c.id)}
+                    disabled={expired || submitting}
+                    aria-label={`${qi + 1}번 ${c.id} ${filled ? "선택됨" : ""}`}
+                  >
+                    {filled ? "●" : "○"}
+                  </button>
+                );
+              })}
+            </div>
           );
         })}
-      </ol>
+      </div>
 
       <div className="assessment-take-submit-bar">
+        <span className="assessment-take-progress">
+          {answeredCount}/{totalCount} 마킹됨
+        </span>
         <button
           type="button"
           className="assessment-btn assessment-btn-primary"
@@ -236,4 +220,3 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
     </div>
   );
 }
-
