@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { AssessmentGradebookPayload } from "@/types/assessment";
+import { AssessmentManualGradeModal } from "./AssessmentManualGradeModal";
 
 type LoadState =
   | { kind: "loading" }
@@ -21,6 +22,9 @@ export function AssessmentGradebook({ templateId }: AssessmentGradebookProps) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [busySubmissionId, setBusySubmissionId] = useState<string | null>(null);
   const [releasing, setReleasing] = useState(false);
+  const [manualOpen, setManualOpen] = useState<
+    null | { questionId?: string; submissionId?: string }
+  >(null);
 
   const reload = useCallback(async () => {
     setState({ kind: "loading" });
@@ -100,6 +104,13 @@ export function AssessmentGradebook({ templateId }: AssessmentGradebookProps) {
   const submitted = data.rows.filter((r) => r.submission?.status === "submitted").length;
   const withEntries = data.rows.filter((r) => r.entry);
   const releasedCount = data.rows.filter((r) => r.entry?.releasedAt).length;
+  const pendingManualTotal = data.rows.reduce(
+    (acc, r) => acc + (r.pendingManualCount ?? 0),
+    0
+  );
+  const studentsWithManual = data.rows.filter(
+    (r) => (r.pendingManualCount ?? 0) > 0
+  ).length;
 
   return (
     <div className="assessment-gradebook">
@@ -118,6 +129,24 @@ export function AssessmentGradebook({ templateId }: AssessmentGradebookProps) {
         </button>
       </div>
 
+      {pendingManualTotal > 0 && (
+        <div className="assessment-gradebook-manual-banner">
+          <span>
+            ⚠ 수동채점 대기 {pendingManualTotal}건
+            <span className="assessment-gradebook-manual-hint">
+              {" "}(학생 {studentsWithManual}명)
+            </span>
+          </span>
+          <button
+            type="button"
+            className="assessment-btn assessment-btn-primary"
+            onClick={() => setManualOpen({})}
+          >
+            채점 시작 →
+          </button>
+        </div>
+      )}
+
       {data.rows.length === 0 ? (
         <div className="assessment-gradebook-empty">학급에 학생이 없습니다</div>
       ) : (
@@ -129,7 +158,7 @@ export function AssessmentGradebook({ templateId }: AssessmentGradebookProps) {
                 {data.template.questions.map((q, i) => (
                   <th key={q.id}>{i + 1}</th>
                 ))}
-                <th>자동점수</th>
+                <th>점수</th>
                 <th>확정</th>
                 <th>공개</th>
               </tr>
@@ -143,7 +172,29 @@ export function AssessmentGradebook({ templateId }: AssessmentGradebookProps) {
                   </th>
                   {data.template.questions.map((q) => {
                     const a = r.answers.find((x) => x.questionId === q.id);
-                    const state =
+                    if (a?.needsManual) {
+                      return (
+                        <td
+                          key={q.id}
+                          className="assessment-gradebook-cell assessment-gradebook-cell-pending"
+                        >
+                          <button
+                            type="button"
+                            className="assessment-gradebook-pending-btn"
+                            onClick={() =>
+                              setManualOpen({
+                                questionId: q.id,
+                                submissionId: r.submission!.id,
+                              })
+                            }
+                            aria-label={`${r.student.name} ${q.order + 1}번 수동채점`}
+                          >
+                            ?
+                          </button>
+                        </td>
+                      );
+                    }
+                    const cellState =
                       a?.correct === true
                         ? "correct"
                         : a?.correct === false
@@ -152,9 +203,9 @@ export function AssessmentGradebook({ templateId }: AssessmentGradebookProps) {
                     return (
                       <td
                         key={q.id}
-                        className={`assessment-gradebook-cell assessment-gradebook-cell-${state}`}
+                        className={`assessment-gradebook-cell assessment-gradebook-cell-${cellState}`}
                       >
-                        {state === "correct" ? "○" : state === "wrong" ? "✕" : "·"}
+                        {cellState === "correct" ? "○" : cellState === "wrong" ? "✕" : "·"}
                       </td>
                     );
                   })}
@@ -167,6 +218,15 @@ export function AssessmentGradebook({ templateId }: AssessmentGradebookProps) {
                     {r.submission?.status === "submitted" ? (
                       r.entry ? (
                         <span className="assessment-badge">확정됨</span>
+                      ) : (r.pendingManualCount ?? 0) > 0 ? (
+                        <button
+                          type="button"
+                          className="assessment-btn assessment-btn-ghost"
+                          disabled
+                          title={`수동채점 ${r.pendingManualCount}건 필요`}
+                        >
+                          채점 필요
+                        </button>
                       ) : (
                         <button
                           type="button"
@@ -195,6 +255,19 @@ export function AssessmentGradebook({ templateId }: AssessmentGradebookProps) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {manualOpen && (
+        <AssessmentManualGradeModal
+          templateId={templateId}
+          startQuestionId={manualOpen.questionId}
+          startSubmissionId={manualOpen.submissionId}
+          onClose={() => {
+            setManualOpen(null);
+            reload();
+          }}
+          onChanged={() => {/* refetch deferred to close */}}
+        />
       )}
     </div>
   );

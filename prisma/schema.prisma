@@ -1048,8 +1048,11 @@ model AssessmentAnswer {
   submissionId String
   questionId   String
   // MCQ payload: { selectedChoiceIds: string[] }
+  // SHORT payload: { textAnswer: string }
+  // MANUAL payload: { textAnswer: string }
   payload      Json
   autoScore    Int?
+  manualScore  Int?     // teacher-assigned for MANUAL questions; null = pending
   updatedAt    DateTime @updatedAt
 
   submission AssessmentSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)

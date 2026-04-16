@@ -45,14 +45,23 @@ export async function GET(
             correctChoiceIds: p.correctChoiceIds,
           };
         }
-        const p = q.payload as { correctAnswers: string[] };
+        if (q.kind === "SHORT") {
+          const p = q.payload as { correctAnswers: string[] };
+          return {
+            id: q.id,
+            order: q.order,
+            kind: "SHORT" as const,
+            prompt: q.prompt,
+            maxScore: q.maxScore,
+            correctAnswers: p.correctAnswers,
+          };
+        }
         return {
           id: q.id,
           order: q.order,
-          kind: "SHORT" as const,
+          kind: "MANUAL" as const,
           prompt: q.prompt,
           maxScore: q.maxScore,
-          correctAnswers: p.correctAnswers,
         };
       }),
     };
@@ -78,10 +87,19 @@ export async function GET(
           choices: p.choices,
         };
       }
+      if (q.kind === "SHORT") {
+        return {
+          id: q.id,
+          order: q.order,
+          kind: "SHORT" as const,
+          prompt: q.prompt,
+          maxScore: q.maxScore,
+        };
+      }
       return {
         id: q.id,
         order: q.order,
-        kind: "SHORT" as const,
+        kind: "MANUAL" as const,
         prompt: q.prompt,
         maxScore: q.maxScore,
       };

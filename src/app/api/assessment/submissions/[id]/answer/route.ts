@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { resolveIdentities } from "@/lib/identity";
-import type { McqAnswerPayload, ShortAnswerPayload } from "@/types/assessment";
+import type {
+  McqAnswerPayload,
+  ShortAnswerPayload,
+  ManualAnswerPayload,
+} from "@/types/assessment";
 
 export async function PATCH(
   req: Request,
@@ -49,7 +53,7 @@ export async function PATCH(
     return NextResponse.json({ error: "question_mismatch" }, { status: 400 });
   }
 
-  let payload: McqAnswerPayload | ShortAnswerPayload;
+  let payload: McqAnswerPayload | ShortAnswerPayload | ManualAnswerPayload;
   if (question.kind === "MCQ") {
     if (!Array.isArray(body.selectedChoiceIds)) {
       return NextResponse.json({ error: "kind_mismatch" }, { status: 400 });
@@ -59,9 +63,13 @@ export async function PATCH(
     if (typeof body.textAnswer !== "string") {
       return NextResponse.json({ error: "kind_mismatch" }, { status: 400 });
     }
-    // Server normalization: strip whitespace (client already does this but
-    // we defend in depth for anyone hitting the API directly).
     payload = { textAnswer: body.textAnswer.replace(/\s+/g, "") };
+  } else if (question.kind === "MANUAL") {
+    if (typeof body.textAnswer !== "string") {
+      return NextResponse.json({ error: "kind_mismatch" }, { status: 400 });
+    }
+    // 수동채점은 자유 텍스트 — 공백 유지, 500자 제한만.
+    payload = { textAnswer: body.textAnswer.slice(0, 500) };
   } else {
     return NextResponse.json({ error: "unsupported_kind" }, { status: 400 });
   }

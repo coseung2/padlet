@@ -68,6 +68,8 @@ export async function POST(req: Request) {
             return badRequest(`question_${i}_answer_blank`);
           }
         }
+      } else if (q.kind === "MANUAL") {
+        // 수동채점 — 교사가 채점 시점에 결정. 정답표 없음.
       } else {
         return badRequest(`question_${i}_kind_invalid`);
       }
@@ -91,7 +93,9 @@ export async function POST(req: Request) {
             payload:
               q.kind === "MCQ"
                 ? { choices: q.choices, correctChoiceIds: q.correctChoiceIds }
-                : { correctAnswers: q.correctAnswers.map((s) => s.trim()) },
+                : q.kind === "SHORT"
+                  ? { correctAnswers: q.correctAnswers.map((s) => s.trim()) }
+                  : {},
             maxScore: q.maxScore ?? 1,
           })),
         },
@@ -120,14 +124,23 @@ export async function POST(req: Request) {
             correctChoiceIds: payload.correctChoiceIds,
           };
         }
-        const payload = q.payload as { correctAnswers: string[] };
+        if (q.kind === "SHORT") {
+          const payload = q.payload as { correctAnswers: string[] };
+          return {
+            id: q.id,
+            order: q.order,
+            kind: "SHORT",
+            prompt: q.prompt,
+            maxScore: q.maxScore,
+            correctAnswers: payload.correctAnswers,
+          };
+        }
         return {
           id: q.id,
           order: q.order,
-          kind: "SHORT",
+          kind: "MANUAL",
           prompt: q.prompt,
           maxScore: q.maxScore,
-          correctAnswers: payload.correctAnswers,
         };
       }),
     };
