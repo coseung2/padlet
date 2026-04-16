@@ -68,7 +68,7 @@ export function CreateBoardModal({ classrooms, userTier = "pro", onClose }: Prop
       setStep("breakout");
       return;
     }
-    if (layoutId === "columns" && classrooms.length > 0) {
+    if ((layoutId === "columns" || layoutId === "assessment") && classrooms.length > 0) {
       setSelectedLayout(layoutId);
       setStep("classroom");
     } else {
