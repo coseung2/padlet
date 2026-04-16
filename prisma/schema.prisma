@@ -106,6 +106,7 @@ model Classroom {
   boards      Board[]               @relation("ClassroomBoards")
   plantAllows ClassroomPlantAllow[]
   inviteCodes ClassInviteCode[]
+  assessments AssessmentTemplate[]
 
   @@index([teacherId])
   @@index([code])
@@ -135,6 +136,7 @@ model Student {
   canvaAppLink        CanvaAppLink?
   assignmentSlots     AssignmentSlot[]     @relation("StudentAssignmentSlots")
   cardAuthors         CardAuthor[]         @relation("StudentCardAuthors")
+  assessmentSubmissions AssessmentSubmission[]
 
   @@unique([classroomId, number])
   @@index([classroomId])
@@ -980,4 +982,93 @@ model CanvaAppLink {
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([studentId])
+}
+
+// ──── Assessment (performance-assessment-autograde MVP-0) ────
+
+model AssessmentTemplate {
+  id          String   @id @default(cuid())
+  classroomId String
+  boardId     String?  // Board(layout="assessment") shell link. nullable — template can exist without a board.
+  title       String
+  durationMin Int      @default(30)
+  createdById String   // teacher User.id
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  classroom   Classroom              @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  questions   AssessmentQuestion[]
+  submissions AssessmentSubmission[]
+
+  @@index([classroomId])
+  @@index([boardId])
+}
+
+model AssessmentQuestion {
+  id         String   @id @default(cuid())
+  templateId String
+  order      Int
+  kind       String // MVP-0 accepts "MCQ" only; future: "SHORT"|"OX"|"NUMERIC"|"ESSAY".
+  prompt     String
+  // MCQ payload: { choices: [{id, text}], correctChoiceIds: string[] }
+  payload    Json
+  maxScore   Int      @default(1)
+  createdAt  DateTime @default(now())
+
+  template AssessmentTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  answers  AssessmentAnswer[]
+
+  @@unique([templateId, order])
+  @@index([templateId])
+}
+
+model AssessmentSubmission {
+  id          String    @id @default(cuid())
+  templateId  String
+  studentId   String
+  status      String    @default("in_progress") // "in_progress" | "submitted"
+  startedAt   DateTime  @default(now())
+  endAt       DateTime  // = startedAt + durationMin
+  submittedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  template       AssessmentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  student        Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  answers        AssessmentAnswer[]
+  gradebookEntry GradebookEntry?
+
+  @@unique([templateId, studentId])
+  @@index([templateId])
+  @@index([studentId])
+  @@index([status])
+}
+
+model AssessmentAnswer {
+  id           String   @id @default(cuid())
+  submissionId String
+  questionId   String
+  // MCQ payload: { selectedChoiceIds: string[] }
+  payload      Json
+  autoScore    Int?
+  updatedAt    DateTime @updatedAt
+
+  submission AssessmentSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  question   AssessmentQuestion   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, questionId])
+  @@index([submissionId])
+}
+
+model GradebookEntry {
+  id           String    @id @default(cuid())
+  submissionId String    @unique
+  finalScore   Int
+  releasedAt   DateTime? // Classroom.gradebookReleasePolicy="teacher_manual" gate
+  createdById  String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  submission AssessmentSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([releasedAt])
 }
