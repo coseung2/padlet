@@ -14,6 +14,7 @@ import { QuizBoard, type QuizData } from "@/components/QuizBoard";
 import { PlantRoadmapBoard } from "@/components/PlantRoadmapBoard";
 import { EventSignupBoard } from "@/components/event/EventSignupBoard";
 import { DrawingBoard } from "@/components/DrawingBoard";
+import { AssessmentBoard } from "@/components/assessment/AssessmentBoard";
 import { BreakoutBoard } from "@/components/BreakoutBoard";
 import { cloneStructure } from "@/lib/breakout";
 import { parseObservationPoints, STALL_THRESHOLD_DAYS } from "@/lib/plant-schemas";
@@ -670,6 +671,20 @@ export default async function BoardPage({
                 score: p.score,
               })),
             }))}
+          />
+        );
+      }
+      case "assessment": {
+        const viewerKind: "teacher" | "student" | "none" = studentViewer
+          ? "student"
+          : effectiveRole === "owner"
+            ? "teacher"
+            : "none";
+        return (
+          <AssessmentBoard
+            boardId={board!.id}
+            classroomId={board!.classroomId ?? ""}
+            viewerKind={viewerKind}
           />
         );
       }

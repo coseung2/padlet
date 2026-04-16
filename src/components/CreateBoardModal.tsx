@@ -13,6 +13,7 @@ const LAYOUTS = [
   { id: "quiz", emoji: "🎮", label: "퀴즈", desc: "카훗 스타일 실시간 퀴즈 게임" },
   { id: "drawing", emoji: "🎨", label: "그림보드", desc: "Drawpile 기반 공동 그림판 + 라이브러리" },
   { id: "breakout", emoji: "👥", label: "모둠 학습", desc: "템플릿 기반 모둠 협력 보드 (KWL · 브레인스토밍 등)" },
+  { id: "assessment", emoji: "📝", label: "수행평가", desc: "MCQ 자동 채점 + 교사 확정·릴리스" },
 ] as const;
 
 type ClassroomItem = {
