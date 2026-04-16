@@ -12,7 +12,7 @@ export async function generateQuizFromText(
   text: string,
   apiKey: string,
   countSpec: QuizCountSpec,
-  provider: "openai" | "anthropic" = "openai",
+  provider: "openai" | "anthropic" | "gemini" = "openai",
   difficulty: QuizDifficulty = "medium"
 ): Promise<QuizDraftQuestion[]> {
   const countInstruction =
@@ -31,7 +31,25 @@ answer는 반드시 A, B, C, D 중 하나여야 합니다.
 
   let responseText: string;
 
-  if (provider === "anthropic") {
+  if (provider === "gemini") {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ parts: [{ text: userMessage }] }],
+        }),
+      }
+    );
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Gemini API error: ${err}`);
+    }
+    const data = await res.json();
+    responseText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  } else if (provider === "anthropic") {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
