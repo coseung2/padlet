@@ -16,7 +16,7 @@ type ViewerKind = "teacher" | "student" | "none";
 type BootState =
   | { kind: "loading" }
   | { kind: "error"; message: string }
-  | { kind: "no-template" }
+  | { kind: "no-template"; resolvedClassroomId: string | null }
   | { kind: "ready"; templateId: string; submissionId: string | null; submitted: boolean };
 
 export interface AssessmentBoardProps {
@@ -27,7 +27,7 @@ export interface AssessmentBoardProps {
 
 export function AssessmentBoard({
   boardId,
-  classroomId,
+  classroomId: propClassroomId,
   viewerKind,
 }: AssessmentBoardProps) {
   const [state, setState] = useState<BootState>({ kind: "loading" });
@@ -39,11 +39,15 @@ export function AssessmentBoard({
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as {
         templateId: string | null;
+        classroomId?: string | null;
         submissionId: string | null;
         submitted: boolean;
       };
       if (!data.templateId) {
-        setState({ kind: "no-template" });
+        setState({
+          kind: "no-template",
+          resolvedClassroomId: data.classroomId ?? propClassroomId ?? null,
+        });
         return;
       }
       setState({
@@ -89,12 +93,28 @@ export function AssessmentBoard({
 
   if (viewerKind === "teacher") {
     if (state.kind === "no-template") {
+      const cid = state.resolvedClassroomId;
+      if (!cid) {
+        return (
+          <div className="board-canvas-wrap">
+            <div className="assessment-shell">
+              <div className="assessment-empty">
+                <div className="assessment-empty-icon">📝</div>
+                <div>이 보드에 학급이 연결되지 않았습니다.</div>
+                <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
+                  학급 연결된 보드에서 수행평가를 만들어 주세요.
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
       return (
         <div className="board-canvas-wrap">
           <div className="assessment-shell">
             <AssessmentComposer
               boardId={boardId}
-              classroomId={classroomId}
+              classroomId={cid}
               onCreated={() => boot()}
             />
           </div>
