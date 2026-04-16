@@ -130,6 +130,34 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
     [state, answers]
   );
 
+  const saveManual = useCallback(
+    (questionId: string, raw: string) => {
+      // 수동채점은 자유 텍스트 — 공백/줄바꿈 유지. 500자 제한.
+      const text = raw.slice(0, 500);
+      setShortAnswers((prev) => ({ ...prev, [questionId]: text }));
+      if (state.kind !== "ready") return;
+      const submissionId = state.submission.id;
+      clearTimeout(timers.current[questionId]);
+      setSaveState("saving");
+      timers.current[questionId] = setTimeout(async () => {
+        try {
+          const res = await fetch(
+            `/api/assessment/submissions/${submissionId}/answer`,
+            {
+              method: "PATCH",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ questionId, textAnswer: text }),
+            }
+          );
+          setSaveState(res.ok ? "saved" : "idle");
+        } catch {
+          setSaveState("idle");
+        }
+      }, 300);
+    },
+    [state]
+  );
+
   const saveShort = useCallback(
     (questionId: string, raw: string) => {
       const cleaned = raw.replace(/\s+/g, "");
@@ -251,10 +279,10 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
                 <div key={q.id} className="omr-grid-row">
                   <div className="omr-grid-num">{qi + 1}</div>
                   <div
-                    className={`omr-kind-chip omr-kind-chip-${q.kind === "MCQ" ? "mcq" : "short"} is-readonly`}
-                    aria-label={`유형: ${q.kind === "MCQ" ? "객관식" : "단답형"}`}
+                    className={`omr-kind-chip omr-kind-chip-${q.kind === "MCQ" ? "mcq" : q.kind === "SHORT" ? "short" : "manual"} is-readonly`}
+                    aria-label={`유형: ${q.kind === "MCQ" ? "객관식" : q.kind === "SHORT" ? "단답형" : "수동채점"}`}
                   >
-                    {q.kind === "MCQ" ? "객" : "단"}
+                    {q.kind === "MCQ" ? "객" : q.kind === "SHORT" ? "단" : "수"}
                   </div>
                   {q.kind === "MCQ" ? (
                     q.choices.map((c) => {
@@ -273,7 +301,7 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
                         </button>
                       );
                     })
-                  ) : (
+                  ) : q.kind === "SHORT" ? (
                     <div
                       className="omr-grid-short"
                       style={{ ["--choice-span" as string]: choiceHeaders.length }}
@@ -288,6 +316,21 @@ export function AssessmentTake({ templateId, onSubmitted }: AssessmentTakeProps)
                         maxLength={50}
                         disabled={expired || submitting}
                         aria-label={`${qi + 1}번 단답형 답안`}
+                      />
+                    </div>
+                  ) : (
+                    <div
+                      className="omr-grid-short"
+                      style={{ ["--choice-span" as string]: choiceHeaders.length }}
+                    >
+                      <textarea
+                        className="assessment-input omr-manual-input"
+                        placeholder="답 (자유 입력, 선생님이 채점)"
+                        value={shortAnswers[q.id] ?? ""}
+                        onChange={(e) => saveManual(q.id, e.target.value)}
+                        maxLength={500}
+                        disabled={expired || submitting}
+                        aria-label={`${qi + 1}번 수동채점 답안`}
                       />
                     </div>
                   )}

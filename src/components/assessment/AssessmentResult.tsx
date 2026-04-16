@@ -118,12 +118,18 @@ export function AssessmentResult({ submissionId }: AssessmentResultProps) {
                   </>
                 )}
               </div>
-            ) : (
+            ) : q.kind === "SHORT" ? (
               <div className="assessment-result-q-detail">
                 내 답: {q.textAnswer || "(입력 안 함)"}
                 {!q.correct && q.correctAnswers.length > 0 && (
                   <> → 정답: {q.correctAnswers.join(", ")}</>
                 )}
+              </div>
+            ) : (
+              <div className="assessment-result-q-detail">
+                내 답: {q.textAnswer || "(입력 안 함)"}
+                {" · "}
+                선생님 채점: {q.manualScore}/{q.maxScore}점
               </div>
             )}
           </li>

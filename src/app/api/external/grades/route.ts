@@ -81,7 +81,9 @@ export async function GET(req: Request) {
         for (const q of t.questions) {
           const a = answerByQid.get(q.id);
           let correct = false;
-          if (q.kind === "SHORT") {
+          if (q.kind === "MANUAL") {
+            correct = a?.manualScore !== null && a?.manualScore === q.maxScore;
+          } else if (q.kind === "SHORT") {
             const qp = q.payload as ShortQuestionPayload;
             const text = a ? (a.payload as ShortAnswerPayload).textAnswer : "";
             correct = isCorrectShort(qp.correctAnswers, text);

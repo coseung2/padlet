@@ -19,15 +19,28 @@ export async function POST(
 
   const submission = await db.assessmentSubmission.findUnique({
     where: { id: submissionId },
-    include: { answers: true },
+    include: {
+      answers: { include: { question: { select: { kind: true } } } },
+    },
   });
   if (!submission) return NextResponse.json({ error: "not_found" }, { status: 404 });
   if (submission.status !== "submitted") {
     return NextResponse.json({ error: "not_submitted" }, { status: 409 });
   }
 
+  // Block finalize until every MANUAL answer has a teacher verdict.
+  const pendingManual = submission.answers.filter(
+    (a) => a.question.kind === "MANUAL" && a.manualScore === null
+  );
+  if (pendingManual.length > 0) {
+    return NextResponse.json(
+      { error: "manual_pending", pendingCount: pendingManual.length },
+      { status: 409 }
+    );
+  }
+
   const finalScore = submission.answers.reduce(
-    (acc, a) => acc + (a.autoScore ?? 0),
+    (acc, a) => acc + (a.manualScore ?? a.autoScore ?? 0),
     0
   );
 

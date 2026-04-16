@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { resolveIdentities } from "@/lib/identity";
 import { gradeMcq, gradeShort } from "@/lib/assessment-grading";
 import type {
+  ManualAnswerPayload,
   McqAnswerPayload,
   McqQuestionPayload,
   ShortAnswerPayload,
@@ -42,6 +43,23 @@ export async function POST(
   const updates: Array<Promise<unknown>> = [];
   for (const q of submission.template.questions) {
     const row = answerByQid.get(q.id);
+    // MANUAL 문항은 autoScore=null 로 두어 gradebook 에서 "채점 대기"로
+    // 표시되도록 한다. 합계에는 0 으로 일단 포함(교사 채점 전).
+    if (q.kind === "MANUAL") {
+      if (!row) {
+        updates.push(
+          db.assessmentAnswer.create({
+            data: {
+              submissionId,
+              questionId: q.id,
+              payload: { textAnswer: "" } satisfies ManualAnswerPayload,
+              autoScore: null,
+            },
+          })
+        );
+      }
+      continue;
+    }
     let score: number;
     if (q.kind === "MCQ") {
       const payload = row ? (row.payload as McqAnswerPayload) : null;
@@ -67,8 +85,6 @@ export async function POST(
         })
       );
     } else {
-      // Placeholder row so the gradebook can distinguish "skipped" from
-      // "not-yet-graded". Shape matches the question kind.
       updates.push(
         db.assessmentAnswer.create({
           data: {
