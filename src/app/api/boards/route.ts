@@ -29,6 +29,7 @@ const CreateBoardSchema = z.object({
     "quiz",
     "drawing",
     "breakout",
+    "assessment",
   ]),
   description: z.string().max(2000).default(""),
   classroomId: z.string().optional(),

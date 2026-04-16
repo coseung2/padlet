@@ -1,0 +1,24 @@
+{
+  "task_id": "2026-04-16-performance-assessment-autograde",
+  "note": "chrome-devtools MCP 세션 불가로 Lighthouse/Core Web Vitals 자동 측정 불가. dev 서버 API latency (warm, turbopack) 기록만.",
+  "api_latency_ms_warm": {
+    "POST_templates": 180,
+    "GET_templates_id": 120,
+    "POST_submissions": 140,
+    "PATCH_answer": 90,
+    "POST_submit": 220,
+    "GET_gradebook": 210,
+    "POST_finalize": 110,
+    "POST_release": 80,
+    "GET_result": 110,
+    "GET_boards_bootstrap": 90
+  },
+  "coverage": {
+    "vitest_assertions": 25,
+    "e2e_assertions": 26
+  },
+  "followup": [
+    "chrome-devtools MCP 세션 복구 후 Lighthouse 측정",
+    "갤럭시 탭 S6 Lite 실기 응시 TTI 측정 (design_doc §3)"
+  ]
+}
