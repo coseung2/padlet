@@ -382,15 +382,17 @@ model SubmissionReview {
 // ──── Quiz system ────
 
 model Quiz {
-  id         String   @id @default(cuid())
-  boardId    String
-  title      String   @default("")
-  sourceFile String? // uploaded PDF/PPT filename
-  sourceText String? // extracted text (for reference)
-  roomCode   String   @unique // 6-digit code for students to join
-  status     String   @default("waiting") // "waiting" | "active" | "finished"
-  currentQ   Int      @default(-1) // index of current question (-1 = not started)
-  createdAt  DateTime @default(now())
+  id           String   @id @default(cuid())
+  boardId      String
+  title        String   @default("")
+  sourceFile   String? // uploaded PDF/PPT filename
+  sourceText   String? // extracted text (for reference)
+  roomCode     String   @unique // 6-digit code for students to join
+  status       String   @default("waiting") // "waiting" | "active" | "finished"
+  currentQ     Int      @default(-1) // index of current question (-1 = not started)
+  difficulty   String? // "easy" | "medium" | "hard" (quiz-extensions B2)
+  parentQuizId String? // clone source Quiz.id — no FK so source delete is allowed (B4)
+  createdAt    DateTime @default(now())
 
   board     Board          @relation(fields: [boardId], references: [id], onDelete: Cascade)
   questions QuizQuestion[]
@@ -398,6 +400,7 @@ model Quiz {
 
   @@index([boardId])
   @@index([roomCode])
+  @@index([parentQuizId])
 }
 
 model QuizQuestion {

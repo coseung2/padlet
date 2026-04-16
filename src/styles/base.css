@@ -45,6 +45,13 @@
   --color-warning: #f59e0b;
   --color-warning-tinted-bg: #fef3c7;
 
+  /* Quiz difficulty badges (quiz-extensions B2). Alias plant-active / danger
+     to keep the palette consistent while letting quiz-specific styling
+     diverge later without touching the semantic tokens. */
+  --color-quiz-difficulty-easy: #27a35f;
+  --color-quiz-difficulty-medium: #c9a227;
+  --color-quiz-difficulty-hard: #c62828;
+
   /* Radii */
   --radius-card: 12px;
   --radius-btn: 4px;
