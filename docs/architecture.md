@@ -58,6 +58,7 @@ Migrations under `prisma/migrations/`:
 | DELETE | `/api/sections/:id` | delete (cards drop to sectionId=null) |
 | **GET** | **`/api/sections/:id/cards?token=…`** | **T0-① section-scoped read. Calls `viewSection`; never scans by boardId.** |
 | **POST** | **`/api/sections/:id/share`** | **T0-① owner-only; rotates `Section.accessToken` using `crypto.randomBytes(32).toString("base64url")`.** |
+| **GET** | **`/api/boards/:id/stream`** | **2026-04-17 SSE. Polls cards+sections every 3s; emits `event: snapshot` only when sha1 of payload changes. Re-checks `view` permission every 60s. Keepalive `: ping` every 60s during quiet periods. Used by `ColumnsBoard` for live updates.** |
 
 ## Routes
 
