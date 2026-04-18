@@ -1,0 +1,34 @@
+{
+  "task_id": "2026-04-13-iframe-virtualization-t0-2",
+  "decision": "PROCEED",
+  "change_type": "feature",
+  "acceptance_criteria": [
+    "AC1: Board with 30 Canva cards - initial render has 0 iframes, 30 thumbnails only (verify via document.querySelectorAll('iframe').length === 0)",
+    "AC2: Tap a card's Canva slot -> iframe mounts within 100ms and Canva editor loads",
+    "AC3: Tap 4th card -> 1st activated card reverts to thumbnail (LRU-3 eviction)",
+    "AC4: Scroll card out of viewport -> iframe unmounts immediately (IntersectionObserver)",
+    "AC5: Card slot shows '라이브'/'썸네일' pill badge, clickable/keyboard-activable to toggle",
+    "AC6: Galaxy Tab S6 Lite: 30-card board TTI < 3s; memory after 1h < 500MB (best-effort note if unmeasurable in dev)",
+    "AC7: a11y - overlay has role=button, Enter/Space toggles activation, focus-visible ring",
+    "AC8: prefers-reduced-motion - no iframe mount animation, no fade",
+    "AC9: Non-Canva cards (youtube, image, plain link) unchanged - no regression",
+    "AC10: npm run build + npm run typecheck PASS"
+  ],
+  "risks": [
+    "R1 (HIGH): DraggableCard.tsx merge conflict with feat/image-pipeline-t0-4. Mitigation: place ALL new logic in CanvaEmbedSlot.tsx + edit only CardAttachments.tsx. Zero DraggableCard.tsx diff.",
+    "R2 (MED): IntersectionObserver false-negative during rapid scroll could keep iframe mounted briefly. Mitigation: IO default threshold 0 + root=null (viewport) is sufficient; aggressive unmount OK because reactivation is cheap (thumbnail always primed).",
+    "R3 (MED): LRU-3 eviction while user is actively editing causes data loss inside iframe. Mitigation: Canva embed is read-only `view?embed` - no user edits to lose. Documented.",
+    "R4 (LOW): useSyncExternalStore SSR warning if store subscribed server-side. Mitigation: CardAttachments is 'use client'; slot renders null snapshot server-side (no ref yet). Safe.",
+    "R5 (LOW): Multiple boards open in tabs share module scope - not an issue (each tab = own JS context)."
+  ],
+  "tablet_perf_notes": [
+    "Initial render: 0 iframes -> memory budget only consumes <img> DOM (Canva thumbnails are ~80KB webp from oEmbed)",
+    "Active iframes capped at 3 * ~60MB = ~180MB peak for Canva slots (vs 30 * 60MB = 1.8GB in unvirtualized)",
+    "Viewport-based unmount releases renderer subresources immediately when card scrolls off-screen"
+  ],
+  "scope_out": [
+    "Video iframe virtualization (YouTube) - separate task; Canva-only for now",
+    "Telemetry/analytics instrumentation - covered by T0-8 observability task",
+    "Server-side thumbnail hosting - already solved by P0-① oEmbed resolver"
+  ]
+}

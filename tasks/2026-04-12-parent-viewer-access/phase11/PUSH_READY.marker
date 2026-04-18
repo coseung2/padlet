@@ -1,0 +1,11 @@
+PUSH_READY
+date: 2026-04-12
+branch: worktree-agent-adeeab05 (feat/parent-viewer-auth already exists elsewhere — user to merge/rename)
+scope: PV-1 ~ PV-5 Parent Viewer Access — auth + schema
+build: PASS (npm run build, Next 16.2.3 Turbopack)
+typecheck: PASS (npx tsc --noEmit, 0 errors)
+review_marker: tasks/2026-04-12-parent-viewer-access/phase8/REVIEW_OK.marker
+qa_marker: tasks/2026-04-12-parent-viewer-access/phase9/QA_OK.marker
+deploy_log: tasks/2026-04-12-parent-viewer-access/phase10/deploy_log.md
+commits: 7 — 1 per PV-N plus phase0-3 + phase8-9 bundle
+deferred: PV-6 PWA shell, PV-7 child-scope filters (SSOT matrix), PV-8 teacher management tab, PV-9 revoke SLA, PV-10 weekly email, PV-11 self-withdraw + 90d anonymize, PV-12 E2E suite. See phase10 handoff.

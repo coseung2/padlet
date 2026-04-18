@@ -29,6 +29,25 @@ export default async function ClassroomDetailPage({ params }: Props) {
   if (!classroom || classroom.teacherId !== user.id) {
     notFound();
   }
+
+  // Board schema has no updatedAt. We approximate "latest activity" with
+  // the most recent Card.createdAt on that board — used by the classroom
+  // detail page to render the "새 활동" badge via lastVisitedBoards
+  // localStorage comparison.
+  const classroomBoardIds = classroom.boards.map((b) => b.id);
+  const latestCards = classroomBoardIds.length
+    ? await db.card.groupBy({
+        by: ["boardId"],
+        where: { boardId: { in: classroomBoardIds } },
+        _max: { createdAt: true },
+      })
+    : [];
+  const latestActivityByBoard = new Map<string, Date>(
+    latestCards.flatMap((c) =>
+      c._max.createdAt ? [[c.boardId, c._max.createdAt] as const] : []
+    )
+  );
+
   const allBoards = teacherMemberships.map((m) => ({
     id: m.board.id,
     slug: m.board.slug,
@@ -53,11 +72,12 @@ export default async function ClassroomDetailPage({ params }: Props) {
       slug: b.slug,
       title: b.title,
       layout: b.layout,
+      updatedAt: (latestActivityByBoard.get(b.id) ?? b.createdAt).toISOString(),
     })),
   };
 
   return (
-    <main className="classroom-page">
+    <main className="classroom-page classroom-page-detail">
       <a href="/classroom" className="classroom-back-link">
         &larr; 학급 목록
       </a>

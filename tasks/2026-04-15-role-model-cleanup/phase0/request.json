@@ -1,0 +1,53 @@
+{
+  "task_id": "2026-04-15-role-model-cleanup",
+  "type": "feature",
+  "date": "2026-04-15",
+  "initiator": "user",
+  "created_by": "orchestrator",
+  "title": "3-role BoardMember 모델 폐기 + identity-based 권한으로 전환",
+  "problem_statement": "현재 보드/카드 권한이 BoardMember.role (owner|editor|viewer) 단일 축으로 결정됨. 학생은 '자기 카드엔 editor, 남 카드엔 viewer' 라는 2차원 권한을 가지는데 1D role 로 표현 불가. 땜질 코드가 UI 4곳 + API 4곳에 분산돼 정합성 구멍이 계속 생김 (FAB 숨김, DELETE 조건, POST auth 분기 등 최근 5일간 3건 hotfix 발생).",
+  "goal": "권한 판정을 identity(teacher/student/parent) × 소유권(ownsBoard / studentAuthorId match / childIds match) 2차원으로 재설계. 모든 UI·API 가 단일 primitive (`src/lib/card-permissions.ts`) 를 호출하도록 수렴.",
+  "scope_hints": {
+    "must_remove": [
+      "BoardMember 기반 role 판정의 학생/학부모 분기 (owner 외 mock)",
+      "UI 각 보드 컴포넌트의 canEdit / canDelete / canAddCard ad-hoc 표현"
+    ],
+    "must_add": [
+      "src/lib/card-permissions.ts — Identity discriminated union + canEdit/canDelete/canView/canAddCardToBoard 함수",
+      "src/app/board/[id]/page.tsx 에서 identity 객체 1회 resolve → 보드 컴포넌트 props 로 전달"
+    ],
+    "must_preserve": [
+      "BoardMember 테이블 자체 (owner 1행 만 실질 사용) — parent-v2 approve flow 가 BoardMember 참조 없음 확인됨",
+      "parent-scope.ts status='active' narrowing (2026-04-15 parent-v2 phase8 auto-fix)",
+      "student-author path DELETE /api/cards/:id (2026-04-15 이미 포함)",
+      "external-cards columns 보드 sectionId 가드 (2026-04-15 hotfix)"
+    ],
+    "out_of_scope": [
+      "BoardMember 테이블 drop (read 경로 전수 확인 후 별 task)",
+      "NextAuth session unification (교사 로그인 외 identity 통합) — 별도 OAuth multi-identity task 영역",
+      "assignment board AB-1 identity 흐름 (이미 identity-based 로 설계됨 — 변경 대상 아님)"
+    ]
+  },
+  "source_context": {
+    "memories_referenced": [
+      "project_permission_model.md — teacher/student/parent 3-tier identity-based 이미 합의",
+      "project_pending_role_cleanup.md — 학부모 v2 종료 후 정리 예약",
+      "feedback_no_confirm.md — 오케스트레이션 중 phase 간 확인 금지",
+      "feedback_plain_language_explanation.md — 평어체 설명 디폴트"
+    ],
+    "recent_hotfixes_that_motivated_this": [
+      "2026-04-15 fix/student-card-delete — DELETE API 학생 분기 추가",
+      "2026-04-15 fix/student-add-card — canAddCard 학생 허용 + POST API student path",
+      "2026-04-15 fix/external-cards-require-section — columns 보드 sectionId 강제"
+    ]
+  },
+  "success_criteria_raw": [
+    "1. UI 4개 보드 (BoardCanvas/ColumnsBoard/GridBoard/StreamBoard) 가 동일 primitive 호출",
+    "2. /api/cards POST/PATCH/DELETE 가 동일 primitive 호출",
+    "3. 학생 삭제/추가/편집 권한이 identity 2축 로직 한 군데에서 판정",
+    "4. BoardMember.role 값의 학생/학부모 분기 0건 (grep 결과)",
+    "5. 기존 카드 동작 regressions 0건 — 교사 flow / 학생 flow / 학부모 flow 각 smoke pass",
+    "6. phase8 Karpathy 감사 PASS + phase9 unit test green"
+  ],
+  "notes_for_researcher": "phase1 은 기존 BoardMember/role 사용처 grep + 각 역할별 현재 실제 권한 흐름 mapping 이 핵심. 특히 parent-scope.ts / 이번 주 추가된 student-path 분기들이 identity primitive 와 어떻게 호환되는지 확정."
+}

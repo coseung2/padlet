@@ -82,6 +82,16 @@ padlet/
 
 검증 실패 시 해당 phase 재실행. 3회 연속 실패 시 원인 분석 기록 후 중단.
 
+### Karpathy Coding Guidelines (글로벌)
+
+모든 코드 작성·편집·리팩토링 행위는 `docs/coding-principles-karpathy.md` 의 4 원칙을 준수한다:
+1. **Think Before Coding** — 가정·복수 해석·단순 대안 먼저 노출, 애매하면 멈춤
+2. **Simplicity First** — 요청 범위만, 투기적 추상화/유연성/에러처리 금지
+3. **Surgical Changes** — 변경된 모든 줄이 요청으로 직접 추적 가능, 인접 코드 "개선" 금지
+4. **Goal-Driven Execution** — 작업을 검증 가능한 목표로 변환 + 루프
+
+적용 phase 파일에서 명시적으로 참조: `feature/phase7_coder.md`, `feature/phase8_code_reviewer.md`, `incident/phase2_hotfixer.md`, `incident/phase3_code_reviewer.md`.
+
 ### gstack 스킬 통합
 
 각 phase 파일에는 `## gstack 스킬` 섹션이 있다. 해당 phase 실행 시 오케스트레이터는 명시된 gstack 슬래시 커맨드를 호출한다. gstack이 설치돼 있지 않으면 동일 기능을 Claude 본체 프롬프트로 수행하되, **계약(입력/출력/검증)은 동일하게 강제**한다.

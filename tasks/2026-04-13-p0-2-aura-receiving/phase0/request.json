@@ -1,0 +1,37 @@
+{
+  "type": "feature",
+  "task_id": "2026-04-13-p0-2-aura-receiving",
+  "title": "P0-② Content Publisher — Aura-board receiving endpoint",
+  "source": [
+    "canva project/plans/implementation-roadmap.md §P0-②",
+    "phase0-requests.md §P0-②",
+    "seeds-index.md §Seed 5"
+  ],
+  "scope": "aura-board-side-only",
+  "branch": "feat/p0-2-aura-receiving",
+  "base": "main",
+  "deferred": [
+    "canva project/content-publisher-app/ (Canva Apps SDK project — user creates externally)",
+    "Canva Developer Portal app registration + team deploy (user handles)"
+  ],
+  "must_deliver": [
+    "POST /api/external/cards (Bearer auth, zod, image handling)",
+    "src/lib/external-auth.ts (issueToken/revokeToken/verifyToken)",
+    "Prisma: ExternalAccessToken model + User relation",
+    "UI: /account/tokens (issue/list/revoke)",
+    "POST /api/account/tokens (issue)",
+    "DELETE /api/account/tokens/[id] (revoke)",
+    "Rate limit: per-token 60/min",
+    "docs/external-api.md"
+  ],
+  "acceptance_criteria_target": 9,
+  "security_focus": [
+    "token stored only as hash (sha256+salt or bcrypt)",
+    "timing-safe token compare",
+    "viewer/non-member → 403",
+    "rate limit per token"
+  ],
+  "port": 3000,
+  "solo_project": true,
+  "direct_merge_ok": true
+}

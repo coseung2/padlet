@@ -1,0 +1,44 @@
+{
+  "patterns": [
+    {
+      "pattern_id": "P1-vertical-timeline-inline",
+      "description": "Left rail of stage nodes, with each stage's entries rendered inline to the right in reading order top-to-bottom.",
+      "adopted": true,
+      "source_refs": ["github-issue-timeline", "notion-timeline-block"]
+    },
+    {
+      "pattern_id": "P2-sticky-rail",
+      "description": "Sticky stage rail so rail stays visible while body scrolls.",
+      "adopted": false,
+      "rationale": "YAGNI for 6-10 stage journals."
+    },
+    {
+      "pattern_id": "P3-current-stage-composer",
+      "description": "Composer (add observation) CTA appears only on current stage for students; teacher impersonation unlocks composer on all stages.",
+      "adopted": true
+    },
+    {
+      "pattern_id": "P4-modal-editor-plus-lightbox",
+      "description": "Compact modal for add/edit forms; fullscreen lightbox for photo originals.",
+      "adopted": true,
+      "implementation": "Reuse existing ObservationEditor modal + NoPhotoReasonModal + plant-lightbox."
+    },
+    {
+      "pattern_id": "P5-row-as-link",
+      "description": "Whole student-row in teacher summary is a link target to student drill-down.",
+      "adopted": true
+    },
+    {
+      "pattern_id": "P6-teacher-edit-badge",
+      "description": "Subtle badge marks observations edited by a teacher.",
+      "adopted": false,
+      "rationale": "Schema change (editorId) blocked; feedback marks this nice-to-have."
+    },
+    {
+      "pattern_id": "P7-owner-impersonation-subpath",
+      "description": "Owner-only subroute /board/[id]/student/[studentId] renders the student's plant in edit mode for the teacher.",
+      "adopted": true,
+      "implementation": "Server component with classroom-ownership gate; 403 otherwise."
+    }
+  ]
+}

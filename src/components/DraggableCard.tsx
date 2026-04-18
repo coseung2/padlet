@@ -5,7 +5,7 @@ import Draggable, {
   type DraggableData,
   type DraggableEvent,
 } from "react-draggable";
-import { CardAttachments } from "./CardAttachments";
+import { CardBody } from "./cards/CardBody";
 
 export type CardData = {
   id: string;
@@ -25,7 +25,20 @@ export type CardData = {
   order: number;
   sectionId?: string | null;
   authorId: string;
+  studentAuthorId?: string | null;
   createdAt?: string;
+  externalAuthorName?: string | null;
+  studentAuthorName?: string | null;
+  authorName?: string | null;
+  /** CardAuthor join rows. When empty, CardAuthorFooter falls back to the
+   *  legacy pickAuthorName(external, student, author) chain. Sorted
+   *  ascending by .order — primary is index 0. */
+  authors?: Array<{
+    id: string;
+    studentId: string | null;
+    displayName: string;
+    order: number;
+  }>;
 };
 
 type Props = {
@@ -34,6 +47,7 @@ type Props = {
   canDelete: boolean;
   onPositionChange: (x: number, y: number) => void;
   onDelete: () => void;
+  onOpen: () => void;
 };
 
 export function DraggableCard({
@@ -42,6 +56,7 @@ export function DraggableCard({
   canDelete,
   onPositionChange,
   onDelete,
+  onOpen,
 }: Props) {
   const nodeRef = useRef<HTMLElement>(null);
 
@@ -50,7 +65,7 @@ export function DraggableCard({
     return (
       <article
         ref={nodeRef}
-        className="padlet-card is-static"
+        className="padlet-card is-static is-clickable"
         style={{
           position: "absolute",
           left: card.x,
@@ -60,10 +75,17 @@ export function DraggableCard({
           backgroundColor: card.color ?? undefined,
         }}
         aria-label={card.title}
+        onClick={onOpen}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onOpen();
+          }
+        }}
+        tabIndex={0}
+        role="button"
       >
-        <CardAttachments imageUrl={card.imageUrl} linkUrl={card.linkUrl} linkTitle={card.linkTitle} linkDesc={card.linkDesc} linkImage={card.linkImage} videoUrl={card.videoUrl} />
-        <h3 className="padlet-card-title">{card.title}</h3>
-        <p className="padlet-card-content">{card.content}</p>
+        <CardBody card={card} />
       </article>
     );
   }
@@ -73,8 +95,12 @@ export function DraggableCard({
       nodeRef={nodeRef as React.RefObject<HTMLElement>}
       position={{ x: card.x, y: card.y }}
       onStop={(_e: DraggableEvent, data: DraggableData) => {
+        // Drag — commit the new position. No drag (data.x/y unchanged) =
+        // click; open the detail modal instead.
         if (data.x !== card.x || data.y !== card.y) {
           onPositionChange(data.x, data.y);
+        } else {
+          onOpen();
         }
       }}
       cancel=".padlet-card-delete"
@@ -82,7 +108,7 @@ export function DraggableCard({
     >
       <article
         ref={nodeRef}
-        className="padlet-card is-draggable"
+        className="padlet-card is-draggable is-clickable"
         style={{
           position: "absolute",
           left: 0,
@@ -93,9 +119,7 @@ export function DraggableCard({
         }}
         aria-label={card.title}
       >
-        <CardAttachments imageUrl={card.imageUrl} linkUrl={card.linkUrl} linkTitle={card.linkTitle} linkDesc={card.linkDesc} linkImage={card.linkImage} videoUrl={card.videoUrl} />
-        <h3 className="padlet-card-title">{card.title}</h3>
-        <p className="padlet-card-content">{card.content}</p>
+        <CardBody card={card} />
         {canDelete && (
           <button
             type="button"
@@ -105,6 +129,7 @@ export function DraggableCard({
                 onDelete();
               }
             }}
+            onMouseDown={(e) => e.stopPropagation()}
             className="padlet-card-delete"
             aria-label={`${card.title} 카드 삭제`}
           >

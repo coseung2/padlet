@@ -1,5 +1,10 @@
+"use client";
+
 import Link from "next/link";
-import { CardAttachments } from "./CardAttachments";
+import { useState } from "react";
+import { CardBody } from "./cards/CardBody";
+import { CardDetailModal } from "./cards/CardDetailModal";
+import type { CardData } from "./DraggableCard";
 
 type CardLike = {
   id: string;
@@ -12,6 +17,10 @@ type CardLike = {
   linkDesc: string | null;
   linkImage: string | null;
   videoUrl: string | null;
+  externalAuthorName?: string | null;
+  studentAuthorName?: string | null;
+  authorName?: string | null;
+  createdAt?: string | null;
 };
 
 type Props = {
@@ -20,6 +29,7 @@ type Props = {
   sectionTitle: string;
   cards: CardLike[];
   shareManagementHref?: string | null; // owner only
+  autoJoinWarning?: string | null; // BR-5 link-fixed feedback
 };
 
 /**
@@ -32,7 +42,9 @@ export function SectionBreakoutView({
   sectionTitle,
   cards,
   shareManagementHref,
+  autoJoinWarning,
 }: Props) {
+  const [openCard, setOpenCard] = useState<CardLike | null>(null);
   return (
     <main className="board-page">
       <header className="board-header">
@@ -55,6 +67,21 @@ export function SectionBreakoutView({
       <div className="breakout-header">
         <span className="breakout-breadcrumb">{boardTitle} › {sectionTitle}</span>
       </div>
+      {autoJoinWarning && (
+        <div
+          role="alert"
+          style={{
+            margin: "8px 16px",
+            padding: 12,
+            background: "var(--color-warn-bg,#fff8e1)",
+            color: "var(--color-warn,#8a6d00)",
+            border: "1px solid var(--color-warn-border,#ffe08a)",
+            borderRadius: 6,
+          }}
+        >
+          {autoJoinWarning}
+        </div>
+      )}
 
       {cards.length === 0 ? (
         <p className="breakout-empty">이 섹션에는 아직 카드가 없어요.</p>
@@ -63,24 +90,30 @@ export function SectionBreakoutView({
           {cards.map((c) => (
             <article
               key={c.id}
-              role="listitem"
-              className="column-card"
+              role="listitem button"
+              className="column-card is-clickable"
               style={{ backgroundColor: c.color ?? undefined }}
+              tabIndex={0}
+              onClick={() => setOpenCard(c)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setOpenCard(c);
+                }
+              }}
             >
-              <CardAttachments
-                imageUrl={c.imageUrl}
-                linkUrl={c.linkUrl}
-                linkTitle={c.linkTitle}
-                linkDesc={c.linkDesc}
-                linkImage={c.linkImage}
-                videoUrl={c.videoUrl}
-              />
-              <h4 className="padlet-card-title">{c.title}</h4>
-              <p className="padlet-card-content">{c.content}</p>
+              <CardBody card={c} titleAs="h4" />
             </article>
           ))}
         </div>
       )}
+
+      <CardDetailModal
+        card={openCard ? (openCard as unknown as CardData) : null}
+        onClose={() => setOpenCard(null)}
+        cards={cards as unknown as CardData[]}
+        onChange={(c) => setOpenCard(c as unknown as CardLike)}
+      />
     </main>
   );
 }

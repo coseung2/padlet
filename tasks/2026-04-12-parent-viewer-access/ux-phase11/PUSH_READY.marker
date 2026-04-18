@@ -1,0 +1,12 @@
+PUSH_READY
+branch=feat/parent-viewer-ux
+base=main@8a5df45
+commit_count=9
+scope=PV-6..PV-12
+typecheck=PASS
+build=PASS
+smoke=9/9
+review_ok=ux-phase8/REVIEW_OK.marker
+qa_ok=ux-phase9/QA_OK.marker
+date=2026-04-12
+push_executed=false

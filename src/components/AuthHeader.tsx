@@ -30,6 +30,7 @@ export function AuthHeader() {
         />
       )}
       <span className="auth-name">{session.user.name}</span>
+      <SettingsMenu />
       <button
         className="auth-logout-btn"
         onClick={() => signOut({ redirectTo: "/login" })}
@@ -37,6 +38,33 @@ export function AuthHeader() {
         로그아웃
       </button>
     </div>
+  );
+}
+
+/**
+ * Native <details>-based dropdown so teachers can jump to infrequent-but-critical
+ * settings (Canva app install guide) without hunting across routes.
+ */
+function SettingsMenu() {
+  return (
+    <details className="auth-settings">
+      <summary
+        className="auth-settings-trigger"
+        title="설정 메뉴"
+        aria-label="설정 메뉴 열기"
+      >
+        ⚙
+      </summary>
+      <div className="auth-settings-panel" role="menu">
+        <Link
+          href="/docs/canva-setup"
+          className="auth-settings-item"
+          role="menuitem"
+        >
+          🎨 Canva 앱 연결 안내
+        </Link>
+      </div>
+    </details>
   );
 }
 

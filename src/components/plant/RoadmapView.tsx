@@ -1,31 +1,40 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ObservationDTO, StudentPlantDTO } from "@/types/plant";
-import { StageDetailSheet } from "./StageDetailSheet";
+import { useCallback, useMemo, useState } from "react";
+import type { ObservationDTO, StageDTO, StudentPlantDTO } from "@/types/plant";
 import { ObservationEditor } from "./ObservationEditor";
 import { NoPhotoReasonModal } from "./NoPhotoReasonModal";
+import { OptimizedImage } from "../ui/OptimizedImage";
 
 interface Props {
   plant: StudentPlantDTO;
-  canEdit: boolean; // true for the student who owns this plant
+  canEdit: boolean;
+  /**
+   * When true, "관찰 추가" CTA is shown on every stage (teacher drill-down mode).
+   * Defaults to false — student mode only composes on the current stage.
+   */
+  editAnyStage?: boolean;
   onPlantUpdated: (next: StudentPlantDTO) => void;
 }
 
-export function RoadmapView({ plant, canEdit, onPlantUpdated }: Props) {
-  const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
+export function RoadmapView({
+  plant,
+  canEdit,
+  editAnyStage = false,
+  onPlantUpdated,
+}: Props) {
+  const [editorStageId, setEditorStageId] = useState<string | null>(null);
   const [editingObs, setEditingObs] = useState<ObservationDTO | null>(null);
-  const [editorOpen, setEditorOpen] = useState(false);
   const [reasonOpen, setReasonOpen] = useState(false);
   const [busyAdvance, setBusyAdvance] = useState(false);
   const [reasonError, setReasonError] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<string | null>(null);
-  const activeNodeRef = useRef<HTMLButtonElement | null>(null);
+  const [nicknameDraft, setNicknameDraft] = useState<string | null>(null);
+  const [savingNickname, setSavingNickname] = useState(false);
 
   const stages = plant.species.stages;
   const currentStage = stages.find((s) => s.id === plant.currentStageId) ?? stages[0];
   const currentOrder = currentStage?.order ?? 0;
-  const selectedStage = stages.find((s) => s.id === selectedStageId) ?? null;
 
   const observationsByStage = useMemo(() => {
     const map = new Map<string, ObservationDTO[]>();
@@ -41,13 +50,6 @@ export function RoadmapView({ plant, canEdit, onPlantUpdated }: Props) {
     const obs = observationsByStage.get(currentStage?.id ?? "") ?? [];
     return obs.reduce((acc, o) => acc + o.images.length, 0);
   }, [observationsByStage, currentStage]);
-
-  // Scroll active node into center on mount
-  useEffect(() => {
-    if (activeNodeRef.current) {
-      activeNodeRef.current.scrollIntoView({ inline: "center", block: "nearest", behavior: "auto" });
-    }
-  }, []);
 
   const stageState = useCallback(
     (order: number): "visited" | "active" | "upcoming" => {
@@ -66,11 +68,12 @@ export function RoadmapView({ plant, canEdit, onPlantUpdated }: Props) {
   }
 
   async function handleCreateObservation(payload: { memo: string; images: { url: string }[] }) {
+    if (!editorStageId) return;
     const res = await fetch(`/api/student-plants/${plant.id}/observations`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        stageId: selectedStage?.id ?? currentStage.id,
+        stageId: editorStageId,
         memo: payload.memo,
         images: payload.images,
       }),
@@ -80,7 +83,7 @@ export function RoadmapView({ plant, canEdit, onPlantUpdated }: Props) {
       throw new Error(j?.error ?? "저장 실패");
     }
     await refreshPlant();
-    setEditorOpen(false);
+    setEditorStageId(null);
     setEditingObs(null);
   }
 
@@ -95,17 +98,19 @@ export function RoadmapView({ plant, canEdit, onPlantUpdated }: Props) {
       throw new Error(j?.error ?? "수정 실패");
     }
     await refreshPlant();
-    setEditorOpen(false);
+    setEditorStageId(null);
     setEditingObs(null);
   }
 
   async function handleDeleteObservation(obs: ObservationDTO) {
+    if (!confirm("이 기록을 삭제할까요?")) return;
     const res = await fetch(`/api/student-plants/${plant.id}/observations/${obs.id}`, {
       method: "DELETE",
     });
     if (!res.ok && res.status !== 204) {
       const j = await res.json().catch(() => ({}));
-      throw new Error(j?.error ?? "삭제 실패");
+      alert(j?.error ?? "삭제 실패");
+      return;
     }
     await refreshPlant();
   }
@@ -120,7 +125,6 @@ export function RoadmapView({ plant, canEdit, onPlantUpdated }: Props) {
       });
       if (res.ok) {
         await refreshPlant();
-        setSelectedStageId(null);
         return;
       }
       const j = await res.json().catch(() => ({}));
@@ -151,11 +155,41 @@ export function RoadmapView({ plant, canEdit, onPlantUpdated }: Props) {
       }
       await refreshPlant();
       setReasonOpen(false);
-      setSelectedStageId(null);
     } finally {
       setBusyAdvance(false);
     }
   }
+
+  async function handleNicknameSave() {
+    if (nicknameDraft == null) return;
+    const trimmed = nicknameDraft.trim();
+    if (!trimmed || trimmed === plant.nickname) {
+      setNicknameDraft(null);
+      return;
+    }
+    setSavingNickname(true);
+    try {
+      const res = await fetch(`/api/student-plants/${plant.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nickname: trimmed }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        alert(j?.error ?? "별명 저장 실패");
+        return;
+      }
+      const j = await res.json();
+      if (j?.studentPlant) onPlantUpdated(j.studentPlant as StudentPlantDTO);
+      setNicknameDraft(null);
+    } finally {
+      setSavingNickname(false);
+    }
+  }
+
+  const composerOpen = editorStageId !== null;
+  const editorStage: StageDTO | null =
+    editorStageId ? stages.find((s) => s.id === editorStageId) ?? null : null;
 
   return (
     <div className="plant-roadmap">
@@ -163,78 +197,217 @@ export function RoadmapView({ plant, canEdit, onPlantUpdated }: Props) {
         <span className="plant-head-emoji" aria-hidden>{plant.species.emoji}</span>
         <div>
           <div className="plant-head-name">{plant.species.nameKo}</div>
-          <div className="plant-head-nickname">“{plant.nickname}”</div>
+          {nicknameDraft != null ? (
+            <div className="plant-head-nickname-edit">
+              <input
+                type="text"
+                maxLength={20}
+                value={nicknameDraft}
+                onChange={(e) => setNicknameDraft(e.target.value)}
+                aria-label="별명 편집"
+                disabled={savingNickname}
+              />
+              <button type="button" onClick={handleNicknameSave} disabled={savingNickname}>
+                {savingNickname ? "저장 중…" : "저장"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setNicknameDraft(null)}
+                disabled={savingNickname}
+              >
+                취소
+              </button>
+            </div>
+          ) : (
+            <div className="plant-head-nickname">
+              “{plant.nickname}”
+              {canEdit && (
+                <button
+                  type="button"
+                  className="plant-head-nickname-edit-btn"
+                  onClick={() => setNicknameDraft(plant.nickname)}
+                  aria-label="별명 편집"
+                >
+                  편집
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
-      <div className="plant-line-scroll" role="list" aria-label="성장 단계">
-        <div className="plant-line">
-          {stages.map((s, idx) => {
-            const state = stageState(s.order);
-            const showLineAfter = idx < stages.length - 1;
-            const nextState = showLineAfter ? stageState(stages[idx + 1].order) : null;
-            const future = state === "upcoming" || nextState === "upcoming";
-            return (
-              <div key={s.id} style={{ display: "contents" }}>
-                <div className="plant-node-wrap" role="listitem">
-                  <button
-                    ref={state === "active" ? activeNodeRef : undefined}
-                    type="button"
-                    className="plant-node"
-                    data-state={state}
-                    aria-current={state === "active" ? "step" : undefined}
-                    aria-label={`${s.order}단계: ${s.nameKo} (${state === "active" ? "현재" : state === "visited" ? "완료" : "예정"})`}
-                    onClick={() => setSelectedStageId(s.id)}
-                  >
-                    {s.order}
-                  </button>
-                  <span className="plant-node-label">
-                    <span className="plant-node-label-icon" aria-hidden>{s.icon}</span>
-                    {s.nameKo}
-                  </span>
+      <div className="plant-timeline" role="list" aria-label="성장 타임라인">
+        {stages.map((s, idx) => {
+          const state = stageState(s.order);
+          const obs = observationsByStage.get(s.id) ?? [];
+          const isCurrent = s.id === currentStage.id;
+          const isLast = idx === stages.length - 1;
+          const isFirst = idx === 0;
+          const canComposeHere =
+            canEdit && (editAnyStage || isCurrent);
+          return (
+            <section
+              key={s.id}
+              className="plant-stage-row"
+              data-state={state}
+              role="listitem"
+            >
+              <aside className="plant-stage-rail" aria-hidden="true">
+                <span
+                  className="plant-stage-connector plant-stage-connector--top"
+                  data-hidden={isFirst ? "true" : "false"}
+                  data-state={state}
+                />
+                <span className="plant-stage-node" data-state={state}>
+                  {s.order}
+                </span>
+                <span
+                  className="plant-stage-connector plant-stage-connector--bottom"
+                  data-hidden={isLast ? "true" : "false"}
+                  data-state={state === "visited" ? "visited" : "upcoming"}
+                />
+              </aside>
+
+              <div
+                className="plant-stage-body"
+                role="region"
+                aria-label={`${s.order}단계: ${s.nameKo} (${
+                  state === "active" ? "현재" : state === "visited" ? "완료" : "예정"
+                })`}
+              >
+                <header className="plant-stage-body-head">
+                  <h3>
+                    <span aria-hidden className="plant-stage-body-icon">{s.icon}</span>
+                    {s.order}단계 · {s.nameKo}
+                    {isCurrent && <span className="plant-stage-body-pill">현재</span>}
+                  </h3>
+                  {s.description && <p>{s.description}</p>}
+                </header>
+
+                {s.observationPoints.length > 0 && (
+                  <div className="plant-stage-body-points">
+                    <h4>관찰 포인트</h4>
+                    <ul>
+                      {s.observationPoints.map((p, i) => (
+                        <li key={i}>{p}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="plant-stage-body-obs">
+                  {obs.length === 0 ? (
+                    <p className="plant-stage-body-empty">
+                      {state === "upcoming" ? "아직 도달 전" : "아직 기록이 없어요."}
+                    </p>
+                  ) : (
+                    <div className="plant-stage-body-obs-grid">
+                      {obs.map((o) => (
+                        <article key={o.id} className="plant-obs-card">
+                          <div className="plant-obs-meta">
+                            <span>{new Date(o.observedAt).toLocaleString("ko-KR")}</span>
+                            <span>{o.images.length}장</span>
+                          </div>
+                          {o.images.length > 0 && (
+                            <div className="plant-obs-imgs">
+                              {o.images.map((img) => (
+                                <div
+                                  key={img.id}
+                                  className="plant-obs-img optimized-img-wrap"
+                                  onClick={() => setLightbox(img.url)}
+                                  role="button"
+                                  tabIndex={0}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      setLightbox(img.url);
+                                    }
+                                  }}
+                                >
+                                  <OptimizedImage
+                                    src={img.thumbnailUrl ?? img.url}
+                                    alt="관찰 사진"
+                                    sizes="(max-width: 768px) 33vw, 160px"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {o.memo && <p className="plant-obs-memo">{o.memo}</p>}
+                          {o.noPhotoReason && (
+                            <p className="plant-obs-reason">사진 없음: {o.noPhotoReason}</p>
+                          )}
+                          {canEdit && (
+                            <div className="plant-obs-actions">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingObs(o);
+                                  setEditorStageId(s.id);
+                                }}
+                              >
+                                수정
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteObservation(o)}
+                              >
+                                삭제
+                              </button>
+                            </div>
+                          )}
+                        </article>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                {showLineAfter && (
-                  <span className="plant-connector" data-future={future} aria-hidden />
+
+                {canComposeHere && (
+                  <div className="plant-stage-body-actions">
+                    <button
+                      type="button"
+                      className="primary"
+                      onClick={() => {
+                        setEditingObs(null);
+                        setEditorStageId(s.id);
+                      }}
+                    >
+                      관찰 추가
+                    </button>
+                    {isCurrent && canEdit && (
+                      <button
+                        type="button"
+                        onClick={handleAdvanceRequest}
+                        disabled={busyAdvance}
+                        title={
+                          photosOnCurrentStage > 0
+                            ? "다음 단계로"
+                            : "사진이 없어요 — 사유를 적게 됩니다"
+                        }
+                      >
+                        다음 단계로 →
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
-            );
-          })}
-        </div>
+            </section>
+          );
+        })}
       </div>
-
-      <div className="plant-line-cta">
-        <button type="button" onClick={() => setSelectedStageId(currentStage.id)}>
-          {currentStage.order}단계 관찰 기록 보기
-        </button>
-      </div>
-
-      <StageDetailSheet
-        open={!!selectedStage}
-        stage={selectedStage}
-        observations={selectedStage ? observationsByStage.get(selectedStage.id) ?? [] : []}
-        canEdit={canEdit}
-        isCurrentStage={selectedStage?.id === currentStage.id}
-        hasPhotosOnCurrent={photosOnCurrentStage > 0}
-        onClose={() => setSelectedStageId(null)}
-        onAddObservation={() => {
-          setEditingObs(null);
-          setEditorOpen(true);
-        }}
-        onEditObservation={(obs) => {
-          setEditingObs(obs);
-          setEditorOpen(true);
-        }}
-        onDeleteObservation={handleDeleteObservation}
-        onAdvanceStage={handleAdvanceRequest}
-        onOpenLightbox={(url) => setLightbox(url)}
-      />
 
       <ObservationEditor
-        open={editorOpen}
-        title={editingObs ? "관찰 기록 수정" : "관찰 기록 추가"}
+        open={composerOpen}
+        title={
+          editingObs
+            ? "관찰 기록 수정"
+            : editorStage
+            ? `${editorStage.order}단계 · ${editorStage.nameKo} 기록 추가`
+            : "관찰 기록 추가"
+        }
         initial={editingObs}
         onCancel={() => {
-          setEditorOpen(false);
+          setEditorStageId(null);
           setEditingObs(null);
         }}
         onSubmit={async (payload) => {
@@ -261,7 +434,15 @@ export function RoadmapView({ plant, canEdit, onPlantUpdated }: Props) {
           aria-label="사진 원본"
           onClick={() => setLightbox(null)}
         >
-          <img src={lightbox} alt="관찰 사진 원본" />
+          <div className="plant-lightbox-frame optimized-img-wrap">
+            <OptimizedImage
+              src={lightbox}
+              alt="관찰 사진 원본"
+              sizes="90vw"
+              priority
+              fit="contain"
+            />
+          </div>
         </div>
       )}
     </div>

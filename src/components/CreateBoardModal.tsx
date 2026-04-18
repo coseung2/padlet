@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { CreateBreakoutBoardModal } from "./CreateBreakoutBoardModal";
 
 const LAYOUTS = [
   { id: "freeform", emoji: "🎯", label: "자유 배치", desc: "캔버스 위에 자유롭게 카드 배치" },
@@ -10,6 +11,9 @@ const LAYOUTS = [
   { id: "columns", emoji: "📊", label: "칼럼", desc: "Kanban 스타일 섹션별 관리" },
   { id: "assignment", emoji: "📋", label: "과제 배부", desc: "학생별 과제 제출 및 확인" },
   { id: "quiz", emoji: "🎮", label: "퀴즈", desc: "카훗 스타일 실시간 퀴즈 게임" },
+  { id: "drawing", emoji: "🎨", label: "그림보드", desc: "Drawpile 기반 공동 그림판 + 라이브러리" },
+  { id: "breakout", emoji: "👥", label: "모둠 학습", desc: "템플릿 기반 모둠 협력 보드 (KWL · 브레인스토밍 등)" },
+  { id: "assessment", emoji: "📝", label: "수행평가", desc: "MCQ 자동 채점 + 교사 확정·릴리스" },
 ] as const;
 
 type ClassroomItem = {
@@ -20,13 +24,17 @@ type ClassroomItem = {
 
 type Props = {
   classrooms: ClassroomItem[];
+  userTier?: "free" | "pro";
   onClose: () => void;
 };
 
-export function CreateBoardModal({ classrooms, onClose }: Props) {
+export function CreateBoardModal({ classrooms, userTier = "pro", onClose }: Props) {
+  // Default matches backend tier.ts: solo-teacher deployment defaults to Pro
+  // unless FREE_USER_IDS env explicitly lists this user. The old "free"
+  // default made every breakout template look locked even for Pro users.
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [step, setStep] = useState<"layout" | "classroom">("layout");
+  const [step, setStep] = useState<"layout" | "classroom" | "breakout">("layout");
   const [selectedLayout, setSelectedLayout] = useState<string | null>(null);
 
   async function createBoard(layoutId: string, classroomId?: string) {
@@ -55,12 +63,31 @@ export function CreateBoardModal({ classrooms, onClose }: Props) {
   }
 
   function handleSelect(layoutId: string) {
-    if (layoutId === "columns" && classrooms.length > 0) {
+    if (layoutId === "breakout") {
+      setSelectedLayout(layoutId);
+      setStep("breakout");
+      return;
+    }
+    if ((layoutId === "columns" || layoutId === "assessment") && classrooms.length > 0) {
       setSelectedLayout(layoutId);
       setStep("classroom");
     } else {
       createBoard(layoutId);
     }
+  }
+
+  if (step === "breakout") {
+    return (
+      <CreateBreakoutBoardModal
+        classrooms={classrooms}
+        userTier={userTier}
+        onClose={onClose}
+        onBack={() => {
+          setStep("layout");
+          setSelectedLayout(null);
+        }}
+      />
+    );
   }
 
   return (

@@ -1,0 +1,154 @@
+{
+  "task_id": "2026-04-15-parent-class-invite-v2",
+  "version": "1.1.0",
+  "amendments_2026_04_13": "phase9_user_review/decisions.md 반영: 마스킹 전면 제거(A-12 삭제), ESLint 한방향만, FOR UPDATE 명시, Lighthouse emulation",
+  "name_display_policy": "원본 노출 (마스킹 없음)",
+  "total_acceptance_criteria": 28,
+  "observation_points": { "unit": 7, "integration": 24, "e2e": 12, "total": 43 },
+  "priority_distribution": {
+    "P0": ["A-1", "A-2", "A-3", "A-5", "A-9", "A-10", "A-11", "A-13", "A-14", "A-17", "A-24", "A-25"],
+    "P1": ["A-4", "A-6", "A-7", "A-8", "A-15", "A-16", "A-18", "A-19", "A-21", "A-23", "A-26", "A-27", "A-28"],
+    "P2": ["A-20", "A-22", "A-29"]
+  },
+  "hotspots": [
+    {
+      "id": "middleware_bypass",
+      "ac_refs": ["A-14"],
+      "strategy": "ESLint rule (한 방향) + 4-combo integration + pending E2E redirect",
+      "blocker_for": "phase8 REVIEW_OK"
+    },
+    {
+      "id": "cron_idempotency",
+      "ac_refs": ["A-17", "A-18", "A-19"],
+      "strategy": "dispatchOnce unit + Cron 2x consecutive call integration",
+      "blocker_for": "phase10 push"
+    },
+    {
+      "id": "cascade_atomicity",
+      "ac_refs": ["A-24"],
+      "strategy": "Prisma $transaction rollback injection + after-commit email outside tx",
+      "blocker_for": "phase8 REVIEW_OK"
+    },
+    {
+      "id": "code_rotation_race",
+      "ac_refs": ["A-10"],
+      "strategy": "concurrent match + rotate + $queryRaw SELECT...FOR UPDATE 명시 구현 강제 (decisions.md #3). Integration 이 쿼리 로그에서 'FOR UPDATE' 문자열 확인",
+      "blocker_for": "phase8 REVIEW_OK"
+    }
+  ],
+  "test_cases": [
+    { "ac": "A-1", "id": "TC-A1-I1", "layer": "integration", "priority": "P0", "description": "prisma migrate deploy exit 0 + schema assertions" },
+    { "ac": "A-2", "id": "TC-A2-U1", "layer": "unit", "priority": "P0", "description": "10,000회 Crockford Base32 정규식 통과" },
+    { "ac": "A-2", "id": "TC-A2-U2", "layer": "unit", "priority": "P0", "description": "10,000 샘플 중복 0" },
+    { "ac": "A-2", "id": "TC-A2-I1", "layer": "integration", "priority": "P0", "description": "중복 INSERT P2002" },
+    { "ac": "A-3", "id": "TC-A3-U1..U6", "layer": "unit", "priority": "P0", "description": "전이 머신 허용 3건 + 금지 3건" },
+    { "ac": "A-3", "id": "TC-A3-I1", "layer": "integration", "priority": "P0", "description": "approve 재호출 409" },
+    { "ac": "A-4", "id": "TC-A4-I1", "layer": "integration", "priority": "P1", "description": "부·모 동시 pending 2건 성공" },
+    { "ac": "A-5", "id": "TC-A5-I1", "layer": "integration", "priority": "P0", "description": "pending BoardMember 0건" },
+    { "ac": "A-5", "id": "TC-A5-I2", "layer": "integration", "priority": "P0", "description": "approve 후 BoardMember 1건 role=parent" },
+    { "ac": "A-6", "id": "TC-A6-I1", "layer": "integration", "priority": "P1", "description": "signup 직후 ParentSession row 존재" },
+    { "ac": "A-6", "id": "TC-A6-I2", "layer": "integration", "priority": "P1", "description": "verify 전 state=authed_prematch" },
+    { "ac": "A-7", "id": "TC-A7-I1", "layer": "integration", "priority": "P1", "description": "match/request 200 pending payload" },
+    { "ac": "A-7", "id": "TC-A7-I2", "layer": "integration", "priority": "P1", "description": "session/status state=pending" },
+    { "ac": "A-8", "id": "TC-A8-I1", "layer": "integration", "priority": "P1", "description": "3건 pending 허용" },
+    { "ac": "A-8", "id": "TC-A8-I2", "layer": "integration", "priority": "P1", "description": "4건째 429 TOO_MANY_PENDING" },
+    { "ac": "A-9", "id": "TC-A9-U1", "layer": "unit", "priority": "P0", "description": "rateLimit counter 6회차 false" },
+    { "ac": "A-9", "id": "TC-A9-I1", "layer": "integration", "priority": "P0", "description": "IP 6번째 429" },
+    { "ac": "A-9", "id": "TC-A9-I2", "layer": "integration", "priority": "P0", "description": "code-level 51번째 429" },
+    { "ac": "A-9", "id": "TC-A9-I3", "layer": "integration", "priority": "P0", "description": "classroom-level 101번째 429" },
+    { "ac": "A-10", "id": "TC-A10-I1", "layer": "integration", "priority": "P0", "description": "rotate cascade 원자성 + 이메일 큐" },
+    { "ac": "A-10", "id": "TC-A10-I2", "layer": "integration", "priority": "P0", "description": "트랜잭션 중간 error → 전체 rollback" },
+    { "ac": "A-10", "id": "TC-A10-I3", "layer": "integration", "priority": "P0", "description": "쿼리 로그에서 'FOR UPDATE' 문자열 존재 확인 (decisions.md #3)" },
+    { "ac": "A-11", "id": "TC-A11-I1", "layer": "integration", "priority": "P0", "description": "회전 후 active 링크 status 불변" },
+    { "ac": "A-11", "id": "TC-A11-I2", "layer": "integration", "priority": "P0", "description": "회전 후 active 세션 scope 접근 200" },
+    { "ac": "A-13", "id": "TC-A13-I1", "layer": "integration", "priority": "P0", "description": "거부 3회 후 4번째 retry 429 + cooldownSeconds" },
+    { "ac": "A-13", "id": "TC-A13-I2", "layer": "integration", "priority": "P0", "description": "24h 경과 후 해제" },
+    { "ac": "A-13", "id": "TC-A13-I3", "layer": "integration", "priority": "P0", "description": "2회 이하 허용" },
+    { "ac": "A-14", "id": "TC-A14-U1", "layer": "unit-lint", "priority": "P0", "description": "ESLint parent-middleware-boundary positive case (한 방향)" },
+    { "ac": "A-14", "id": "TC-A14-I1", "layer": "integration", "priority": "P0", "description": "pending → /children/* 401 SESSION_PENDING" },
+    { "ac": "A-14", "id": "TC-A14-I2", "layer": "integration", "priority": "P0", "description": "pending → /session/status 200" },
+    { "ac": "A-14", "id": "TC-A14-I3", "layer": "integration", "priority": "P0", "description": "no session → /match/students 401" },
+    { "ac": "A-14", "id": "TC-A14-I4", "layer": "integration", "priority": "P0", "description": "active → /children/* 200 happy path" },
+    { "ac": "A-15", "id": "TC-A15-I1", "layer": "integration", "priority": "P1", "description": "approve 트랜잭션 원자성" },
+    { "ac": "A-15", "id": "TC-A15-E1", "layer": "e2e", "priority": "P1", "description": "Playwright 60s SLA pending→active 라우팅" },
+    { "ac": "A-16", "id": "TC-A16-I1", "layer": "integration", "priority": "P1", "description": "wrong_child 거부 이메일 props PII 미포함" },
+    { "ac": "A-16", "id": "TC-A16-I2", "layer": "integration", "priority": "P1", "description": "invalid reason 400" },
+    { "ac": "A-16", "id": "TC-A16-E1", "layer": "e2e", "priority": "P1", "description": "드롭다운 3종만 표시" },
+    { "ac": "A-17", "id": "TC-A17-I1", "layer": "integration", "priority": "P0", "description": "D+8 pending → rejected auto_expired" },
+    { "ac": "A-17", "id": "TC-A17-I2", "layer": "integration", "priority": "P0", "description": "Cron 2회 호출 idempotency" },
+    { "ac": "A-17", "id": "TC-A17-I3", "layer": "integration", "priority": "P0", "description": "wrong secret 401" },
+    { "ac": "A-17", "id": "TC-A17-I4", "layer": "integration", "priority": "P0", "description": "D+6 (미도달) 불변" },
+    { "ac": "A-17", "id": "TC-A17-I5", "layer": "integration", "priority": "P0", "description": "teacher-summary-d7 이메일 1통/교사" },
+    { "ac": "A-18", "id": "TC-A18-I1", "layer": "integration", "priority": "P1", "description": "D+3 teacher-reminder-d3 1통" },
+    { "ac": "A-18", "id": "TC-A18-I2", "layer": "integration", "priority": "P1", "description": "같은날 재호출 idempotent key 차단" },
+    { "ac": "A-19", "id": "TC-A19-I1", "layer": "integration", "priority": "P1", "description": "D+6 teacher-warning-d6 1통" },
+    { "ac": "A-19", "id": "TC-A19-I2", "layer": "integration", "priority": "P1", "description": "idempotency 확인" },
+    { "ac": "A-20", "id": "TC-A20-U1", "layer": "unit", "priority": "P2", "description": "computeDNBadgeColor 경계값 정확" },
+    { "ac": "A-20", "id": "TC-A20-E1", "layer": "e2e", "priority": "P2", "description": "DOM 색상 클래스 검증" },
+    { "ac": "A-21", "id": "TC-A21-I1", "layer": "integration", "priority": "P1", "description": "6종 이메일 retryUrl 포함" },
+    { "ac": "A-22", "id": "TC-A22-I1", "layer": "integration", "priority": "P2", "description": "매직링크 15m+1s 401" },
+    { "ac": "A-22", "id": "TC-A22-I2", "layer": "integration", "priority": "P2", "description": "세션 쿠키 maxAge 7d" },
+    { "ac": "A-23", "id": "TC-A23-E1", "layer": "e2e", "priority": "P1", "description": "삭제 모달 N명 경고 + 학급명 input" },
+    { "ac": "A-23", "id": "TC-A23-E2", "layer": "e2e", "priority": "P1", "description": "잘못된 이름 → 버튼 disabled" },
+    { "ac": "A-23", "id": "TC-A23-E3", "layer": "e2e", "priority": "P1", "description": "정확한 이름 → 클릭 성공" },
+    { "ac": "A-23", "id": "TC-A23-I1", "layer": "integration", "priority": "P1", "description": "confirmName 불일치 400" },
+    { "ac": "A-24", "id": "TC-A24-I1", "layer": "integration", "priority": "P0", "description": "5건 링크 cascade revoke" },
+    { "ac": "A-24", "id": "TC-A24-I2", "layer": "integration", "priority": "P0", "description": "삭제 직후 /children/* 401" },
+    { "ac": "A-24", "id": "TC-A24-I3", "layer": "integration", "priority": "P0", "description": "트랜잭션 rollback 원자성" },
+    { "ac": "A-24", "id": "TC-A24-E1", "layer": "e2e", "priority": "P0", "description": "학부모 브라우저 다음 네비 401" },
+    { "ac": "A-25", "id": "TC-A25-I1", "layer": "integration", "priority": "P0", "description": "parent-classroom-deleted props 교사 PII 미포함" },
+    { "ac": "A-25", "id": "TC-A25-U1", "layer": "unit", "priority": "P0", "description": "TypeScript props 타입 강제" },
+    { "ac": "A-26", "id": "TC-A26-I1", "layer": "integration", "priority": "P1", "description": "phase10 migration_log.md 존재 + rows:0" },
+    { "ac": "A-27", "id": "TC-A27-I1", "layer": "integration", "priority": "P1", "description": "parent-invites 410" },
+    { "ac": "A-27", "id": "TC-A27-I2", "layer": "integration", "priority": "P1", "description": "DELETE parent-invites/id 410" },
+    { "ac": "A-27", "id": "TC-A27-I3", "layer": "integration", "priority": "P1", "description": "redeem-code 410 + v2 hint" },
+    { "ac": "A-28", "id": "TC-A28-I1", "layer": "integration", "priority": "P1", "description": "grep ParentInviteButton 0건" },
+    { "ac": "A-28", "id": "TC-A28-E1", "layer": "e2e", "priority": "P1", "description": "학생 카드 드롭다운 '학부모 초대' 미존재" },
+    { "ac": "A-29", "id": "TC-A29-I1", "layer": "integration", "priority": "P2", "description": "200명 응답 content-length ≤ 200KB" },
+    { "ac": "A-29", "id": "TC-A29-E1", "layer": "e2e-lighthouse", "priority": "P2", "description": "Chrome DevTools emulation (갤럭시 탭 S6 Lite viewport + CPU 4x + Slow 4G) TTI < 2s (decisions.md #4)" }
+  ],
+  "removed_cases": {
+    "A-12_masking_all": "TC-A12-U1~U10, TC-A12-I1~I2 — AC A-12 제거로 전체 삭제 (decisions.md #1)",
+    "TC-A14-U2_bidirectional": "ESLint 양방향 강제 케이스 — decisions.md #2 로 제외"
+  },
+  "fixtures_required": {
+    "new_file": "tests/fixtures/parent-class-invite.ts",
+    "entities": [
+      "teacher_A (classroom_A1, classroom_A2)",
+      "teacher_B (classroom_B1, cross-ownership)",
+      "classroom_A1 (3 students)",
+      "classroom_A2 (200 students, perf)",
+      "classroom_B1 (2 students)",
+      "student_김보민 (3자 한글)",
+      "student_김보 (2자 한글)",
+      "student_남궁민수 (복성 4자)",
+      "parent_mom@example.com",
+      "parent_dad@example.com (A-4 독립 pending)",
+      "parent_abuser@example.com (A-13 쿨다운)",
+      "code_A1_active (ClassInviteCode)",
+      "link_pending_d0 / d3 / d6 / d8 (Cron 경계)"
+    ],
+    "mocks": {
+      "resend": "tests/mocks/resend.ts — sendEmail 호출 배열 기록",
+      "time": "vi.useFakeTimers() UTC 기준",
+      "cron_secret_env": "CRON_SECRET=test-secret"
+    }
+  },
+  "execution_gates": {
+    "phase7_coder_local": ["unit all PASS"],
+    "phase8_review_entry": ["unit all", "integration P0+P1 all", "lint parent-middleware-boundary PASS"],
+    "phase9_qa_entry": ["e2e P0+P1 PASS", "Lighthouse WARN 허용"],
+    "phase10_push_gate": ["npm run build", "npm run typecheck", "npm run lint", "QA_OK.marker", "REVIEW_OK.marker"]
+  },
+  "user_review_items_resolved": [
+    { "id": "masking_complex_surname_3char", "resolution": "마스킹 전면 제거 — AC A-12 삭제 (decisions.md #1)" },
+    { "id": "eslint_bidirectional", "resolution": "한 방향만 강제 — TC-A14-U2 제외 (decisions.md #2)" },
+    { "id": "row_lock_explicit", "resolution": "phase7 coder 계약서에 FOR UPDATE 명시 지시 추가 (decisions.md #3)" },
+    { "id": "lighthouse_device", "resolution": "Chrome DevTools emulation 으로 확정. 실기기 불요 (decisions.md #4)" }
+  ],
+  "design_brief_status": {
+    "standard_pipeline": "phase4 design_planner → design_brief.md 생성",
+    "this_task": "design_brief.md 존재 (phase4/design_brief.md). phase5 designer 가 직접 입력으로 사용",
+    "amendment_needed": "마스킹 제거 반영 — maskedName → 이름"
+  }
+}

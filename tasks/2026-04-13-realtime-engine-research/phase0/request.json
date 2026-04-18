@@ -1,0 +1,13 @@
+{
+  "type": "research",
+  "slug": "realtime-engine-bench",
+  "task_id": "2026-04-13-realtime-engine-research",
+  "created_at": "2026-04-13T10:00:00+09:00",
+  "trigger": "Aura-board Breakout T0-① follow-up: pick the realtime transport for board/section channels. Source: canva project/plans/tablet-performance-roadmap.md §9 + phase0-requests.md (selection research).",
+  "related_modules": [
+    "src/lib/realtime.ts",
+    "docs/architecture.md#Realtime"
+  ],
+  "branch": "research/realtime-engine",
+  "pipeline": "research"
+}

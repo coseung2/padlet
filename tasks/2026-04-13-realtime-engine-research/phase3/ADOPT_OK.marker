@@ -1,0 +1,7 @@
+task: 2026-04-13-realtime-engine-research
+verdict: ADOPT 자체 WS (ws / socket.io, self-host)
+reject: Liveblocks
+revise: Yjs (text-collab trigger only)
+gate: research — 도입 검증 PASS
+at: 2026-04-13T11:00:00+09:00
+next_task: feature/realtime-protocol-t0-3

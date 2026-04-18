@@ -1,0 +1,20 @@
+{
+  "name": "Aura-board 학부모",
+  "short_name": "Aura 학부모",
+  "description": "자녀의 교실 활동을 읽기 전용으로 확인합니다.",
+  "start_url": "/parent/home",
+  "scope": "/parent/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#4f46e5",
+  "background_color": "#ffffff",
+  "lang": "ko-KR",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

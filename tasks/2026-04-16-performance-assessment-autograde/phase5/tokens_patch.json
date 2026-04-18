@@ -1,0 +1,11 @@
+{
+  "task_id": "2026-04-16-performance-assessment-autograde",
+  "additions": [],
+  "modifications": [],
+  "deletions": [],
+  "reuse_notes": [
+    "MVP-0 은 신규 토큰 0건. Quiz 에서 확장된 색 팔레트 + 상태 토큰 전부 재활용.",
+    "매트릭스 3색 셀은 --color-status-reviewed-bg/text (정답) / --color-status-returned-bg/text (오답) / --color-slot-placeholder (미응답) 기존 조합 그대로 유지.",
+    "타이머 빨강 경고는 --color-danger 사용. AAA 대비 확보 확인됨."
+  ]
+}

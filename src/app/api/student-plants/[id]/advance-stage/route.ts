@@ -26,7 +26,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         { status: gate.status }
       );
     }
-    if (!gate.ownedByActor) {
+    // v2: student owner OR classroom teacher may advance the stage.
+    if (!gate.ownedByActor && actor.kind !== "teacher") {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 

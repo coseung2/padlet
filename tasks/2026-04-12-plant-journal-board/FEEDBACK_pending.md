@@ -25,6 +25,31 @@
 
 ---
 
+## 교사 뷰 (TeacherSummaryView) — 네비게이션 재설계
+
+### 현재 구현
+- 매트릭스 뷰: 행=단계, 열=학생, 셀=썸네일 — **desktop+owner only**
+- 요약 뷰: 학생 리스트(이름·종·현단계·최근기록) — 클릭해도 이동 없음, 배지만 표시
+
+### 요청 변경
+- **매트릭스 뷰 우선순위 낮춤**. 주 네비게이션은 요약 뷰의 학생 리스트에서 시작
+- 학생 리스트 각 행 → **클릭 시 해당 학생의 개별 작업 보드로 진입**
+- 교사는 그 보드에서 학생의 로드맵·관찰·메모를 **보고 편집**까지 가능 (현재는 본인 것만 편집 가능)
+
+### 영향 범위 (예상)
+- 새 라우트: `/board/[id]/student/[studentId]` 또는 `/classroom/[id]/students/[studentId]/plant`
+- `RoadmapView.tsx` — owner가 뷰잉 중일 때 편집 허용하는 `canEdit` 분기 확장 (현재는 본인 학생만 true)
+- `/api/student-plants/[id]/observations/*` API 권한 — owner도 편집 허용 추가 (현재는 본인만 허용)
+- `TeacherSummaryView.tsx` — 학생 행에 `<Link>` 추가
+- 매트릭스 뷰는 **유지하되 보조 뷰로 격하** (전체 한눈에 스캔 용도)
+
+### 권한 고려
+- 교사가 학생 관찰 편집 시 감사 로그 필요? 또는 "교사가 수정함" 표시?
+- 현재 `scope_decision.md`의 "본인만 수정/삭제" 규칙 완화 필요 — 업데이트해야 함
+
+---
+
 ## 차후 작업 메모
-- 이 피드백은 별도 feature task로 올릴 것: `tasks/YYYY-MM-DD-plant-roadmap-vertical/`
-- 다른 피드백 항목 수집 후 묶어서 한 번에 처리
+- 이 피드백은 별도 feature task로 올릴 것: `tasks/YYYY-MM-DD-plant-teacher-nav/`
+- 또는 로드맵 세로 재설계와 묶어서 `tasks/YYYY-MM-DD-plant-journal-v2/` 하나의 task로 처리 가능
+- 다른 피드백 항목 계속 수집 후 묶어서 한 번에 처리

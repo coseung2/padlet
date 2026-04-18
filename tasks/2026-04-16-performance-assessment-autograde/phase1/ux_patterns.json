@@ -1,0 +1,47 @@
+{
+  "task_id": "2026-04-16-performance-assessment-autograde",
+  "patterns": [
+    {
+      "pattern_id": "AG-1-lazy-question-mount",
+      "description": "현재 문항 ±1 만 DOM 에 마운트해 갤럭시 탭 S6 Lite(Snapdragon 720G) TTI<3s 보장. 이전/다음 네비게이션 시 마운트 창이 이동.",
+      "source": "ideation/phase1/exploration.md + Quizizz Paper Mode",
+      "mvp_bucket": "MVP-1 (성능 측정 후 필요 시 도입)"
+    },
+    {
+      "pattern_id": "AG-2-lock-on-visibility",
+      "description": "visibilitychange + fullscreenchange + focusout 3중 구독 → 즉시 서버 POST lock → isLocked=true 영속화. 새로고침 후 mount 시 자동 복원. Realtime 구독으로 교사 재개 승인 즉시 해제.",
+      "source": "ideation/sketch.md §L1 + ClassKick Guard",
+      "mvp_bucket": "MVP-2 (Realtime 엔진 선정 후)"
+    },
+    {
+      "pattern_id": "AG-3-short-4field-rubric",
+      "description": "SHORT 문항 교사 출제 폼: (필수) 모범답안 N개 / (선택) 키워드 / (선택) 부분점수 체크박스 / (선택) 자연어 루브릭 override. 4필드가 Gemini 프롬프트 payload 로 1:1 주입.",
+      "source": "ideation/sketch.md §2.1 + Formative rubric",
+      "mvp_bucket": "MVP-1"
+    },
+    {
+      "pattern_id": "AG-4-matrix-sticky",
+      "description": "학생(행) × 문항(열) 매트릭스, 이름 열 sticky + 헤더 행 sticky, 셀 3색(정답/오답/미응답). QuizReportModal 에 이미 구현됨 — 재활용.",
+      "source": "src/components/quiz/QuizReportModal.tsx",
+      "mvp_bucket": "MVP-0 (그대로 재활용)"
+    },
+    {
+      "pattern_id": "AG-5-autoScore-vs-manual",
+      "description": "교사 gradebook 에서 autoScore 열(LLM 제안) + manualScore 열(수동 보정) + finalScore 열. 교사 확정 시 GradebookEntry INSERT, releasedAt=null 로 두고 '릴리스' 버튼 클릭 시 SET.",
+      "source": "ideation/roadmap §2.4",
+      "mvp_bucket": "MVP-0 (단 manualScore 는 MCQ 만이라 필요성 낮음 — MVP-0 은 finalScore == autoScore)"
+    },
+    {
+      "pattern_id": "AG-6-draft-autosave",
+      "description": "답안 입력 debounce 300ms → 서버 PATCH answer.payload + localDraftHash. IndexedDB 병행 저장은 MVP-1 이후.",
+      "source": "ideation/roadmap §2.2",
+      "mvp_bucket": "MVP-0 (서버 autosave 만)"
+    },
+    {
+      "pattern_id": "AG-7-release-broadcast",
+      "description": "릴리스 버튼 → releasedAt SET → (MVP-0) 학생 뷰는 refetch/polling / (MVP-2) Realtime broadcast. releasedAt IS NOT NULL 만 학생·학부모 노출.",
+      "source": "ideation/roadmap §2.4",
+      "mvp_bucket": "MVP-0 polling / MVP-2 realtime"
+    }
+  ]
+}

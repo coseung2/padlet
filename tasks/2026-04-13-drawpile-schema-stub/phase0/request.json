@@ -1,0 +1,31 @@
+{
+  "task_id": "2026-04-13-drawpile-schema-stub",
+  "type": "feature",
+  "slug": "drawpile-schema-stub",
+  "title": "Drawpile 그림보드 — schema + UI placeholder (partial scope)",
+  "branch": "feat/drawpile-schema-stub",
+  "source_of_truth": "canva project/plans/drawing-board-library-roadmap.md (external, not in worktree) + seeds-index.md §Seed 1",
+  "change_type": "feature",
+  "scope_boundary": "partial",
+  "blockers_deferred": [
+    "Drawpile GPL fork repo creation (aura-board/drawpile-fork)",
+    "Drawpile server self-hosting (Railway / Fly.io / Hetzner)",
+    "Domain drawpile.aura-board.app",
+    "COOP/COEP header live verification (partial code-only possible)",
+    "postMessage bridge patch on Drawpile fork"
+  ],
+  "must_deliver": [
+    "Prisma: StudentAsset + AssetAttachment models + relations on Student/Card/PlantObservation",
+    "Board.layout validation: add 'drawing'",
+    "src/components/DrawingBoard.tsx — 작업실/갤러리 view toggle, iframe stub for NEXT_PUBLIC_DRAWPILE_URL, placeholder card when unset",
+    "src/components/StudentLibrary.tsx — student asset list sidebar (upload + thumbnails)",
+    "POST /api/student-assets — image upload → StudentAsset row",
+    "AddCardModal: '내 라이브러리' selector → creates AssetAttachment + sets Card.imageUrl",
+    "docs/drawpile-protocol.md — postMessage contract (implementation pending)",
+    "BLOCKERS.md — external infra blockers enumerated"
+  ],
+  "perf_baseline": "Galaxy Tab S6 Lite",
+  "runtime_port": 3000,
+  "no_push": true,
+  "created_at": "2026-04-13"
+}

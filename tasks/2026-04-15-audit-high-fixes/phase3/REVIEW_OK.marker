@@ -1,0 +1,13 @@
+Reviewed: 2026-04-15
+Reviewer: orchestrator (Karpathy 4 원칙 self-review)
+Verdict: PASS
+
+Both fixes are minimal surgical changes that address the exact root cause cited
+in the audit. No adjacent code touched. Build + typecheck green.
+
+Notes:
+- HIGH-A: throw in production keeps the existing `.catch(() => null)` board page
+  pattern functional → student fallback path works automatically. No board page
+  edit needed (audit MED on board:162-177 left for separate cleanup task).
+- HIGH-B: error string is Korean per app convention. Reaches user via existing
+  setSaveError → SaveDialog error banner.

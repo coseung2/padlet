@@ -3,18 +3,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AddCardButton } from "./AddCardButton";
 import { AddCardModal, type AddCardData } from "./AddCardModal";
-import { CardAttachments } from "./CardAttachments";
+import { CardBody } from "./cards/CardBody";
+import { CardDetailModal } from "./cards/CardDetailModal";
+import { CardAuthorEditor, type SavedAuthor } from "./cards/CardAuthorEditor";
 import { ContextMenu } from "./ContextMenu";
 import { EditCardModal } from "./EditCardModal";
-import { EditSectionModal } from "./EditSectionModal";
 import { ExportModal } from "./ExportModal";
 import { CanvaFolderModal } from "./CanvaFolderModal";
+import { SectionActionsPanel } from "./SectionActionsPanel";
 import type { CardData } from "./DraggableCard";
 
 type SectionData = {
   id: string;
   title: string;
   order: number;
+  accessToken?: string | null;
 };
 
 type SortMode = "manual" | "newest" | "oldest" | "title";
@@ -26,12 +29,17 @@ const SORT_OPTIONS: { value: SortMode; label: string }[] = [
   { value: "title", label: "제목" },
 ];
 
+type PanelTab = "rename" | "delete";
+
 type Props = {
   boardId: string;
   initialCards: CardData[];
   initialSections: SectionData[];
   currentUserId: string;
   currentRole: "owner" | "editor" | "viewer";
+  isStudentViewer?: boolean;
+  /** Board's classroomId — enables the CardAuthorEditor roster picker. */
+  classroomId?: string | null;
 };
 
 export function ColumnsBoard({
@@ -40,38 +48,41 @@ export function ColumnsBoard({
   initialSections,
   currentUserId,
   currentRole,
+  isStudentViewer,
+  classroomId,
 }: Props) {
   const [cards, setCards] = useState<CardData[]>(initialCards);
+  const [authorEditCard, setAuthorEditCard] = useState<CardData | null>(null);
   const [sections, setSections] = useState<SectionData[]>(
     [...initialSections].sort((a, b) => a.order - b.order)
   );
   const [overSectionId, setOverSectionId] = useState<string | null>(null);
   const [editingCard, setEditingCard] = useState<CardData | null>(null);
-  const [editingSection, setEditingSection] = useState<SectionData | null>(null);
+  const [openCard, setOpenCard] = useState<CardData | null>(null);
+  const [panelState, setPanelState] = useState<{
+    sectionId: string;
+    tab: PanelTab;
+  } | null>(null);
   const [addForSection, setAddForSection] = useState<string | null>(null);
   const [exportSectionId, setExportSectionId] = useState<string | null>(null);
   const [folderSectionId, setFolderSectionId] = useState<string | null>(null);
   const [organizing, setOrganizing] = useState<string | null>(null);
   const [sortBySection, setSortBySection] = useState<Record<string, SortMode>>({});
   const canEdit = currentRole === "owner" || currentRole === "editor";
+  // Students can add cards to their classroom's columns board. Section
+  // membership rules (sectionId must belong to this board) are enforced
+  // server-side by /api/cards + the external-cards sectionId guard.
+  const canAddCard = canEdit || !!isStudentViewer;
 
-  // Cards/sections currently mid-flight in a local mutation. SSE snapshots
-  // skip these IDs so an in-progress optimistic update isn't stomped by a
+  // Cards currently mid-flight in a local mutation. SSE snapshots skip
+  // these IDs so an in-progress optimistic update isn't stomped by a
   // server snapshot that hasn't seen the mutation commit yet.
   const pendingCardIds = useRef<Set<string>>(new Set());
-  const pendingSectionIds = useRef<Set<string>>(new Set());
 
   function trackCardMutation<T>(id: string, run: () => Promise<T>): Promise<T> {
     pendingCardIds.current.add(id);
     return run().finally(() => {
       pendingCardIds.current.delete(id);
-    });
-  }
-
-  function trackSectionMutation<T>(id: string, run: () => Promise<T>): Promise<T> {
-    pendingSectionIds.current.add(id);
-    return run().finally(() => {
-      pendingSectionIds.current.delete(id);
     });
   }
 
@@ -164,27 +175,10 @@ export function ColumnsBoard({
   }
 
   function mergeSections(serverSections: SectionData[]) {
-    setSections((local) => {
-      const next: SectionData[] = [];
-      const localById = new Map(local.map((s) => [s.id, s] as const));
-      for (const ss of serverSections) {
-        if (pendingSectionIds.current.has(ss.id)) {
-          const localCopy = localById.get(ss.id);
-          next.push(localCopy ?? ss);
-        } else {
-          next.push(ss);
-        }
-      }
-      for (const ls of local) {
-        if (
-          pendingSectionIds.current.has(ls.id) &&
-          !serverSections.some((ss) => ss.id === ls.id)
-        ) {
-          next.push(ls);
-        }
-      }
-      return next.sort((a, b) => a.order - b.order);
-    });
+    // Section mutations (rename/delete/reorder) go through dedicated panels
+    // that finalize server state before their success callback updates local
+    // state, so snapshots can take authoritative server-owned values directly.
+    setSections(() => [...serverSections].sort((a, b) => a.order - b.order));
   }
 
   async function handleOrganizeToCanva(sectionId: string) {
@@ -343,9 +337,65 @@ export function ColumnsBoard({
   function handleDrop(e: React.DragEvent, targetSectionId: string) {
     e.preventDefault();
     setOverSectionId(null);
+    setDraggingSectionId(null);
+    // Section drag takes priority — distinguished by the mime key set
+    // in the column-header's onDragStart.
+    const sectionId = e.dataTransfer.getData("application/section-id");
+    if (sectionId) {
+      moveSectionTo(sectionId, targetSectionId);
+      return;
+    }
     const cardId = e.dataTransfer.getData("application/card-id");
     if (cardId) moveCard(cardId, targetSectionId);
   }
+
+  /* ── Section reorder (drag-drop) ──
+   *
+   * Column headers are HTML5-draggable. Dropping section A onto
+   * section B's column moves A to B's position in the list. All
+   * affected sections are re-indexed 0..N-1 locally and PATCH'd in
+   * parallel. Optimistic state; on failure we roll back.
+   *
+   * Distinguishable from card drag via the `application/section-id`
+   * mime key — card drag uses `application/card-id`. */
+  async function moveSectionTo(sectionId: string, targetSectionId: string) {
+    if (sectionId === targetSectionId) return;
+    const fromIdx = sections.findIndex((s) => s.id === sectionId);
+    const toIdx = sections.findIndex((s) => s.id === targetSectionId);
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    const prev = sections;
+    const next = [...sections];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, moved!);
+    const normalised = next.map((s, i) => ({ ...s, order: i }));
+    setSections(normalised);
+
+    // Every section whose index actually changed gets PATCH'd. For a
+    // move of length K positions this is ≤K+1 rows — still cheap on
+    // typical 3-8 column boards.
+    const changed = normalised.filter((s, i) => prev[i]?.id !== s.id);
+    try {
+      const responses = await Promise.all(
+        changed.map((s) =>
+          fetch(`/api/sections/${s.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ order: s.order }),
+          })
+        )
+      );
+      if (responses.some((r) => !r.ok)) {
+        console.error("섹션 순서 변경 실패");
+        setSections(prev);
+      }
+    } catch (err) {
+      console.error(err);
+      setSections(prev);
+    }
+  }
+
+  const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
 
   /* ── Add card (shared by FAB and per-column buttons) ── */
   async function handleAdd(data: AddCardData) {
@@ -463,47 +513,18 @@ export function ColumnsBoard({
     }
   }
 
-  async function handleEditSectionSave(newTitle: string) {
-    if (!editingSection) return;
-    const prev = [...sections];
-    const sectionId = editingSection.id;
+  function handleSectionRenamed(sectionId: string, newTitle: string) {
     setSections((list) =>
       list.map((s) => (s.id === sectionId ? { ...s, title: newTitle } : s))
     );
-    await trackSectionMutation(sectionId, async () => {
-      try {
-        const res = await fetch(`/api/sections/${sectionId}`, {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ title: newTitle }),
-        });
-        if (!res.ok) setSections(prev);
-      } catch {
-        setSections(prev);
-      }
-    });
   }
 
-  async function handleDeleteSection(sectionId: string) {
-    if (!window.confirm("이 섹션을 삭제할까요? 카드는 섹션 없음 상태로 이동됩니다.")) return;
-    const prevSections = [...sections];
-    const prevCards = [...cards];
+  function handleSectionDeleted(sectionId: string) {
     setSections((list) => list.filter((s) => s.id !== sectionId));
     setCards((list) =>
       list.map((c) => (c.sectionId === sectionId ? { ...c, sectionId: null } : c))
     );
-    await trackSectionMutation(sectionId, async () => {
-      try {
-        const res = await fetch(`/api/sections/${sectionId}`, { method: "DELETE" });
-        if (!res.ok) {
-          setSections(prevSections);
-          setCards(prevCards);
-        }
-      } catch {
-        setSections(prevSections);
-        setCards(prevCards);
-      }
-    });
+    setPanelState(null);
   }
 
   const sectionOptions = sections.map((s) => ({ id: s.id, title: s.title }));
@@ -519,21 +540,47 @@ export function ColumnsBoard({
           );
           const sortMode: SortMode = sortBySection[section.id] ?? "manual";
 
-          const menuItems = [
-            { label: "수정", icon: "✏️", onClick: () => setEditingSection(section) },
-            { label: "Canva에서 가져오기", icon: "📁", onClick: () => setFolderSectionId(section.id) },
-            ...(hasCanva
-              ? [
-                  { label: "PDF 내보내기", icon: "📄", onClick: () => setExportSectionId(section.id) },
-                  {
-                    label: organizing === section.id ? "정리 중..." : "Canva 폴더로 정리",
-                    icon: "📂",
-                    onClick: () => handleOrganizeToCanva(section.id),
-                  },
-                ]
-              : []),
-            { label: "삭제", icon: "🗑️", danger: true, onClick: () => handleDeleteSection(section.id) },
-          ];
+          // 섹션 헤더 ⋯ 한 개로 rename/delete + Canva 옵션 통합.
+          // 공유(브레이크아웃) 진입점은 보드 헤더의 ⚙ → BoardSettingsPanel 로 이동.
+          const menuItems = canEdit
+            ? [
+                {
+                  label: "이름 변경",
+                  icon: "✏️",
+                  onClick: () =>
+                    setPanelState({ sectionId: section.id, tab: "rename" }),
+                },
+                {
+                  label: "Canva에서 가져오기",
+                  icon: "📁",
+                  onClick: () => setFolderSectionId(section.id),
+                },
+                ...(hasCanva
+                  ? [
+                      {
+                        label: "PDF 내보내기",
+                        icon: "📄",
+                        onClick: () => setExportSectionId(section.id),
+                      },
+                      {
+                        label:
+                          organizing === section.id
+                            ? "정리 중..."
+                            : "Canva 폴더로 정리",
+                        icon: "📂",
+                        onClick: () => handleOrganizeToCanva(section.id),
+                      },
+                    ]
+                  : []),
+                {
+                  label: "섹션 삭제",
+                  icon: "🗑️",
+                  danger: true,
+                  onClick: () =>
+                    setPanelState({ sectionId: section.id, tab: "delete" }),
+                },
+              ]
+            : [];
 
           return (
             <div
@@ -548,7 +595,21 @@ export function ColumnsBoard({
               }}
               onDrop={(e) => handleDrop(e, section.id)}
             >
-              <div className="column-header">
+              <div
+                className={`column-header ${
+                  canEdit ? "is-section-draggable" : ""
+                } ${
+                  draggingSectionId === section.id ? "is-section-dragging" : ""
+                }`}
+                draggable={canEdit}
+                onDragStart={(e) => {
+                  if (!canEdit) return;
+                  e.dataTransfer.setData("application/section-id", section.id);
+                  e.dataTransfer.effectAllowed = "move";
+                  setDraggingSectionId(section.id);
+                }}
+                onDragEnd={() => setDraggingSectionId(null)}
+              >
                 <h3 className="column-title">{section.title}</h3>
                 <span className="column-count">{sectionCards.length}</span>
                 <select
@@ -563,31 +624,51 @@ export function ColumnsBoard({
                     </option>
                   ))}
                 </select>
-                {canEdit && <ContextMenu items={menuItems} />}
+                {menuItems.length > 0 && <ContextMenu items={menuItems} />}
               </div>
               <div className={`column-cards ${overSectionId === section.id ? "column-cards-active" : ""}`}>
                 {sectionCards.map((c) => {
                   const canModify =
                     currentRole === "owner" ||
-                    (currentRole === "editor" && c.authorId === currentUserId);
+                    (currentRole === "editor" && c.authorId === currentUserId) ||
+                    // Student-authored card — the author student (role=viewer
+                    // in the fallback session) can still manage their own
+                    // publish. Matches /api/cards/:id student-auth path.
+                    c.studentAuthorId === currentUserId;
 
                   return (
                     <article
                       key={c.id}
-                      className="column-card"
+                      className="column-card is-clickable"
                       style={{ backgroundColor: c.color ?? undefined }}
                       draggable={canEdit}
                       onDragStart={(e) => handleDragStart(e, c.id)}
                       onDragEnd={handleDragEnd}
+                      onClick={() => setOpenCard(c)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setOpenCard(c);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
                     >
-                      <CardAttachments imageUrl={c.imageUrl} linkUrl={c.linkUrl} linkTitle={c.linkTitle} linkDesc={c.linkDesc} linkImage={c.linkImage} videoUrl={c.videoUrl} />
-                      <h4 className="padlet-card-title">{c.title}</h4>
-                      <p className="padlet-card-content">{c.content}</p>
+                      <CardBody card={c} titleAs="h4" />
                       {canModify && (
-                        <div className="card-ctx-menu">
+                        <div className="card-ctx-menu" onClick={(e) => e.stopPropagation()}>
                           <ContextMenu
                             items={[
                               { label: "수정", icon: "✏️", onClick: () => setEditingCard(c) },
+                              ...(canEdit
+                                ? [
+                                    {
+                                      label: "작성자 지정",
+                                      icon: "👥",
+                                      onClick: () => setAuthorEditCard(c),
+                                    },
+                                  ]
+                                : []),
                               { label: "복제", icon: "📋", onClick: () => handleDuplicateCard(c) },
                               { label: "삭제", icon: "🗑️", danger: true, onClick: () => handleDeleteCard(c.id) },
                             ]}
@@ -621,7 +702,7 @@ export function ColumnsBoard({
         )}
       </div>
 
-      {canEdit && <AddCardButton onAdd={handleAdd} sections={sectionOptions} />}
+      {canAddCard && <AddCardButton onAdd={handleAdd} sections={sectionOptions} />}
 
       {addForSection && (
         <AddCardModal
@@ -640,13 +721,67 @@ export function ColumnsBoard({
         />
       )}
 
-      {editingSection && (
-        <EditSectionModal
-          title={editingSection.title}
-          onSave={handleEditSectionSave}
-          onClose={() => setEditingSection(null)}
+      {authorEditCard && (
+        <CardAuthorEditor
+          cardId={authorEditCard.id}
+          classroomId={classroomId ?? null}
+          initialAuthors={(authorEditCard.authors ?? []).map((a) => ({
+            id: a.id,
+            studentId: a.studentId,
+            displayName: a.displayName,
+            order: a.order,
+          }))}
+          onSaved={(authors: SavedAuthor[]) => {
+            setCards((prev) =>
+              prev.map((c) =>
+                c.id === authorEditCard.id
+                  ? {
+                      ...c,
+                      authors,
+                      studentAuthorId: authors[0]?.studentId ?? null,
+                      externalAuthorName:
+                        authors.length > 0
+                          ? authors
+                              .slice(0, 3)
+                              .map((a) => a.displayName)
+                              .join(", ") +
+                            (authors.length > 3 ? ` 외 ${authors.length - 1}명` : "")
+                          : null,
+                    }
+                  : c
+              )
+            );
+          }}
+          onClose={() => setAuthorEditCard(null)}
         />
       )}
+
+      <CardDetailModal
+        card={openCard}
+        onClose={() => setOpenCard(null)}
+        cards={cards}
+        onChange={setOpenCard}
+        onEditAuthors={canEdit ? (c) => setAuthorEditCard(c) : undefined}
+      />
+
+      {panelState && (() => {
+        const section = sections.find((s) => s.id === panelState.sectionId);
+        if (!section) return null;
+        return (
+          <SectionActionsPanel
+            open={true}
+            onClose={() => setPanelState(null)}
+            section={{
+              id: section.id,
+              title: section.title,
+            }}
+            currentRole={currentRole}
+            defaultTab={panelState.tab}
+            onRenamed={(t) => handleSectionRenamed(section.id, t)}
+            onDeleted={() => handleSectionDeleted(section.id)}
+          />
+        );
+      })()}
 
       {folderSectionId && (
         <CanvaFolderModal

@@ -1,0 +1,222 @@
+{
+  "task_id": "2026-04-15-parent-class-invite-v2",
+  "version": "1.0.0",
+  "auth_layers": {
+    "teacher": "NextAuth 5 beta session (User.role='teacher')",
+    "parentAuthOnly": "parent_session cookie + token hash valid (status 무관)",
+    "parentScope": "parent_session cookie + active ParentChildLink 1건 이상",
+    "cron": "Authorization: Bearer $CRON_SECRET header"
+  },
+  "error_codes": {
+    "400 INVALID_INPUT": "zod validation fail",
+    "401 NO_SESSION": "인증 없음",
+    "401 SESSION_PENDING": "scopeMiddleware 에서 active 링크 없음",
+    "403 FORBIDDEN": "권한 없음 (교사 ownership 위반 등)",
+    "404 NOT_FOUND": "리소스 없음",
+    "409 STATE_CONFLICT": "status 전이 머신 위반",
+    "410 GONE": "v1 엔드포인트 (deprecated)",
+    "429 RATE_LIMITED": "rate-limit / 거부 쿨다운",
+    "500 INTERNAL": "서버 에러"
+  },
+  "endpoints": [
+    {
+      "id": "create-class-invite-code",
+      "method": "POST",
+      "path": "/api/class-invite-codes",
+      "auth": "teacher",
+      "request": { "classroomId": "string(cuid)" },
+      "response": { "id": "string", "code": "string(8)", "classroomId": "string", "expiresAt": "string|null", "createdAt": "string" },
+      "errors": ["400", "401", "403", "409 ALREADY_EXISTS(해당 학급 활성 코드 존재 → rotate 안내)"],
+      "ac_refs": ["A-2"]
+    },
+    {
+      "id": "get-class-invite-codes",
+      "method": "GET",
+      "path": "/api/class-invite-codes?classroomId={cuid}",
+      "auth": "teacher",
+      "request": { "classroomId": "query string(cuid)" },
+      "response": { "active": "InviteCode|null", "history": "InviteCode[]" },
+      "errors": ["401", "403", "404"],
+      "ac_refs": []
+    },
+    {
+      "id": "rotate-class-invite-code",
+      "method": "POST",
+      "path": "/api/class-invite-codes/{codeId}/rotate",
+      "auth": "teacher",
+      "request": {},
+      "response": { "newCode": "string(8)", "rotatedCount": "number(기존 pending rejected 수)" },
+      "side_effects": [
+        "트랜잭션: 기존 ClassInviteCode.rotatedAt=now",
+        "트랜잭션: 신규 ClassInviteCode 발급",
+        "트랜잭션: 해당 학급 pending ParentChildLink → rejected(code_rotated)",
+        "after-commit: 영향받은 parent 에게 code_rotated 이메일"
+      ],
+      "errors": ["401", "403", "404"],
+      "ac_refs": ["A-10", "A-11"]
+    },
+    {
+      "id": "parent-signup",
+      "method": "POST",
+      "path": "/api/parent/signup",
+      "auth": "public (rate-limited by IP)",
+      "request": { "email": "string(email)" },
+      "response": { "ok": true, "message": "매직링크를 발송했습니다" },
+      "side_effects": ["parent-magic-link.ts 로 15m 토큰 이메일"],
+      "errors": ["400 INVALID_INPUT", "429 RATE_LIMITED(IP 5/15m)"],
+      "ac_refs": ["A-22"]
+    },
+    {
+      "id": "parent-session-status",
+      "method": "GET",
+      "path": "/api/parent/session/status",
+      "auth": "parentAuthOnly",
+      "response": {
+        "state": "'anonymous'|'authed_prematch'|'pending'|'active'|'rejected'|'revoked'",
+        "activeLinks": "number",
+        "pendingLinks": "number",
+        "rejectedReason": "ParentRejectedReason|null (state=rejected 시만)"
+      },
+      "errors": ["401 NO_SESSION"],
+      "ac_refs": ["A-7", "A-15"]
+    },
+    {
+      "id": "parent-match-code",
+      "method": "POST",
+      "path": "/api/parent/match/code",
+      "auth": "parentAuthOnly",
+      "request": { "code": "string(8, Crockford Base32)" },
+      "response": { "ticket": "string(opaque, 5m TTL)", "classroomName": "string" },
+      "side_effects": ["rate-limit 3단계 카운터 증가", "ticket in-memory map 저장"],
+      "errors": ["400", "401", "404 CODE_NOT_FOUND", "429 RATE_LIMITED(IP|code|classroom)"],
+      "ac_refs": ["A-9"]
+    },
+    {
+      "id": "parent-match-students",
+      "method": "GET",
+      "path": "/api/parent/match/students?ticket={opaque}",
+      "auth": "parentAuthOnly + ticket 검증",
+      "request": { "ticket": "query string" },
+      "response": {
+        "classroomName": "string",
+        "students": [
+          { "id": "string(cuid)", "classNo": "number", "studentNo": "number", "maskedName": "string" }
+        ]
+      },
+      "pii_guarantee": "full_name/phone/address/birthdate/photo 응답에 절대 포함 금지 (zod strict schema)",
+      "errors": ["400 INVALID_TICKET", "401", "404"],
+      "ac_refs": ["A-12", "A-29"]
+    },
+    {
+      "id": "parent-match-request",
+      "method": "POST",
+      "path": "/api/parent/match/request",
+      "auth": "parentAuthOnly + ticket 소비",
+      "request": { "ticket": "string", "studentId": "string(cuid)" },
+      "response": { "linkId": "string", "status": "'pending'" },
+      "side_effects": [
+        "ticket invalidate",
+        "pending count per parent ≤ 3 체크",
+        "INSERT ParentChildLink(status=pending, requestedAt=now)"
+      ],
+      "errors": ["400", "401", "409 DUPLICATE(@@unique)", "429 TOO_MANY_PENDING"],
+      "ac_refs": ["A-6", "A-8"]
+    },
+    {
+      "id": "parent-match-retry",
+      "method": "POST",
+      "path": "/api/parent/match/retry",
+      "auth": "parentAuthOnly",
+      "request": {},
+      "response": { "ok": true, "cooldownSeconds": "number|null" },
+      "side_effects": ["거부 3회 24h 쿨다운 검증"],
+      "errors": ["401", "429 COOLDOWN"],
+      "ac_refs": ["A-13", "A-21"]
+    },
+    {
+      "id": "parent-approve",
+      "method": "POST",
+      "path": "/api/parent/approvals/{linkId}/approve",
+      "auth": "teacher (+ classroom ownership)",
+      "request": {},
+      "response": { "linkId": "string", "status": "'active'", "approvedAt": "string" },
+      "side_effects": [
+        "TRANSACTION: status=active, approvedAt=now, approvedById",
+        "TRANSACTION: INSERT BoardMember(parentId, boardId, role='parent')",
+        "after-commit: 학부모 안내 이메일 (옵션)"
+      ],
+      "errors": ["401", "403", "404", "409 INVALID_STATE(status!=pending)"],
+      "ac_refs": ["A-3", "A-5", "A-15"]
+    },
+    {
+      "id": "parent-reject",
+      "method": "POST",
+      "path": "/api/parent/approvals/{linkId}/reject",
+      "auth": "teacher (+ classroom ownership)",
+      "request": { "reason": "'wrong_child'|'not_parent'|'other'" },
+      "response": { "linkId": "string", "status": "'rejected'", "rejectedAt": "string" },
+      "side_effects": [
+        "UPDATE status=rejected, rejectedAt, rejectedById, rejectedReason",
+        "after-commit: 거부 사유별 템플릿 이메일 (재신청 deep link 포함, 교사 PII 미노출)"
+      ],
+      "errors": ["400 INVALID_REASON", "401", "403", "404", "409"],
+      "ac_refs": ["A-3", "A-16", "A-21", "A-25"]
+    },
+    {
+      "id": "cron-expire-pending",
+      "method": "GET",
+      "path": "/api/cron/expire-pending-links",
+      "auth": "cron (Bearer $CRON_SECRET)",
+      "request": {},
+      "response": { "expired": "number", "d3": "number", "d6": "number" },
+      "side_effects": [
+        "D+7: pending → rejected(auto_expired) + parent 이메일 + teacher summary",
+        "D+3: teacher reminder 이메일 (idempotency key 별)",
+        "D+6: teacher warning 이메일"
+      ],
+      "errors": ["401 INVALID_SECRET"],
+      "ac_refs": ["A-17", "A-18", "A-19"]
+    }
+  ],
+  "modified_endpoints": [
+    {
+      "id": "classroom-delete-cascade",
+      "method": "DELETE",
+      "path": "/api/classrooms/{id}",
+      "auth": "teacher (+ ownership)",
+      "request": { "confirmName": "string(classroom name re-typed)" },
+      "response": { "ok": true, "revokedLinks": "number" },
+      "side_effects": [
+        "TRANSACTION: 해당 학급 active/pending ParentChildLink → revoked(classroom_deleted)",
+        "TRANSACTION: DELETE BoardMember WHERE role='parent' AND boardId IN classroom.boards",
+        "TRANSACTION: classroom 하위 삭제 (기존)",
+        "after-commit: parent cascade 이메일 (학급명만, 교사 PII 없음)"
+      ],
+      "errors": ["400 CONFIRM_MISMATCH", "401", "403", "404"],
+      "ac_refs": ["A-23", "A-24", "A-25"]
+    }
+  ],
+  "deleted_endpoints": [
+    { "method": "POST", "path": "/api/students/[id]/parent-invites", "handling": "410 Gone 즉시 응답 후 route 파일 삭제 (Path A)" },
+    { "method": "DELETE", "path": "/api/parent-invites/[id]", "handling": "410 Gone" },
+    { "method": "POST", "path": "/api/parent/redeem-code", "handling": "410 Gone (v2 /api/parent/match/code 치환)" }
+  ],
+  "rate_limits": {
+    "parent_signup_ip":      { "limit": 5,  "window": "15m",   "scope": "IP" },
+    "match_code_ip":         { "limit": 5,  "window": "15m",   "scope": "IP" },
+    "match_code_per_code":   { "limit": 50, "window": "24h",   "scope": "code" },
+    "match_code_per_class":  { "limit": 100,"window": "24h",   "scope": "classroomId" },
+    "rejection_cooldown":    { "limit": 3,  "window": "24h",   "scope": "parentEmail (3회 초과 24h 차단)" }
+  },
+  "email_templates": [
+    { "id": "parent-rejected-wrong-child",  "file": "src/emails/parent-rejected-wrong-child.tsx" },
+    { "id": "parent-rejected-not-parent",   "file": "src/emails/parent-rejected-not-parent.tsx" },
+    { "id": "parent-rejected-other",        "file": "src/emails/parent-rejected-other.tsx" },
+    { "id": "parent-auto-expired",          "file": "src/emails/parent-auto-expired.tsx" },
+    { "id": "parent-code-rotated",          "file": "src/emails/parent-code-rotated.tsx" },
+    { "id": "parent-classroom-deleted",     "file": "src/emails/parent-classroom-deleted.tsx" },
+    { "id": "teacher-reminder-d3",          "file": "src/emails/teacher-reminder-d3.tsx" },
+    { "id": "teacher-warning-d6",           "file": "src/emails/teacher-warning-d6.tsx" },
+    { "id": "teacher-summary-d7",           "file": "src/emails/teacher-summary-d7.tsx" }
+  ]
+}

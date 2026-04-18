@@ -153,6 +153,22 @@
   flex-shrink: 0;
 }
 
+/* Section reorder via HTML5 drag-drop. Grab cursor on the header
+   signals draggability; dragging state dims the source column while
+   in flight. Teacher-only flow — tablet touch reorder isn't a target,
+   so no coarse-pointer promotion is needed. */
+.column-header.is-section-draggable {
+  cursor: grab;
+}
+
+.column-header.is-section-draggable:active {
+  cursor: grabbing;
+}
+
+.column-header.is-section-dragging {
+  opacity: 0.4;
+}
+
 /* Per-column sort select. Inline so the column header stays single-row;
    active state (non-manual) tints with the accent so users know the
    column is no longer in stored drag order. */

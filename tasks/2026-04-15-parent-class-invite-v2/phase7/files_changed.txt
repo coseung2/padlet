@@ -1,0 +1,99 @@
+# parent-class-invite-v2 · phase7 files_changed
+# Absolute paths relative to the worktree root:
+#   /mnt/c/Users/심보승/Desktop/Obsidian Vault/padlet-parent-v2
+
+# ── dependencies / tooling ────────────────────────────────────────────
+M package.json
+M package-lock.json
+A vitest.config.ts
+A test/stubs/server-only.ts
+
+# ── prisma / migration (SQL only — NOT applied) ───────────────────────
+M prisma/schema.prisma
+A prisma/migrations/20260415_parent_class_invite_v2/migration.sql
+
+# ── tokens ────────────────────────────────────────────────────────────
+M src/styles/base.css
+
+# ── lib (new / replaced) ──────────────────────────────────────────────
+A src/lib/class-invite-codes.ts
+A src/lib/class-invite-codes-shared.ts
+A src/lib/match-ticket.ts
+A src/lib/parent-auth-only.ts
+A src/lib/parent-link-state.ts
+A src/lib/rate-limit-parent.ts
+D src/lib/parent-email.ts
+A src/lib/parent-email.tsx
+
+# ── ui components (new) ───────────────────────────────────────────────
+A src/components/ui/Toast.tsx
+A src/components/ui/Stepper.tsx
+A src/components/parent/CodeInput8.tsx
+A src/components/parent/StudentPickerCard.tsx
+A src/components/parent-access/DPlusBadge.tsx
+A src/components/parent-access/FilterBar.tsx
+A src/components/parent-access/InviteCodeCard.tsx
+A src/components/parent-access/LinkedRow.tsx
+A src/components/parent-access/PendingRow.tsx
+A src/components/parent-access/RotateConfirmModal.tsx
+A src/components/classroom/ClassroomDeleteModal.tsx
+
+# ── v1 surgical patch ─────────────────────────────────────────────────
+D src/components/ParentInviteButton.tsx
+M src/components/ClassroomDetail.tsx
+
+# ── email templates ───────────────────────────────────────────────────
+A src/emails/_shell.tsx
+A src/emails/parent-rejected-wrong-child.tsx
+A src/emails/parent-rejected-not-parent.tsx
+A src/emails/parent-rejected-other.tsx
+A src/emails/parent-auto-expired.tsx
+A src/emails/parent-code-rotated.tsx
+A src/emails/parent-classroom-deleted.tsx
+A src/emails/teacher-reminder-d3.tsx
+A src/emails/teacher-warning-d6.tsx
+A src/emails/teacher-summary-d7.tsx
+
+# ── API routes ────────────────────────────────────────────────────────
+A src/app/api/class-invite-codes/route.ts
+A src/app/api/class-invite-codes/[codeId]/rotate/route.ts
+A src/app/api/parent/signup/route.ts
+A src/app/api/parent/match/code/route.ts
+A src/app/api/parent/match/students/route.ts
+A src/app/api/parent/match/request/route.ts
+A src/app/api/parent/match/retry/route.ts
+A src/app/api/parent/approvals/route.ts
+A src/app/api/parent/approvals/[linkId]/approve/route.ts
+A src/app/api/parent/approvals/[linkId]/reject/route.ts
+A src/app/api/cron/expire-pending-links/route.ts
+M src/app/api/parent/session/status/route.ts
+M src/app/api/parent/redeem-code/route.ts
+M src/app/api/students/[id]/parent-invites/route.ts
+M src/app/api/parent-invites/[id]/route.ts
+M src/app/api/classroom/[id]/route.ts
+
+# ── teacher page ──────────────────────────────────────────────────────
+A src/app/classroom/[id]/parent-access/page.tsx
+A src/app/classroom/[id]/parent-access/ParentAccessClient.tsx
+
+# ── parent onboarding pages ───────────────────────────────────────────
+A src/app/parent/onboard/_shell.tsx
+A src/app/parent/onboard/signup/page.tsx
+A src/app/parent/onboard/match/code/page.tsx
+A src/app/parent/onboard/match/select/page.tsx
+A src/app/parent/onboard/pending/page.tsx
+A src/app/parent/onboard/rejected/page.tsx
+M src/app/parent/auth/callback/route.ts
+M src/app/parent/join/page.tsx
+
+# ── vercel config ─────────────────────────────────────────────────────
+M vercel.json
+
+# ── unit tests (vitest) ───────────────────────────────────────────────
+A src/lib/parent-link-state.vitest.ts
+A src/lib/class-invite-codes.vitest.ts
+
+# ── phase7 artefacts ──────────────────────────────────────────────────
+A tasks/2026-04-15-parent-class-invite-v2/phase7/files_changed.txt
+A tasks/2026-04-15-parent-class-invite-v2/phase7/diff_summary.md
+A tasks/2026-04-15-parent-class-invite-v2/phase7/tests_added.txt

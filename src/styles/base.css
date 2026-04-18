@@ -27,6 +27,31 @@
   --color-plant-upcoming: #d0cfcd;
   --color-plant-stalled: #c62828;
 
+  /* Destructive actions (section-actions-panel) */
+  --color-danger: #c62828;
+  --color-danger-active: #a01b1b;
+
+  /* Assignment-board semantic status (AB-1).
+     Paired bg+text tokens for pill badges / banners. All WCAG AA or better. */
+  --color-status-submitted-bg: #f2f9ff;
+  --color-status-submitted-text: #1565c0;
+  --color-status-reviewed-bg: #e8f5e9;
+  --color-status-reviewed-text: #2e7d32;
+  --color-status-returned-bg: #ffebee;
+  --color-status-returned-text: #c62828;
+  --color-slot-placeholder: var(--color-surface-alt);
+
+  /* Warning — D+3~5 badge (parent-v2). */
+  --color-warning: #f59e0b;
+  --color-warning-tinted-bg: #fef3c7;
+
+  /* Quiz difficulty badges (quiz-extensions B2). Alias plant-active / danger
+     to keep the palette consistent while letting quiz-specific styling
+     diverge later without touching the semantic tokens. */
+  --color-quiz-difficulty-easy: #27a35f;
+  --color-quiz-difficulty-medium: #c9a227;
+  --color-quiz-difficulty-hard: #c62828;
+
   /* Radii */
   --radius-card: 12px;
   --radius-btn: 4px;

@@ -47,10 +47,14 @@ export async function createStudentSession(studentId: string, classroomId: strin
   };
   const token = sign(payload);
   const cookieStore = await cookies();
+  // SameSite=None + Secure is required so the Canva Content Publisher app
+  // (hosted on canva-apps.com) can include this cookie on cross-site fetches
+  // to /api/external/*. Combined with per-route CORS + credentials the
+  // backend can identify which student is publishing from Canva.
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    secure: true,
+    sameSite: "none",
     path: "/",
     maxAge: MAX_AGE,
   });

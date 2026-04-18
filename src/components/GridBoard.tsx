@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { AddCardButton } from "./AddCardButton";
-import { CardAttachments } from "./CardAttachments";
+import { CardBody } from "./cards/CardBody";
+import { CardDetailModal } from "./cards/CardDetailModal";
+import { CardAuthorEditor, type SavedAuthor } from "./cards/CardAuthorEditor";
 import type { CardData } from "./DraggableCard";
 
 type Props = {
@@ -10,13 +12,18 @@ type Props = {
   initialCards: CardData[];
   currentUserId: string;
   currentRole: "owner" | "editor" | "viewer";
+  isStudentViewer?: boolean;
+  classroomId?: string | null;
 };
 
-export function GridBoard({ boardId, initialCards, currentUserId, currentRole }: Props) {
+export function GridBoard({ boardId, initialCards, currentUserId, currentRole, isStudentViewer, classroomId }: Props) {
   const [cards, setCards] = useState<CardData[]>(
     [...initialCards].sort((a, b) => a.order - b.order)
   );
+  const [openCard, setOpenCard] = useState<CardData | null>(null);
+  const [authorEditCard, setAuthorEditCard] = useState<CardData | null>(null);
   const canEdit = currentRole === "owner" || currentRole === "editor";
+  const canAddCard = canEdit || !!isStudentViewer;
 
   async function handleAdd(data: {
     title: string;
@@ -82,17 +89,27 @@ export function GridBoard({ boardId, initialCards, currentUserId, currentRole }:
         {cards.map((c) => (
           <article
             key={c.id}
-            className="grid-card"
+            className="grid-card is-clickable"
             style={{ backgroundColor: c.color ?? undefined }}
             aria-label={c.title}
+            onClick={() => setOpenCard(c)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setOpenCard(c);
+              }
+            }}
+            tabIndex={0}
+            role="button"
           >
-            <CardAttachments imageUrl={c.imageUrl} linkUrl={c.linkUrl} linkTitle={c.linkTitle} linkDesc={c.linkDesc} linkImage={c.linkImage} videoUrl={c.videoUrl} />
-            <h3 className="padlet-card-title">{c.title}</h3>
-            <p className="padlet-card-content">{c.content}</p>
-            {(currentRole === "owner" || (currentRole === "editor" && c.authorId === currentUserId)) && (
+            <CardBody card={c} />
+            {(currentRole === "owner" ||
+              (currentRole === "editor" && c.authorId === currentUserId) ||
+              c.studentAuthorId === currentUserId) && (
               <button
                 type="button"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   if (window.confirm(`"${c.title}" 카드를 삭제할까요?`)) handleDelete(c.id);
                 }}
                 className="padlet-card-delete"
@@ -104,7 +121,34 @@ export function GridBoard({ boardId, initialCards, currentUserId, currentRole }:
           </article>
         ))}
       </div>
-      {canEdit && <AddCardButton onAdd={handleAdd} />}
+      {canAddCard && <AddCardButton onAdd={handleAdd} />}
+      <CardDetailModal
+        card={openCard}
+        onClose={() => setOpenCard(null)}
+        cards={cards}
+        onChange={setOpenCard}
+        onEditAuthors={canEdit ? (c) => setAuthorEditCard(c) : undefined}
+      />
+      {authorEditCard && (
+        <CardAuthorEditor
+          cardId={authorEditCard.id}
+          classroomId={classroomId ?? null}
+          initialAuthors={(authorEditCard.authors ?? []).map((a) => ({
+            id: a.id,
+            studentId: a.studentId,
+            displayName: a.displayName,
+            order: a.order,
+          }))}
+          onSaved={(authors: SavedAuthor[]) => {
+            setCards((prev) =>
+              prev.map((c) =>
+                c.id === authorEditCard.id ? { ...c, authors } : c
+              )
+            );
+          }}
+          onClose={() => setAuthorEditCard(null)}
+        />
+      )}
     </div>
   );
 }

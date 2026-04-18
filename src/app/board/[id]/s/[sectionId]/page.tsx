@@ -2,7 +2,13 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getCurrentStudent } from "@/lib/student-auth";
-import { viewSection, ForbiddenError, getBoardRole } from "@/lib/rbac";
+import {
+  viewSection,
+  ForbiddenError,
+  getBoardRole,
+  assertBreakoutVisibility,
+  maybeAutoJoinLinkFixed,
+} from "@/lib/rbac";
 import { SectionBreakoutView } from "@/components/SectionBreakoutView";
 
 type PageParams = { id: string; sectionId: string };
@@ -55,11 +61,58 @@ export default async function BreakoutPage({
   // Defence-in-depth: section must belong to the requested board.
   if (section.boardId !== board.id) notFound();
 
+  // BR-5: for link-fixed mode, auto-upsert BreakoutMembership so anyone
+  // visiting the token link enters the group transparently. Idempotent.
+  let autoJoinError: "capacity_reached" | "already_in_other" | null = null;
+  if (student && board.classroomId && student.classroomId === board.classroomId) {
+    const assignment = await db.breakoutAssignment.findUnique({
+      where: { boardId: board.id },
+    });
+    if (assignment && assignment.deployMode === "link-fixed") {
+      const result = await maybeAutoJoinLinkFixed({
+        assignmentId: assignment.id,
+        sectionId: section.id,
+        studentId: student.id,
+      });
+      if (!result.ok && result.reason !== "not_link_fixed") {
+        autoJoinError = result.reason;
+      }
+    }
+  }
+
+  // BR-6: enforce breakout visibility gating on top of viewSection. Teachers
+  // and matched share-token callers pass through; students hit own-only/peek.
+  try {
+    await assertBreakoutVisibility({
+      sectionId: section.id,
+      boardId: board.id,
+      userId: user?.id ?? null,
+      studentId: student?.id ?? null,
+      token: token ?? null,
+    });
+  } catch (e) {
+    if (e instanceof ForbiddenError) {
+      return (
+        <main className="board-page">
+          <div className="forbidden-card">
+            <h2>다른 모둠 섹션입니다</h2>
+            <p>이 수업은 &quot;자기 모둠만 보기&quot; 모드로 운영 중이에요. 본인 모둠 섹션으로 이동해 주세요.</p>
+          </div>
+        </main>
+      );
+    }
+    throw e;
+  }
+
   // Section-scoped query — the whole point of Breakout. Other sections never
   // leak into this page's payload.
   const cards = await db.card.findMany({
     where: { sectionId: section.id },
     orderBy: { order: "asc" },
+    include: {
+      author: { select: { name: true } },
+      studentAuthor: { select: { name: true } },
+    },
   });
 
   // Owner sees a "공유 관리" link.
@@ -84,8 +137,19 @@ export default async function BreakoutPage({
         linkDesc: c.linkDesc,
         linkImage: c.linkImage,
         videoUrl: c.videoUrl,
+        externalAuthorName: c.externalAuthorName,
+        studentAuthorName: c.studentAuthor?.name ?? null,
+        authorName: c.author?.name ?? null,
+        createdAt: c.createdAt.toISOString(),
       }))}
       shareManagementHref={shareManagementHref}
+      autoJoinWarning={
+        autoJoinError === "capacity_reached"
+          ? "이 모둠은 정원이 꽉 찼어요. 교사에게 다른 모둠 배정을 요청해 주세요."
+          : autoJoinError === "already_in_other"
+            ? "이미 다른 모둠에 속해 있어요. 원래 모둠으로 돌아가주세요."
+            : null
+      }
     />
   );
 }

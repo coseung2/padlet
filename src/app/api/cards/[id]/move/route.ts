@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
-import { requirePermission, ForbiddenError } from "@/lib/rbac";
+import { ForbiddenError } from "@/lib/rbac";
+import { resolveIdentities } from "@/lib/identity";
+import { canEditCard, type BoardLike, type CardLike } from "@/lib/card-permissions";
 
 const MoveCardSchema = z.object({
   sectionId: z.string().nullable(),
@@ -15,12 +16,35 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const user = await getCurrentUser();
 
     const card = await db.card.findUnique({ where: { id } });
     if (!card) return NextResponse.json({ error: "Card not found" }, { status: 404 });
 
-    await requirePermission(card.boardId, user.id, "edit");
+    const board = await db.board.findUnique({
+      where: { id: card.boardId },
+      select: {
+        id: true,
+        classroomId: true,
+        classroom: { select: { teacherId: true } },
+      },
+    });
+    if (!board) return NextResponse.json({ error: "Board not found" }, { status: 404 });
+
+    const identity = await resolveIdentities();
+    const boardLike: BoardLike = {
+      id: board.id,
+      classroomId: board.classroomId,
+      ownerUserId: board.classroom?.teacherId ?? null,
+    };
+    const cardLike: CardLike = {
+      id: card.id,
+      boardId: card.boardId,
+      authorId: card.authorId,
+      studentAuthorId: card.studentAuthorId,
+    };
+    if (!canEditCard(identity, boardLike, cardLike)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const body = await req.json();
     const input = MoveCardSchema.parse(body);

@@ -183,7 +183,7 @@ export function QuizPlay({ initialCode, studentName, studentId }: { initialCode?
       <form className="quiz-join-form" onSubmit={handleJoin}>
         <input className="quiz-join-input code-input" placeholder="참가 코드" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={8} autoFocus />
         <input className="quiz-join-input" placeholder="닉네임" value={nickname} onChange={(e) => setNickname(e.target.value)} maxLength={20} />
-        {error && <div style={{ color: "#e21b3c", fontSize: 13, textAlign: "center" }}>{error}</div>}
+        {error && <div style={{ color: "var(--color-danger)", fontSize: 13, textAlign: "center" }}>{error}</div>}
         <button type="submit" className="quiz-join-btn" disabled={joining || !code.trim() || !nickname.trim()}>{joining ? "입장 중..." : "입장"}</button>
       </form>
     </div>

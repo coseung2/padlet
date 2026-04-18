@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>Student — Returned State</title>
+<style>
+  :root{
+    --color-bg:#f6f5f4; --color-surface:#fff; --color-surface-alt:rgba(0,0,0,.05);
+    --color-text:rgba(0,0,0,.95); --color-text-muted:#615d59;
+    --color-accent:#0075de;
+    --color-border:rgba(0,0,0,.1);
+    --color-danger:#c62828;
+    --color-status-returned-bg:#ffebee;
+    --radius-card:12px; --radius-btn:4px;
+    font-family:Inter,system-ui,sans-serif;
+  }
+  body{background:var(--color-bg);color:var(--color-text);margin:0;padding:24px;max-width:720px;margin-inline:auto}
+  .board-header{font-size:26px;font-weight:700;letter-spacing:-0.5px;margin-bottom:16px}
+  .return-banner{background:var(--color-status-returned-bg);border:1px solid #ffcdd2;border-radius:var(--radius-card);padding:14px 18px;margin-bottom:14px;display:flex;gap:12px;align-items:flex-start}
+  .return-icon{font-size:20px;color:var(--color-danger);line-height:1.2}
+  .return-body{flex:1}
+  .return-title{font-size:13px;font-weight:700;color:var(--color-danger);margin-bottom:4px;letter-spacing:.1px}
+  .return-reason{font-size:15px;line-height:1.5;color:var(--color-text)}
+  .guide{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-card);padding:14px 18px;margin-bottom:14px}
+  .guide-label{font-size:12px;font-weight:600;color:var(--color-text-muted);margin-bottom:6px;letter-spacing:.1px}
+  .guide-body{font-size:15px;line-height:1.5}
+  .submit-card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-card);padding:18px}
+  .thumb{aspect-ratio:4/3;border-radius:8px;background:var(--color-surface-alt);margin-bottom:12px;display:flex;align-items:center;justify-content:center;color:#a39e98}
+  .btn{padding:10px 16px;border-radius:var(--radius-btn);font-size:14px;font-weight:600;border:none;cursor:pointer}
+  .btn--primary{background:var(--color-accent);color:#fff}
+</style></head>
+<body>
+  <div class="board-header">3월 독서 감상문</div>
+  <div class="return-banner" role="alert">
+    <span class="return-icon">!</span>
+    <div class="return-body">
+      <div class="return-title">반려됨 — 재제출 필요</div>
+      <div class="return-reason">표지 사진 없이 제목만 있어 다시 올려주세요. 책을 펴서 본문도 한 장 찍어주세요.</div>
+    </div>
+  </div>
+  <div class="guide">
+    <div class="guide-label">안내</div>
+    <div class="guide-body">각자 읽은 책 중 가장 인상 깊었던 한 권을 골라 감상문을 작성해 주세요.</div>
+  </div>
+  <div class="submit-card">
+    <div class="thumb">[이전 제출물 미리보기]</div>
+    <button class="btn btn--primary">재제출하기</button>
+  </div>
+</body></html>

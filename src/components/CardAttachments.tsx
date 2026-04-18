@@ -1,7 +1,9 @@
 "use client";
 
-import { memo, useState } from "react";
-import { extractCanvaDesignId } from "@/lib/canva";
+import { memo } from "react";
+import { extractCanvaDesignId, hasCanvaShareToken } from "@/lib/canva";
+import { CanvaEmbedSlot } from "./CanvaEmbedSlot";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 
 function getYouTubeId(url: string): string | null {
   const m =
@@ -27,20 +29,31 @@ export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl
 
   const ytId = videoUrl ? getYouTubeId(videoUrl) : null;
   const canvaDesignId = linkUrl ? extractCanvaDesignId(linkUrl) : null;
-  // Only render the live Canva iframe when the server's oEmbed resolver
-  // actually succeeded. A successful resolve always fills linkImage from
-  // oEmbed.thumbnail_url, so the absence of linkImage means the resolver
-  // returned null (timeout / private design / endpoint drift) and we
-  // should fall back to the generic card-link-preview instead of
-  // attempting an iframe that would leak a Canva login prompt or a
-  // blank area.
-  const canRenderCanvaEmbed = Boolean(canvaDesignId && linkImage);
+  // Open the live-iframe gate when EITHER:
+  //   (a) oEmbed succeeded → linkImage is the Canva thumbnail, the URL
+  //       was pre-validated as public, safe to embed.
+  //   (b) the pasted URL carries a share token → the design is publicly
+  //       viewable (Canva's own "링크가 있는 누구나" flag), so the
+  //       iframe will render even though our anon oEmbed call got 401.
+  //       We lose the pre-loaded thumbnail but CanvaEmbedSlot shows a
+  //       neutral placeholder and the iframe itself fills in on load.
+  //
+  // Path (a) used to be the only trigger. The consequence was that
+  // student-pasted public links showed a plain link preview with no
+  // live iframe (reported 2026-04-15) — path (b) fixes that without
+  // regressing the oEmbed-pre-validated path.
+  const hasShareToken = Boolean(linkUrl && hasCanvaShareToken(linkUrl));
+  const canRenderCanvaEmbed = Boolean(canvaDesignId && (linkImage || hasShareToken));
 
   return (
     <div className="card-attachments">
       {imageUrl && (
-        <div className="card-attach-image">
-          <img src={imageUrl} alt="" loading="lazy" />
+        <div className="card-attach-image optimized-img-wrap">
+          <OptimizedImage
+            src={imageUrl}
+            alt=""
+            sizes="(max-width: 768px) 100vw, 480px"
+          />
         </div>
       )}
       {videoUrl && ytId && (
@@ -59,10 +72,11 @@ export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl
         </div>
       )}
       {linkUrl && canRenderCanvaEmbed && canvaDesignId ? (
-        // key={designId} forces fresh iframeLoaded/iframeFailed state when
-        // the card's linkUrl points to a different Canva design, so a
-        // stale `failed` flag from the previous design doesn't stick.
-        <CanvaEmbed
+        // Delegated to CanvaEmbedSlot (T0-② virtualization): thumbnail by
+        // default, iframe mounts only on activation + in viewport, with a
+        // global LRU-3 budget. key={designId} forces full remount when the
+        // card's design changes so the slot's internal load state resets.
+        <CanvaEmbedSlot
           key={canvaDesignId}
           designId={canvaDesignId}
           linkUrl={linkUrl}
@@ -79,8 +93,12 @@ export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl
           onClick={(e) => e.stopPropagation()}
         >
           {linkImage && (
-            <div className="card-link-preview-image">
-              <img src={linkImage} alt="" loading="lazy" />
+            <div className="card-link-preview-image optimized-img-wrap">
+              <OptimizedImage
+                src={linkImage}
+                alt=""
+                sizes="(max-width: 768px) 40vw, 120px"
+              />
             </div>
           )}
           <div className="card-link-preview-body">
@@ -106,74 +124,6 @@ export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl
   );
 });
 
-// Canva live-embed branch. Paints the cached thumbnail first so the card
-// has something visible immediately, then fades it out once the iframe
-// paints. An iframe load error falls through to the existing
-// .card-link-preview below (rendered by the parent) — here we render a
-// minimal fallback anchor so the card is never empty even if the parent
-// branch is skipped.
-type CanvaEmbedProps = {
-  designId: string;
-  linkUrl: string;
-  linkTitle: string | null;
-  linkImage: string | null;
-  linkDesc: string | null;
-};
-
-const CanvaEmbed = memo(function CanvaEmbed({
-  designId,
-  linkUrl,
-  linkTitle,
-  linkImage,
-  linkDesc,
-}: CanvaEmbedProps) {
-  const [loaded, setLoaded] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  if (failed) {
-    return (
-      <a
-        href={linkUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`card-link-preview ${linkImage ? "has-image" : ""}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {linkImage && (
-          <div className="card-link-preview-image">
-            <img src={linkImage} alt="" loading="lazy" />
-          </div>
-        )}
-        <div className="card-link-preview-body">
-          <span className="card-link-preview-title">
-            {linkTitle || "Canva design"}
-          </span>
-          {linkDesc && (
-            <span className="card-link-preview-desc">{linkDesc}</span>
-          )}
-          <span className="card-link-preview-url">🔗 canva.com</span>
-        </div>
-      </a>
-    );
-  }
-
-  const embedSrc = `https://www.canva.com/design/${designId}/view?embed&meta`;
-  const title = linkTitle || "Canva design";
-
-  return (
-    <div className="card-canva-embed" data-loaded={loaded ? "true" : "false"}>
-      {linkImage && (
-        <img src={linkImage} alt={`${title} preview`} loading="lazy" />
-      )}
-      <iframe
-        src={embedSrc}
-        title={title}
-        loading="lazy"
-        sandbox="allow-scripts allow-same-origin allow-popups"
-        referrerPolicy="no-referrer-when-downgrade"
-        onLoad={() => setLoaded(true)}
-        onError={() => setFailed(true)}
-      />
-    </div>
-  );
-});
+// NOTE: Legacy inline CanvaEmbed has been replaced by the virtualized
+// CanvaEmbedSlot in ./CanvaEmbedSlot.tsx (T0-② tablet-crash mitigation).
+// OptimizedImage (T0-④) is used for thumbnails and link previews above.

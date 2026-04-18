@@ -1,0 +1,199 @@
+goal: Implement Assignment Board (layout="assignment") on Aura-board — a roster-bound
+  assignment collection board where teachers create boards from classroom rosters,
+  cards are auto-instantiated per student, submission/non-submission states are visually
+  distinguished, and teachers review submissions via fullscreen modal
+task_type: code
+brownfield_context:
+  project_type: brownfield
+  context_references:
+  - path: ../padlet/
+    role: reference
+    summary: Aura-board production codebase; read-only reference for Board/Card/Submission/Classroom/Student/RBAC
+      schema and existing patterns
+  existing_patterns:
+  - Board.layout enum extension pattern (no new BoardType)
+  - AssignmentSlot.cardId FK to existing Card entity
+  - Submission entity reuse with status enum extension
+  - Classroom/Student entity reuse with zero new roster entities
+  - RBAC three-role model (owner / editor=student / parent-of-child viewer) with RLS
+    at API+DOM+RLS layers
+  - Thumbnail 160×120 WebP server resize + IntersectionObserver lazy load pattern
+  - Fullscreen modal as sole card interaction surface (no side panel)
+  existing_dependencies:
+  - Board entity (layout field)
+  - Card entity
+  - Submission entity (feedback field, updatedAt)
+  - Classroom entity
+  - Student entity (number field)
+  - Existing RBAC/RLS permission infrastructure
+  - Existing in-app badge/notification system
+  - Existing thumbnail resize service (WebP output)
+constraints:
+- Target device Galaxy Tab S6 Lite (Chrome Android + S-Pen)
+- Class size N≤30 hard limit
+- DOM node count ≤30 per card
+- Thumbnail server-resize 160×120 WebP + loading=lazy + IntersectionObserver
+- Matrix view restricted to owner+desktop only (editor/viewer/tablet excluded)
+- Students reuse existing Aura editor permission (no new auth)
+- Padlet folder read-only
+- Card surface S-Pen interaction forbidden (modal interior only)
+- Board.layout="assignment" extension only (no new BoardType entity)
+- AssignmentSlot new entity + existing Card reuse (slot.cardId FK)
+- Classroom/Student entities reused with zero new entities
+- 5×6 grid is deterministic by Student.number (no free drag in v1)
+- No cross-student submission visibility in v1 (private fixed)
+- slotNumber bound to Student.number at creation-time snapshot (no sync on change)
+- Reminder channel v1 in-app badge only (no parent email)
+- Teacher guide area uses Board.assignmentGuideText single text field
+- No Submission history table in v1 (overwrite model, updatedAt only)
+- return action only via fullscreen modal (no grid-view context menu)
+- returnReason ≤200 chars mandatory on returned transition
+acceptance_criteria:
+- Teacher can create an assignment board from a classroom roster and N cards (N≤30)
+  are auto-instantiated in a deterministic 5×6 grid ordered by Student.number
+- Submitted vs unsubmitted cards are visually distinguished (Seesaw-style thumbnail
+  + Moodle-style binary status badge)
+- Clicking a card opens a fullscreen modal (no side panel); modal is the sole interaction
+  surface for submission review and return action
+- Teacher guide area (Board.assignmentGuideText) displayed in owner-only top section;
+  student slot grid displayed in bottom section
+- 'submissionStatus transitions correctly: assigned→submitted→viewed→returned→submitted
+  (re-submission) and assigned→submitted→reviewed'
+- 'gradingStatus gates re-submission: not_graded+before-deadline allows in-place overwrite;
+  graded/released blocks student edit button; returned state re-enables student edit'
+- Return action available only inside fullscreen modal with mandatory returnReason
+  (≤200 chars) stored in AssignmentSlot.returnReason or Submission.feedback
+- Student sees returnReason as pinned banner at top of modal on re-entry
+- returned card displays "!" badge in grid view
+- Students cannot view other students' submissions (own slot only, RBAC enforced at
+  API+DOM+RLS)
+- In-app badge issued on unsubmitted reminder; no external email channel
+- Thumbnail rendered as 160×120 WebP via server resize; lazy-loaded with IntersectionObserver
+- assignmentAllowLate flag controls whether post-deadline overwrite is permitted when
+  gradingStatus=not_graded
+- Matrix/grid view accessible only to board owner on desktop; tablet and non-owner
+  roles excluded
+ontology_schema:
+  name: AssignmentBoardDomain
+  description: Domain model for roster-bound assignment collection boards in Aura-board,
+    covering board layout extension, per-student assignment slots, submission lifecycle
+    states, grading status, and teacher return workflow
+  fields:
+  - name: Board.layout
+    type: string
+    description: Extended enum value "assignment" identifying this board as an assignment
+      board
+    required: true
+  - name: Board.assignmentGuideText
+    type: string
+    description: Teacher-authored guide text displayed in the owner-only top section
+      of the board
+    required: true
+  - name: Board.assignmentAllowLate
+    type: boolean
+    description: Flag controlling whether post-deadline resubmission is permitted
+      when gradingStatus is not_graded
+    required: true
+  - name: AssignmentSlot
+    type: object
+    description: New entity bridging a student to their card; holds slot-level metadata
+      independent of Card content
+    required: true
+  - name: AssignmentSlot.slotNumber
+    type: number
+    description: Student number snapshot at board creation time; determines deterministic
+      5x6 grid position
+    required: true
+  - name: AssignmentSlot.cardId
+    type: string
+    description: Foreign key to existing Card entity holding the student submission
+      content
+    required: true
+  - name: AssignmentSlot.studentId
+    type: string
+    description: Foreign key to Student entity (snapshot at creation)
+    required: true
+  - name: AssignmentSlot.submissionStatus
+    type: string
+    description: 'Enum: assigned / viewed / submitted / returned / reviewed — tracks
+      submission lifecycle'
+    required: true
+  - name: AssignmentSlot.gradingStatus
+    type: string
+    description: 'Enum: not_graded / graded / released — governs whether student can
+      overwrite submission'
+    required: true
+  - name: AssignmentSlot.viewedAt
+    type: string
+    description: Timestamp when teacher first opened the submission modal
+    required: true
+  - name: AssignmentSlot.returnedAt
+    type: string
+    description: Timestamp when teacher triggered the returned transition
+    required: true
+  - name: AssignmentSlot.returnReason
+    type: string
+    description: Mandatory single-line return reason (≤200 chars) stored on returned
+      transition; reuses Submission.feedback if available
+    required: true
+  - name: Submission.updatedAt
+    type: string
+    description: Timestamp of last in-place content overwrite; sole v1 history mechanism
+      (no SubmissionHistory table)
+    required: true
+  - name: Student.number
+    type: number
+    description: Authoritative sort key for deterministic 5x6 grid placement
+    required: true
+  - name: Classroom
+    type: object
+    description: Reused entity providing roster of students bound to a board at creation
+      time
+    required: true
+evaluation_principles:
+- name: tablet_performance
+  description: All UI decisions must be evaluated for impact on Galaxy Tab S6 Lite
+    (Chrome Android, 500MB memory budget); DOM count, lazy loading, and modal mount
+    strategy are primary metrics
+  weight: 0.3
+- name: v1_simplification
+  description: Minimize new entities and schema additions; reuse existing Card/Submission/Classroom/Student;
+    defer complexity to v2
+  weight: 0.25
+- name: submission_integrity
+  description: Teacher grading state must never be silently overwritten by student
+    action; state machine transitions must be deterministic and auditable
+  weight: 0.2
+- name: student_privacy
+  description: Student submissions are private by default; no cross-student read access
+    without explicit teacher action; RBAC enforced at API+DOM+RLS layers
+  weight: 0.15
+- name: ux_feedback_floor
+  description: Students must always understand why their submission was returned;
+    returnReason is mandatory minimum feedback
+  weight: 0.1
+exit_conditions:
+- name: all_questions_resolved
+  description: All Q1–Q7 ambiguities confirmed resolved with zero open items
+  criteria: ambiguity score ≤ 0.2 across all decision dimensions
+- name: data_model_stable
+  description: AssignmentSlot schema finalized with zero new unresolved FK or enum
+    gaps
+  criteria: AssignmentSlot entity fields complete; Submission.feedback reuse or returnReason
+    field addition decided
+- name: state_machine_complete
+  description: submissionStatus × gradingStatus transition table fully specified with
+    no missing branches
+  criteria: All 4 student resubmission scenarios (not_graded+before deadline, not_graded+after
+    deadline, graded/released, returned) have defined system response
+- name: ui_entrypoints_locked
+  description: All teacher and student UI action entrypoints decided with no ambiguity
+  criteria: Return action = modal only; grid badge = display only; student modal shows
+    returnReason banner
+metadata:
+  seed_id: seed_38c34e91bf28
+  version: 1.0.0
+  created_at: '2026-04-14T13:20:59.185622Z'
+  ambiguity_score: 0.083
+  interview_id: interview_20260414_131412
+  parent_seed_id: null

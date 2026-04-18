@@ -1,0 +1,10 @@
+src/lib/__tests__/card-author.vitest.ts                  10 tests
+  - pickAuthorName 기존 chain 보존 (2 cases)
+  - formatAuthorList 0/1/2/3/4+ + order + empty + all-empty fallback
+
+src/lib/__tests__/card-authors-service.vitest.ts         11 tests
+  - 검증: max/dup/empty/toolong/classroom membership/free-form
+  - write path: delete+create+mirror+empty+4+ format+trim
+
+Total: 21 new tests. Plus 33 pre-existing (card-permissions 17 + parent-v2 16 + state-machine 24-dup).
+Vitest run → 5 files · 54 tests pass.

@@ -4,6 +4,13 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AddStudentsModal, type CreatedStudent } from "./AddStudentsModal";
 import { QRPrintSheet } from "./QRPrintSheet";
+import { ClassroomDeleteModal } from "./classroom/ClassroomDeleteModal";
+// parent-class-invite-v2 — per-student ParentInviteButton removed.
+// Codes are now classroom-scoped (see /classroom/[id]/parent-access).
+// The separate ParentManagementTab widget was pulled too — connected
+// parents now surface as a count column in the student table, and the
+// full inbox UI lives on the parent-access page (linked via the
+// 🔗 초대 코드 · 승인 관리 action-bar button).
 
 type Student = {
   id: string;
@@ -19,6 +26,10 @@ type Board = {
   slug: string;
   title: string;
   layout: string;
+  /** Last card activity timestamp — drives the 새 활동 badge via
+   *  lastVisitedBoards localStorage comparison. Optional so pickers that
+   *  don't have this field still type-check. */
+  updatedAt?: string;
 };
 
 type Props = {
@@ -40,9 +51,74 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
   );
   const [showAddStudents, setShowAddStudents] = useState(false);
   const [showBoardPicker, setShowBoardPicker] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [showClassroomDelete, setShowClassroomDelete] = useState(false);
+  const [deletingClassroom, setDeletingClassroom] = useState(false);
+
+  // Per-student parent-link counts, loaded once on mount and refreshed on
+  // approval/revoke actions elsewhere. Plain Record keyed by studentId
+  // so the table row lookup is O(1). Count = active links only.
+  const [parentCounts, setParentCounts] = useState<Record<string, number>>({});
+
+  // Count of pending approval requests across this classroom. Shown as a
+  // red badge next to the "초대 코드·승인 관리" action-bar button so the
+  // teacher sees inbox activity without leaving the student management
+  // screen. 60s poll matches the polling cadence inside /parent-access.
+  const [pendingCount, setPendingCount] = useState<number>(0);
+
+  // Teacher's last-visit timestamps per board, stored in localStorage
+  // (browser-scoped, no DB migration). Boards whose `updatedAt` is newer
+  // than the stored value get a "새 활동" highlight. Navigating into the
+  // board writes the new timestamp; that side happens on the board page.
+  const [lastVisited, setLastVisited] = useState<Record<string, string>>({});
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("lastVisitedBoards");
+      if (raw) setLastVisited(JSON.parse(raw));
+    } catch {
+      /* ignore malformed payload */
+    }
+  }, []);
+
+  useEffect(() => {
+    async function loadParentLinks() {
+      try {
+        const res = await fetch(
+          `/api/classroom/${classroom.id}/parent-links`,
+          { cache: "no-store" }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const counts: Record<string, number> = {};
+        for (const link of data.links ?? []) {
+          const sid = link.student?.id;
+          if (!sid) continue;
+          counts[sid] = (counts[sid] ?? 0) + 1;
+        }
+        setParentCounts(counts);
+      } catch {
+        /* best-effort; header badges fall back to 0 */
+      }
+    }
+    async function loadPending() {
+      try {
+        const res = await fetch(
+          `/api/parent/approvals?classroomId=${encodeURIComponent(classroom.id)}&status=pending`,
+          { cache: "no-store" }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        setPendingCount((data.items ?? []).length);
+      } catch {
+        /* ignore */
+      }
+    }
+    loadParentLinks();
+    loadPending();
+    const poll = setInterval(loadPending, 60_000);
+    return () => clearInterval(poll);
+  }, [classroom.id]);
 
   const allSelected = students.length > 0 && selected.size === students.length;
 
@@ -114,13 +190,25 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
     setDeleting(false);
   }
 
-  async function handleCopyCode() {
+  async function handleDeleteClassroom() {
+    setDeletingClassroom(true);
     try {
-      await navigator.clipboard.writeText(classroom.code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* clipboard unavailable */
+      const res = await fetch(`/api/classroom/${classroom.id}`, {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ confirmName: classroom.name }),
+      });
+      if (res.ok) {
+        router.push("/classroom");
+      } else {
+        const errText = await res.text();
+        alert(`학급 삭제 실패: ${errText}`);
+      }
+    } catch (err) {
+      console.error("[handleDeleteClassroom]", err);
+      alert("학급 삭제에 실패했습니다.");
+    } finally {
+      setDeletingClassroom(false);
     }
   }
 
@@ -204,19 +292,19 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
 
   return (
     <div className="classroom-detail">
-      {/* Header */}
+      {/* Header — classroom.code used to be displayed here as a 6-char
+          "learner code" but no lookup path actually consumes it (student
+          login uses per-student textCode; parents use ClassInviteCode).
+          The field stays in the DB schema for future use. */}
       <div className="classroom-detail-header">
         <h1 className="classroom-detail-name">{classroom.name}</h1>
         <button
           type="button"
-          className="classroom-detail-code"
-          onClick={handleCopyCode}
-          title="클릭하여 복사"
+          className="classroom-detail-delete"
+          onClick={() => setShowClassroomDelete(true)}
+          title="학급을 삭제하면 연결된 학부모 액세스도 해제됩니다."
         >
-          {classroom.code}
-          <span className="classroom-detail-code-hint">
-            {copied ? "복사됨!" : "복사"}
-          </span>
+          🗑 학급 삭제
         </button>
       </div>
 
@@ -245,8 +333,27 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
           </button>
         )}
         <QRPrintSheet students={students} classroomName={classroom.name} />
+        <a
+          href={`/classroom/${classroom.id}/parent-access`}
+          className="classroom-action-btn"
+        >
+          🔗 초대 코드 · 승인 관리
+          {pendingCount > 0 && (
+            <span
+              className="classroom-action-badge"
+              title={`승인 대기 ${pendingCount}건`}
+              aria-label={`승인 대기 ${pendingCount}건`}
+            >
+              {pendingCount}
+            </span>
+          )}
+        </a>
       </div>
 
+      {/* Main grid — student table on the left, board column on the
+          right at equal height on wide screens, stacked on S6 Lite
+          portrait via CSS. */}
+      <div className="classroom-main-grid">
       {/* Student table */}
       <div className="classroom-table-wrap">
         {students.length === 0 ? (
@@ -276,7 +383,7 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
                 <th className="classroom-th">이름</th>
                 <th className="classroom-th">QR</th>
                 <th className="classroom-th">코드</th>
-                <th className="classroom-th">등록일</th>
+                <th className="classroom-th">학부모</th>
                 <th className="classroom-th classroom-th-actions">관리</th>
               </tr>
             </thead>
@@ -285,6 +392,8 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
                 <StudentRow
                   key={s.id}
                   student={s}
+                  classroomId={classroom.id}
+                  parentCount={parentCounts[s.id] ?? 0}
                   checked={selected.has(s.id)}
                   onToggle={() => toggleSelect(s.id)}
                   onReissue={() => handleReissue(s.id)}
@@ -296,7 +405,7 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
         )}
       </div>
 
-      {/* Board management */}
+      {/* Board management — right column of the main grid. */}
       <div className="classroom-boards-section">
         <div className="classroom-boards-header">
           <h2 className="classroom-boards-heading">학급 보드</h2>
@@ -340,29 +449,43 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
           <div className="classroom-boards-grid">
             {allBoards
               .filter((b) => linkedBoardIds.has(b.id))
-              .map((b) => (
-                <div key={b.id} className="classroom-board-card">
-                  <button
-                    type="button"
-                    className="classroom-board-card-body"
-                    onClick={() => router.push(`/board/${b.slug}`)}
-                  >
-                    <span className="classroom-board-title">{b.title || "제목 없음"}</span>
-                    <span className="classroom-board-layout">{b.layout}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="classroom-board-unlink"
-                    onClick={() => handleUnlinkBoard(b.id)}
-                    title="연결 해제"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
+              .map((b) => {
+                const last = lastVisited[b.id];
+                const updated = b.updatedAt;
+                const isNew =
+                  !!updated &&
+                  (!last || new Date(updated).getTime() > new Date(last).getTime());
+                return (
+                  <div key={b.id} className="classroom-board-card">
+                    <button
+                      type="button"
+                      className="classroom-board-card-body"
+                      onClick={() => router.push(`/board/${b.slug}`)}
+                    >
+                      <span className="classroom-board-title">{b.title || "제목 없음"}</span>
+                      <span className="classroom-board-layout">{b.layout}</span>
+                      {isNew && (
+                        <span className="classroom-board-new" title="마지막 방문 이후 새 활동">
+                          🟢 새 활동
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      className="classroom-board-unlink"
+                      onClick={() => handleUnlinkBoard(b.id)}
+                      title="연결 해제"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              })}
           </div>
         )}
       </div>
+
+      </div> {/* /classroom-main-grid */}
 
       {/* Add students modal */}
       {showAddStudents && (
@@ -376,6 +499,22 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
           }}
         />
       )}
+
+      {/* Classroom delete — re-type classroom name to confirm. Backend
+          cascades parent-link revokes and emails the affected parents. */}
+      <ClassroomDeleteModal
+        open={showClassroomDelete}
+        classroomName={classroom.name}
+        pendingCount={pendingCount}
+        activeCount={Object.values(parentCounts).reduce((a, b) => a + b, 0)}
+        onConfirm={async () => {
+          await handleDeleteClassroom();
+          setShowClassroomDelete(false);
+        }}
+        onCancel={() => {
+          if (!deletingClassroom) setShowClassroomDelete(false);
+        }}
+      />
     </div>
   );
 }
@@ -384,12 +523,16 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
 
 function StudentRow({
   student,
+  classroomId,
+  parentCount,
   checked,
   onToggle,
   onReissue,
   onDelete,
 }: {
   student: Student;
+  classroomId: string;
+  parentCount: number;
   checked: boolean;
   onToggle: () => void;
   onReissue: () => void;
@@ -409,8 +552,6 @@ function StudentRow({
     return () => { cancelled = true; };
   }, [student.qrToken]);
 
-  const dateStr = new Date(student.createdAt).toLocaleDateString("ko-KR");
-
   return (
     <tr className="classroom-tr">
       <td className="classroom-td" style={{ width: 36 }}>
@@ -424,7 +565,10 @@ function StudentRow({
       <td className="classroom-td classroom-td-name">{student.name}</td>
       <td className="classroom-td classroom-td-qr">
         {qrSrc ? (
-          <img src={qrSrc} alt="QR" className="classroom-qr-thumb" />
+          // QR is a data: URL generated client-side — next/image can't optimize it
+          // and the origin is our own page, so a raw <img> is intentional here.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={qrSrc} alt="QR" className="classroom-qr-thumb" loading="lazy" />
         ) : (
           <span className="classroom-qr-placeholder" />
         )}
@@ -432,7 +576,15 @@ function StudentRow({
       <td className="classroom-td classroom-td-code">
         <code className="classroom-text-code">{student.textCode}</code>
       </td>
-      <td className="classroom-td classroom-td-date">{dateStr}</td>
+      <td className="classroom-td classroom-td-parent">
+        <a
+          href={`/classroom/${classroomId}/parent-access?student=${student.id}`}
+          className={`classroom-parent-chip ${parentCount === 0 ? "is-empty" : ""}`}
+          title={parentCount === 0 ? "연결된 학부모 없음" : `학부모 ${parentCount}명`}
+        >
+          {parentCount === 0 ? "–" : `${parentCount}명`}
+        </a>
+      </td>
       <td className="classroom-td classroom-td-actions">
         <div className="classroom-row-actions">
           <button

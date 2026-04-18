@@ -1,0 +1,17 @@
+{
+  "name": "realtime-bundle-bench",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "bench": "node bench.mjs"
+  },
+  "dependencies": {
+    "yjs": "^13.6.30",
+    "y-websocket": "^3.0.0",
+    "@liveblocks/client": "^3.18.0",
+    "socket.io-client": "^4.8.3"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

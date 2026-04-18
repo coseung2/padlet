@@ -1,0 +1,8 @@
+src/components/BoardSettingsLauncher.tsx (NEW)
+src/components/BoardSettingsPanel.tsx (NEW)
+src/components/SectionActionsPanel.tsx (MODIFIED — "share" tab removed, no accessToken/boardId prop)
+src/components/ColumnsBoard.tsx (MODIFIED — consolidated ⋯ via ContextMenu, no separate section-actions-trigger)
+src/components/SectionShareClient.tsx (MODIFIED — id namespaced via useId to allow reuse in BoardSettingsPanel rows)
+src/app/board/[id]/page.tsx (MODIFIED — BoardHeader renders BoardSettingsLauncher next to EditableTitle for owner/editor; passes sections prop)
+src/app/board/[id]/s/[sectionId]/share/page.tsx (MODIFIED — banner points at ⚙ 보드 설정 → 브레이크아웃)
+src/styles/side-panel.css (MODIFIED — appended .board-settings-* classes)
