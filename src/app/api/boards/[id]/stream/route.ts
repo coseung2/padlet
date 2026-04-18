@@ -1,7 +1,8 @@
 import { createHash } from "crypto";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { getBoardRole } from "@/lib/rbac";
+import { getCurrentStudent } from "@/lib/student-auth";
+import { getEffectiveBoardRole } from "@/lib/rbac";
 
 const POLL_INTERVAL_MS = 3000;
 const KEEPALIVE_INTERVAL_MS = 60_000;
@@ -31,6 +32,7 @@ type CardWire = {
   externalAuthorName: string | null;
   studentAuthorName: string | null;
   authorName: string | null;
+  queueStatus: string | null;
   authors: Array<{
     id: string;
     studentId: string | null;
@@ -48,8 +50,11 @@ export async function GET(
 ) {
   const { id: boardIdOrSlug } = await params;
 
-  const user = await getCurrentUser().catch(() => null);
-  if (!user) {
+  const [user, student] = await Promise.all([
+    getCurrentUser().catch(() => null),
+    getCurrentStudent().catch(() => null),
+  ]);
+  if (!user && !student) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -61,13 +66,17 @@ export async function GET(
     return new Response("Not found", { status: 404 });
   }
 
-  const role = await getBoardRole(board.id, user.id);
+  const role = await getEffectiveBoardRole(board.id, {
+    userId: user?.id,
+    studentId: student?.id,
+  });
   if (!role) {
     return new Response("Forbidden", { status: 403 });
   }
 
   const boardId = board.id;
-  const userId = user.id;
+  const userId = user?.id ?? null;
+  const studentId = student?.id ?? null;
   let cancelled = false;
 
   const stream = new ReadableStream({
@@ -104,7 +113,10 @@ export async function GET(
           const now = Date.now();
 
           if (now - lastPermissionCheck >= PERMISSION_RECHECK_INTERVAL_MS) {
-            const r = await getBoardRole(boardId, userId);
+            const r = await getEffectiveBoardRole(boardId, {
+              userId,
+              studentId,
+            });
             if (!r) {
               send("forbidden", { reason: "permission_revoked" });
               controller.close();
@@ -160,6 +172,7 @@ export async function GET(
             externalAuthorName: c.externalAuthorName,
             studentAuthorName: c.studentAuthor?.name ?? null,
             authorName: c.author?.name ?? null,
+            queueStatus: c.queueStatus,
             authors: c.authors.map((a) => ({
               id: a.id,
               studentId: a.studentId,

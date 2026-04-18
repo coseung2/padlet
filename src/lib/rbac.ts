@@ -51,6 +51,68 @@ export async function getBoardRole(
   return isRole(member.role) ? member.role : null;
 }
 
+// ─── dj-board-queue: effective role (teacher OR classroom-role-granted student) ─
+//
+// Resolution precedence:
+//   1. If ctx.userId → getBoardRole (legacy path). owner/editor returns as-is.
+//   2. Else if ctx.studentId → check ClassroomRoleAssignment × BoardLayoutRoleGrant
+//      for this board's classroom+layout. If matched, return the granted role.
+//   3. Else if student is in the classroom → "viewer" fallback (read-only).
+//   4. Else → null.
+//
+// Does NOT replace getBoardRole. Use only for new paths (DJ queue API + SSE).
+// The 17 legacy requirePermission callers continue to use getBoardRole
+// unchanged.
+
+export type EffectiveRoleCtx = {
+  userId?: string | null;
+  studentId?: string | null;
+};
+
+export async function getEffectiveBoardRole(
+  boardId: string,
+  ctx: EffectiveRoleCtx
+): Promise<Role | null> {
+  if (ctx.userId) {
+    const role = await getBoardRole(boardId, ctx.userId);
+    if (role) return role;
+  }
+
+  if (!ctx.studentId) return null;
+
+  const board = await db.board.findUnique({
+    where: { id: boardId },
+    select: { classroomId: true, layout: true },
+  });
+  if (!board?.classroomId) return null;
+
+  const student = await db.student.findUnique({
+    where: { id: ctx.studentId },
+    select: { classroomId: true },
+  });
+  if (!student || student.classroomId !== board.classroomId) return null;
+
+  // Try role-granted path first.
+  const grant = await db.boardLayoutRoleGrant.findFirst({
+    where: {
+      boardLayout: board.layout,
+      classroomRole: {
+        assignments: {
+          some: {
+            classroomId: board.classroomId,
+            studentId: ctx.studentId,
+          },
+        },
+      },
+    },
+    select: { grantedRole: true },
+  });
+  if (grant && isRole(grant.grantedRole)) return grant.grantedRole;
+
+  // Classroom student baseline = viewer.
+  return "viewer";
+}
+
 export async function requirePermission(
   boardId: string,
   userId: string,
