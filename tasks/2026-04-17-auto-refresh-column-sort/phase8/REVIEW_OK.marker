@@ -1,0 +1,12 @@
+PASS — self-review by orchestrator.
+
+Confirmed:
+- typecheck clean (single pre-existing env error after install — resolved).
+- next build produces /api/boards/[id]/stream route.
+- SSE route mirrors quiz pattern; cancel() flips cancelled to stop poll loop.
+- Permission gate on entry + 60s recheck.
+- ColumnsBoard merge skips pending mutation IDs to avoid optimistic stomp.
+- Sort comparator covers all 4 modes; manual falls back to order asc (existing behavior).
+- localStorage key namespaced by boardId; tolerates write failures.
+- EventSource cleanup on unmount; single subscription per board mount.
+- No new design tokens; CSS additions are scoped to .column-sort-select.

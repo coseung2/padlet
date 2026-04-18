@@ -8,7 +8,7 @@ Live feature inventory. Update when merging feature tasks.
 | `freeform` | 자유 배치 — react-draggable 카드 |
 | `grid` | 그리드 정렬 |
 | `stream` | 세로 피드 |
-| `columns` | 칼럼(Kanban) |
+| `columns` | 칼럼(Kanban) — SSE 라이브 동기화 + 칼럼별 정렬(manual/newest/oldest/title, 2026-04-17) |
 | `assignment` | 과제 배부 + 제출 (AB-1 rewrite 2026-04-14: AssignmentSlot entity — roster-bound 5×6 grid, full-screen review modal, inline return reason, identity-based teacher/student/parent scope) |
 | `quiz` | 실시간 퀴즈 |
 | `plant-roadmap` | 식물 관찰일지 세로 타임라인 (2026-04-12 PJ-1~6, 2026-04-13 v2) |
