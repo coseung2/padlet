@@ -27,6 +27,16 @@ type CardWire = {
   order: number;
   sectionId: string | null;
   authorId: string | null;
+  studentAuthorId: string | null;
+  externalAuthorName: string | null;
+  studentAuthorName: string | null;
+  authorName: string | null;
+  authors: Array<{
+    id: string;
+    studentId: string | null;
+    displayName: string;
+    order: number;
+  }>;
   createdAt: string;
 };
 
@@ -108,6 +118,19 @@ export async function GET(
             db.card.findMany({
               where: { boardId },
               orderBy: { order: "asc" },
+              include: {
+                author: { select: { name: true } },
+                studentAuthor: { select: { name: true } },
+                authors: {
+                  orderBy: { order: "asc" },
+                  select: {
+                    id: true,
+                    studentId: true,
+                    displayName: true,
+                    order: true,
+                  },
+                },
+              },
             }),
             db.section.findMany({
               where: { boardId },
@@ -133,6 +156,16 @@ export async function GET(
             order: c.order,
             sectionId: c.sectionId,
             authorId: c.authorId,
+            studentAuthorId: c.studentAuthorId,
+            externalAuthorName: c.externalAuthorName,
+            studentAuthorName: c.studentAuthor?.name ?? null,
+            authorName: c.author?.name ?? null,
+            authors: c.authors.map((a) => ({
+              id: a.id,
+              studentId: a.studentId,
+              displayName: a.displayName,
+              order: a.order,
+            })),
             createdAt: c.createdAt.toISOString(),
           }));
 
