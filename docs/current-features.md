@@ -14,6 +14,7 @@ Live feature inventory. Update when merging feature tasks.
 | `plant-roadmap` | 식물 관찰일지 세로 타임라인 (2026-04-12 PJ-1~6, 2026-04-13 v2) |
 | `drawing` | Drawpile 공동 그림판 + 학생 라이브러리 (2026-04-13, **schema + UI stub only** — 서버 배포 대기, `BLOCKERS.md`) |
 | `breakout` | 모둠 학습 보드 (2026-04-12, foundation BR-1~BR-4) — 8종 템플릿(Free 3 + Pro 5), N모둠 × S섹션 자동 복사, teacher-pool 공용 섹션, "모든 모둠에 복제" 일괄 액션 |
+| `dj-queue` | DJ 큐 (2026-04-18) — YouTube 곡 대기열, classroom-role 학생 DJ가 교사와 동등한 순서·승인 권한. Now-Playing pinned + 단일 세로 큐 + status pill (pending/approved/played/rejected) |
 
 ## Classroom & Student
 - 교사 `Classroom` 생성/수정 + 6-char classroom code
@@ -168,3 +169,41 @@ Card 의 단일 `studentAuthorId` + 자유 `externalAuthorName` 구조를 **N:N 
 - **모달**: `.add-card-modal` 폭이 `--modal-max` 사용 — 뷰포트 92% 내 fit. `dvh` 높이로 주소창 변화 대응.
 - **이미 충족 확인**: 학생 로그인 input 52px+, Drawing 툴바 48px, Quiz 답지 80px+ — 추가 수정 불필요.
 - **Deferred**: 교사 대시보드 반응형 / 학부모 페이지 반응형 / 다크 모드.
+
+## DJ Board (dj-queue) — 2026-04-18
+
+Spotify 스타일 순차 YouTube 큐 + **classroom role system 신설**. DJ 역할 학생이 교사와 동등한 권한으로 큐를 운영.
+
+### 데이터 모델
+- `ClassroomRoleDef` — 역할 사전 (key/labelKo/emoji). seed: `dj`
+- `BoardLayoutRoleGrant` — (classroom-role × board-layout → granted-role) 매핑. seed: `(dj, dj-queue) → owner`
+- `ClassroomRoleAssignment` — (classroom, student, role) unique. teacher audit via `assignedById`
+- `Card.queueStatus String?` — `"pending" | "approved" | "played" | "rejected"` (null = 비-큐 카드)
+
+### 권한 resolver
+- `src/lib/rbac.ts` → **`getEffectiveBoardRole(boardId, {userId?, studentId?})`** 신규
+- precedence: teacher(BoardMember) → classroom-role grant → classroom viewer → null
+- 기존 `getBoardRole` / `requirePermission` 경로 **불변** (17개 legacy 호출부)
+
+### API
+- `POST /api/boards/:id/queue` — 학생/교사 곡 제출. YouTube URL validation(host 화이트리스트) + oEmbed fetch(썸네일/제목/채널)
+- `PATCH /api/boards/:id/queue/:cardId` — status 전이 (DJ/교사)
+- `PATCH /api/boards/:id/queue/:cardId/move` — order 변경
+- `DELETE /api/boards/:id/queue/:cardId` — DJ/교사 OR (pending+본인 학생)
+- `GET /api/classrooms/:id/roles` — 역할 정의 + 현재 할당
+- `POST /api/classrooms/:id/roles/assign` / `DELETE .../assign/:id` — 교사 전용
+- `/api/boards/:id/stream` — 학생 세션 인증 허용 + CardWire에 `queueStatus` 포함
+
+### UI
+- `DJBoard` 셸 + `DJNowPlayingHeader` + `DJQueueList` + `DJQueueItem` + `DJSubmitForm` + `DJEmptyState`
+- `ClassroomDJRolePanel` — `/classroom/:id` 하단 교사 전용 할당 패널
+
+### Extensibility
+사서·은행원 등 차후 역할 = **DB row 2개(ClassroomRoleDef + BoardLayoutRoleGrant) 추가만**. 코드·스키마 변경 없음.
+
+### Out of scope (향후 task 후보)
+- 실제 YouTube iframe 동기 재생 (WebRTC/WS 필요)
+- 투표 기반 우선순위 (A2 jukebox 모델)
+- 범용 classroom-role 관리 패널 (DJ 외 역할 추가 시 일반화)
+- 키보드 드래그 접근성
+- YouTube 부적절 콘텐츠 자동 탐지
