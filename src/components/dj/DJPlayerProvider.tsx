@@ -3,13 +3,18 @@
 /**
  * Global YouTube playback provider.
  *
- * Owns ONE iframe that survives route navigations. When a DJ board mounts it
- * registers an inline DOM slot via `setInlineSlot`; the provider portals its
- * player UI into that slot so the user sees the full-size embedded player on
- * the DJ board. When the DJ board unmounts (user navigates away) the portal
- * target falls back to a fixed top-right mini container rendered by the
- * provider itself — React moves the iframe DOM between parents, YouTube
- * state persists, playback continues uninterrupted.
+ * A single iframe lives in the provider's own fixed container and NEVER
+ * moves — no React portals, no DOM re-parenting. The previous portal-based
+ * approach lost the iframe when a DJ board unmounted (the portal target
+ * died with its component tree). Anchoring the iframe at root level means
+ * playback survives every navigation.
+ *
+ * The visual trade-off: instead of rendering inside the DJ board's NOW
+ * PLAYING card, the player lives in a fixed container that switches size /
+ * position based on whether a DJ board is active ("prominent" bottom-right
+ * vs "compact" top-right). The DJ board's NOW PLAYING section still shows
+ * track thumbnail + title + controls — it's the "info card" half, while the
+ * provider owns the "playback" half.
  */
 
 import {
@@ -20,7 +25,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 
 export type PlayerCard = {
   id: string;
@@ -32,15 +36,12 @@ export type PlayerCard = {
 type Ctx = {
   activeCard: PlayerCard | null;
   playing: boolean;
-  /** Begin playing a card. If another track was active it's replaced. */
   play: (card: PlayerCard) => void;
-  /** Stop + clear. Mini player disappears. */
   stop: () => void;
-  /** Toggle play/pause on the currently active card. */
   toggle: () => void;
-  /** DJ board registers the inline slot where it wants the player to render. */
-  setInlineSlot: (el: HTMLElement | null) => void;
-  /** DJ board passes a handler so mini-player "next" can advance the board queue. */
+  /** Toggle "prominent" mode on. DJ boards call this on mount. */
+  setExpanded: (on: boolean) => void;
+  /** Register a next-track handler. DJ boards pass their onNext. */
   setAdvanceHandler: (fn: (() => Promise<void> | void) | null) => void;
 };
 
@@ -58,7 +59,6 @@ type YTPlayer = {
   destroy: () => void;
   playVideo: () => void;
   pauseVideo: () => void;
-  loadVideoById: (id: string) => void;
 };
 type YTState = { data: number };
 declare global {
@@ -105,17 +105,9 @@ const MOUNT_ID = "dj-global-yt-player";
 export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
   const [activeCard, setActiveCard] = useState<PlayerCard | null>(null);
   const [playing, setPlaying] = useState(false);
-  const [inlineSlot, setInlineSlot] = useState<HTMLElement | null>(null);
-  const miniRef = useRef<HTMLDivElement | null>(null);
-  const [mounted, setMounted] = useState(false);
-  // Advance handler set by the DJ board — null when no DJ board is mounted
-  // (then the mini "next" button is hidden).
+  const [expanded, setExpanded] = useState(false);
   const advanceRef = useRef<(() => Promise<void> | void) | null>(null);
   const playerRef = useRef<YTPlayer | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const play = useCallback((card: PlayerCard) => {
     setActiveCard(card);
@@ -129,7 +121,7 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
       try {
         playerRef.current.destroy();
       } catch {
-        // already destroyed
+        // ignore
       }
       playerRef.current = null;
     }
@@ -157,9 +149,7 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  // Attach YT.Player when the iframe mount div is first rendered for a card.
-  // We destroy + recreate when activeCard.videoId changes so loadVideoById
-  // isn't needed — simpler state machine.
+  // Attach / re-attach YT.Player when activeCard.videoId changes.
   useEffect(() => {
     if (!activeCard) return;
     let cancelled = false;
@@ -183,13 +173,10 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
           },
           onStateChange: (e) => {
             if (e.data === 0) {
-              // Ended — advance the DJ board queue if it's still mounted.
-              // If not, the user has navigated away; stop the mini player.
+              // Ended → advance the DJ board queue if still mounted.
               const advance = advanceRef.current;
               if (advance) {
-                Promise.resolve(advance()).catch(() => {
-                  /* swallow — stop cleanly */
-                });
+                Promise.resolve(advance()).catch(() => {});
               } else {
                 stop();
               }
@@ -213,69 +200,62 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
     play,
     stop,
     toggle,
-    setInlineSlot,
+    setExpanded,
     setAdvanceHandler,
   };
 
-  // Player DOM is a single div. createPortal targets the inline slot if
-  // registered, else the provider's own fixed mini container. React moves
-  // the DOM node between targets — iframe state (and audio) survives.
-  const target = mounted ? inlineSlot ?? miniRef.current : null;
+  const visible = !!activeCard;
+  const containerClass = [
+    "dj-mini-player",
+    visible ? "is-visible" : "is-hidden",
+    expanded ? "is-expanded" : "is-compact",
+  ].join(" ");
 
   return (
     <DJPlayerContext.Provider value={value}>
       {children}
-      {/* Mini fallback container — sits top-right when no inline slot owns the player. */}
-      <div
-        ref={miniRef}
-        className={`dj-mini-player ${
-          activeCard && !inlineSlot ? "is-visible" : "is-hidden"
-        }`}
-        aria-hidden={!activeCard || !!inlineSlot}
-      >
-        {activeCard && !inlineSlot && (
-          <div className="dj-mini-header">
-            <div className="dj-mini-title" title={activeCard.title}>
-              {activeCard.title}
+      <div className={containerClass} aria-hidden={!visible}>
+        {visible && (
+          <>
+            <div className="dj-mini-body">
+              <div id={MOUNT_ID} className="dj-mini-iframe" />
             </div>
-            <div className="dj-mini-actions">
-              <button
-                type="button"
-                className="dj-mini-btn"
-                onClick={toggle}
-                aria-label={playing ? "일시정지" : "재생"}
-              >
-                {playing ? "❚❚" : "▶"}
-              </button>
-              {advanceRef.current && (
+            <div className="dj-mini-header">
+              <div className="dj-mini-title" title={activeCard?.title}>
+                {activeCard?.title}
+              </div>
+              <div className="dj-mini-actions">
+                <button
+                  type="button"
+                  className="dj-mini-btn"
+                  onClick={toggle}
+                  aria-label={playing ? "일시정지" : "재생"}
+                >
+                  {playing ? "❚❚" : "▶"}
+                </button>
                 <button
                   type="button"
                   className="dj-mini-btn"
                   onClick={() => advanceRef.current?.()}
                   aria-label="다음 곡"
+                  disabled={!advanceRef.current}
+                  style={{ opacity: advanceRef.current ? 1 : 0.4 }}
                 >
                   ⏭
                 </button>
-              )}
-              <button
-                type="button"
-                className="dj-mini-btn dj-mini-close"
-                onClick={stop}
-                aria-label="닫기"
-              >
-                ✕
-              </button>
+                <button
+                  type="button"
+                  className="dj-mini-btn dj-mini-close"
+                  onClick={stop}
+                  aria-label="닫기"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
-          </div>
+          </>
         )}
       </div>
-      {activeCard && target &&
-        createPortal(
-          <div className="dj-player-body">
-            <div id={MOUNT_ID} className="dj-player-iframe" />
-          </div>,
-          target
-        )}
     </DJPlayerContext.Provider>
   );
 }

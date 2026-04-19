@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import type { CardData } from "../DraggableCard";
 import { useDJPlayer } from "./DJPlayerProvider";
 
@@ -21,14 +21,9 @@ function extractVideoId(url: string | null | undefined): string | null {
   return null;
 }
 
-export function DJNowPlayingHeader({
-  card,
-  canControl,
-  onNext,
-}: Props) {
-  const { activeCard, playing, play, toggle, setInlineSlot, setAdvanceHandler } =
+export function DJNowPlayingHeader({ card, canControl, onNext }: Props) {
+  const { activeCard, playing, play, toggle, setExpanded, setAdvanceHandler } =
     useDJPlayer();
-  const inlineRef = useRef<HTMLDivElement | null>(null);
 
   const submitter =
     card.externalAuthorName ??
@@ -38,20 +33,17 @@ export function DJNowPlayingHeader({
   const videoId = extractVideoId(card.videoUrl ?? card.linkUrl);
   const isActive = activeCard?.id === card.id;
 
-  // Register our inline slot so the provider portals the iframe here.
-  // We DON'T condition on isActive — once the slot is registered, the
-  // provider will reuse it for whatever card is playing. This keeps the
-  // iframe anchored to the DJ board while mounted.
+  // Switch the global player to "prominent" mode while a DJ board is
+  // mounted. Compact mini-player on other pages.
   useEffect(() => {
-    setInlineSlot(inlineRef.current);
+    setExpanded(true);
     return () => {
-      setInlineSlot(null);
+      setExpanded(false);
     };
-  }, [setInlineSlot]);
+  }, [setExpanded]);
 
-  // Provider exposes a "next" callback slot that the mini player uses after
-  // the current track ends. Point it at the DJ board's own onNext so
-  // auto-advance keeps working even when the tab is backgrounded.
+  // Wire DJ board's onNext to the provider so auto-advance works from the
+  // mini player (and survives tab backgrounding).
   useEffect(() => {
     setAdvanceHandler(() => onNext());
     return () => {
@@ -59,9 +51,8 @@ export function DJNowPlayingHeader({
     };
   }, [onNext, setAdvanceHandler]);
 
-  // When the now-playing card changes (e.g., auto-advance after a track
-  // ended) AND something was previously playing in the provider, load the
-  // new track so the user doesn't have to click ▶ again.
+  // Auto-load the new track when nowPlaying changes while something else
+  // was already playing (i.e., after end-of-track auto-advance).
   useEffect(() => {
     if (!activeCard) return;
     if (activeCard.id === card.id) return;
@@ -88,8 +79,6 @@ export function DJNowPlayingHeader({
     }
   }
 
-  const showingPlayer = isActive;
-
   return (
     <section
       className="dj-nowplaying"
@@ -99,24 +88,15 @@ export function DJNowPlayingHeader({
     >
       <div className="dj-nowplaying-label">▶ NOW PLAYING</div>
       <div className="dj-nowplaying-body">
-        <div className="dj-player-wrap">
-          {/* Provider portals the YT iframe into this slot when active.
-              When idle we show the thumbnail fallback below. */}
-          <div
-            ref={inlineRef}
-            className="dj-player-inline-slot"
-            data-empty={showingPlayer ? "false" : "true"}
+        {card.linkImage && (
+          <img
+            className="dj-thumb dj-thumb-lg"
+            src={card.linkImage}
+            width={240}
+            height={135}
+            alt=""
           />
-          {!showingPlayer && card.linkImage && (
-            <img
-              className="dj-thumb dj-thumb-lg"
-              src={card.linkImage}
-              width={240}
-              height={135}
-              alt=""
-            />
-          )}
-        </div>
+        )}
         <div className="dj-nowplaying-info">
           <div className="dj-track-title">{card.title}</div>
           <div className="dj-track-meta">
