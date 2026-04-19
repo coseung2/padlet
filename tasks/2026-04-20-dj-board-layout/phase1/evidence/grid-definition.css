@@ -1,0 +1,48 @@
+/* Source: .claude/worktrees/stupefied-benz-0c99b1/src/styles/boards.css:300-325 */
+
+.dj-board {
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 24px 16px 40px;
+  display: grid;
+  grid-template-columns: 160px minmax(320px, 1fr) 260px;
+  gap: 20px;
+  align-items: start;
+}
+
+.dj-board-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.dj-ranking {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: sticky;
+  top: 24px;
+}
+
+/* Source: boards.css:872-878 */
+.dj-played-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: sticky;
+  top: 24px;
+}
+
+/* Source: boards.css:1042-1058 (responsive) */
+@media (max-width: 1279px) {
+  .dj-board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dj-played-stack,
+  .dj-ranking {
+    position: static;
+  }
+  .dj-played-stack { order: 3; }
+  .dj-ranking { order: 2; }
+}

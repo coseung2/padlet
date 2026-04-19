@@ -1,0 +1,6 @@
+src/styles/dj-board-layout.vitest.ts
+  - dj-board right column is variable-width, not fixed 260px
+  - .dj-ranking is not sticky
+
+Run: npx vitest run src/styles/dj-board-layout.vitest.ts
+Last result: 2 passed (2)

@@ -1,0 +1,84 @@
+From 9f506d81fff1d061e8cd2f4f1c4b2cb56db7d0f0 Mon Sep 17 00:00:00 2001
+From: coseung2 <coseung2@users.noreply.github.com>
+Date: Mon, 20 Apr 2026 08:37:17 +0900
+Subject: [PATCH] =?UTF-8?q?fix:=20dj-board=20=EC=9A=B0=EC=B8=A1=20?=
+ =?UTF-8?q?=EB=9E=AD=ED=82=B9=20=EC=BB=AC=EB=9F=BC=20=EA=B0=80=EB=B3=80?=
+ =?UTF-8?q?=ED=8F=AD=20+=20sticky=20=EC=A0=9C=EA=B1=B0=20(dj-board-layout)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+.dj-board grid 우측을 260px 고정에서 minmax(260px, 340px)로,
+.dj-ranking의 position:sticky/top:24px 제거. 뷰포트가 커져도
+우측 컬럼이 확장되지 않고, 본문이 길어질수록 sticky 랭킹 아래
+빈 공간이 누적되던 레이아웃 증상 해소.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+---
+ src/styles/boards.css                |  4 +---
+ src/styles/dj-board-layout.vitest.ts | 31 ++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 3 deletions(-)
+ create mode 100644 src/styles/dj-board-layout.vitest.ts
+
+diff --git a/src/styles/boards.css b/src/styles/boards.css
+index eaa6a8c..641ea88 100644
+--- a/src/styles/boards.css
++++ b/src/styles/boards.css
+@@ -304,7 +304,7 @@
+   margin: 0 auto;
+   padding: 24px 16px 40px;
+   display: grid;
+-  grid-template-columns: 160px minmax(320px, 1fr) 260px;
++  grid-template-columns: 160px minmax(320px, 1fr) minmax(260px, 340px);
+   gap: 20px;
+   align-items: start;
+ }
+@@ -320,8 +320,6 @@
+   display: flex;
+   flex-direction: column;
+   gap: 20px;
+-  position: sticky;
+-  top: 24px;
+ }
+ 
+ .dj-ranking-section {
+diff --git a/src/styles/dj-board-layout.vitest.ts b/src/styles/dj-board-layout.vitest.ts
+new file mode 100644
+index 0000000..815e508
+--- /dev/null
++++ b/src/styles/dj-board-layout.vitest.ts
+@@ -0,0 +1,31 @@
++import { readFileSync } from "node:fs";
++import path from "node:path";
++import { describe, expect, it } from "vitest";
++
++const css = readFileSync(
++  path.resolve(__dirname, "./boards.css"),
++  "utf8",
++);
++
++function block(selector: string): string {
++  const re = new RegExp(
++    `\\${selector}\\s*\\{([^}]*)\\}`,
++  );
++  const m = css.match(re);
++  if (!m) throw new Error(`selector ${selector} not found`);
++  return m[1];
++}
++
++describe("dj-board right column layout (regression for 2026-04-20-dj-board-layout)", () => {
++  it(".dj-board right column is variable-width, not fixed 260px", () => {
++    const body = block(".dj-board");
++    expect(body).toMatch(/grid-template-columns\s*:/);
++    expect(body).not.toMatch(/grid-template-columns:[^;]*\b260px\s*;/);
++    expect(body).toMatch(/minmax\(\s*260px\s*,\s*340px\s*\)/);
++  });
++
++  it(".dj-ranking is not sticky", () => {
++    const body = block(".dj-ranking");
++    expect(body).not.toMatch(/position\s*:\s*sticky/);
++  });
++});
+-- 
+2.43.0
+

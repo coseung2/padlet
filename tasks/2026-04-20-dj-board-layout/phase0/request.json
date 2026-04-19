@@ -1,0 +1,10 @@
+{
+  "type": "incident",
+  "slug": "dj-board-layout",
+  "task_id": "2026-04-20-dj-board-layout",
+  "severity": "low",
+  "symptom": "DJ 보드(/board/:id with layout=dj-queue)에서 우측 랭킹 사이드바 영역이 좁고, 메인 컬럼이 길어질수록 우측 하단에 과도한 빈 공백이 노출됨. 좌/우 컬럼 비율이 부자연스럽다는 사용자 지적.",
+  "first_observed": "2026-04-20T00:00:00+09:00",
+  "affected_surfaces": ["/board/:id (layout=dj-queue)"],
+  "created_at": "2026-04-20T10:00:00+09:00"
+}
