@@ -298,3 +298,29 @@ VALUES (cuid(), (SELECT id FROM "ClassroomRoleDef" WHERE key='librarian'), 'libr
 ```
 
 **Deferred**: 실제 YouTube iframe 동기 재생 (WebRTC), 투표 기반 우선순위, 범용 역할 관리 패널, 키보드 드래그 a11y.
+
+## Classroom Bank (2026-04-19)
+
+학급 경제 시뮬레이션: 통장 · 체크카드 · 30일 만기 적금 · 매점 카드 결제. 기존 classroom-role 시스템에 `banker`, `store-clerk` 역할 추가 + 교사 편집 가능한 권한 매트릭스.
+
+### IA
+`/classroom/:id` → `/classroom/:id/students` 리다이렉트. 상단 `ClassroomNav`: `/students /boards /roles /bank /store /pay`. 학생용 `/my/wallet`.
+
+### Data model (7 new)
+`ClassroomCurrency`, `StudentAccount`, `StudentCard`, `StoreItem`, `FixedDeposit`, `Transaction` (balanceAfter 감사 체인), `ClassroomRolePermission`. Migration `20260419_classroom_bank` + banker/store-clerk seed.
+
+### Libs
+- `src/lib/bank-permissions.ts` — PERMISSION_CATALOG 6 keys + `hasPermission` (teacher win → explicit override → default catalog)
+- `src/lib/qr-token.ts` — HMAC 60s tokens + 15min nonce cache
+- `src/lib/bank.ts` — `ensureAccountFor` / `ensureClassroomCurrency` lazy
+
+### API (14 new)
+bank {deposit, withdraw, fixed-deposits [open/cancel], overview}; store {items CRUD, charge}; role-permissions {GET, PUT per-role}; currency PATCH; my/wallet {GET, card-qr}; cron/fd-maturity.
+
+### Concurrency
+잔액 mutation 전부 `db.$transaction` 내부에서 findUnique → check → update → Transaction.create. Prisma READ COMMITTED 기본. phase8 security_audit.md 참조.
+
+### Cron
+`vercel.json` `/api/cron/fd-maturity` @ `5 15 * * *` UTC (00:05 KST). CRON_SECRET bearer 인증.
+
+**Deferred**: 카메라 QR 스캐너 lib, Redis nonce, 학생 간 이체, Apple/Google Wallet Pass, 3분할 지갑.
