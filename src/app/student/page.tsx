@@ -1,5 +1,6 @@
 import { getCurrentStudent } from "@/lib/student-auth";
 import { db } from "@/lib/db";
+import { getStudentDuties } from "@/lib/role-portals";
 import { StudentDashboard } from "@/components/StudentDashboard";
 import { redirect } from "next/navigation";
 
@@ -10,17 +11,20 @@ export default async function StudentPage() {
     redirect("/student/login");
   }
 
-  const boards = await db.board.findMany({
-    where: { classroomId: student.classroomId },
-    include: {
-      quizzes: {
-        select: { roomCode: true, status: true },
-        take: 1,
-        orderBy: { createdAt: "desc" },
+  const [boards, duties] = await Promise.all([
+    db.board.findMany({
+      where: { classroomId: student.classroomId },
+      include: {
+        quizzes: {
+          select: { roomCode: true, status: true },
+          take: 1,
+          orderBy: { createdAt: "desc" },
+        },
       },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      orderBy: { createdAt: "desc" },
+    }),
+    getStudentDuties(student.id),
+  ]);
 
   const boardItems = boards.map((b) => ({
     id: b.id,
@@ -36,6 +40,7 @@ export default async function StudentPage() {
         studentName={student.name}
         classroomName={student.classroom.name}
         boards={boardItems}
+        duties={duties}
       />
     </main>
   );

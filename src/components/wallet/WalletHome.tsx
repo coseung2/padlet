@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { WalletCardQR } from "./WalletCardQR";
 
 type FD = {
@@ -29,6 +30,19 @@ type WalletData = {
   recentTransactions: Transaction[];
 };
 
+type Duty = {
+  classroomId: string;
+  classroomName: string;
+  roleKey: string;
+  roleLabel: string;
+  emoji: string | null;
+  href: string;
+};
+
+type Props = {
+  duties: Duty[];
+};
+
 const TYPE_LABEL: Record<string, string> = {
   deposit: "입금",
   withdraw: "출금",
@@ -39,7 +53,7 @@ const TYPE_LABEL: Record<string, string> = {
   fd_cancelled: "적금 해지",
 };
 
-export function WalletHome() {
+export function WalletHome({ duties }: Props) {
   const [data, setData] = useState<WalletData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,6 +97,24 @@ export function WalletHome() {
           </div>
         </div>
       </header>
+
+      {duties.length > 0 && (
+        <section className="wallet-duty-section">
+          {duties.map((d) => (
+            <Link
+              key={`${d.classroomId}-${d.roleKey}`}
+              href={d.href}
+              className="wallet-duty-card"
+            >
+              <span className="wallet-duty-emoji" aria-hidden="true">
+                {d.emoji ?? "🎖️"}
+              </span>
+              <span className="wallet-duty-role">{d.roleLabel}</span>
+              <span className="wallet-duty-cta">업무 시작 →</span>
+            </Link>
+          ))}
+        </section>
+      )}
 
       <div className="wallet-grid">
         <section className="wallet-card-section">

@@ -12,10 +12,20 @@ type BoardItem = {
   quizzes?: { roomCode: string; status: string }[];
 };
 
+type Duty = {
+  classroomId: string;
+  classroomName: string;
+  roleKey: string;
+  roleLabel: string;
+  emoji: string | null;
+  href: string;
+};
+
 type Props = {
   studentName: string;
   classroomName: string;
   boards: BoardItem[];
+  duties: Duty[];
 };
 
 const LAYOUT_LABEL: Record<string, string> = {
@@ -27,7 +37,7 @@ const LAYOUT_LABEL: Record<string, string> = {
   quiz: "퀴즈",
 };
 
-export function StudentDashboard({ studentName, classroomName, boards }: Props) {
+export function StudentDashboard({ studentName, classroomName, boards, duties }: Props) {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -52,6 +62,27 @@ export function StudentDashboard({ studentName, classroomName, boards }: Props) 
       >
         {loggingOut ? "로그아웃 중..." : "로그아웃"}
       </button>
+
+      {duties.length > 0 && (
+        <section className="student-duty-section">
+          <h2 className="student-duty-title">담당 업무</h2>
+          <div className="student-duty-grid">
+            {duties.map((d) => (
+              <Link
+                key={`${d.classroomId}-${d.roleKey}`}
+                href={d.href}
+                className="student-duty-card"
+              >
+                <span className="student-duty-emoji" aria-hidden="true">
+                  {d.emoji ?? "🎖️"}
+                </span>
+                <span className="student-duty-role">{d.roleLabel}</span>
+                <span className="student-duty-cta">업무 시작 →</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {boards.length === 0 ? (
         <div className="student-empty">
