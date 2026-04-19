@@ -6,6 +6,7 @@ import { DJNowPlayingHeader } from "./dj/DJNowPlayingHeader";
 import { DJQueueList } from "./dj/DJQueueList";
 import { DJSubmitForm } from "./dj/DJSubmitForm";
 import { DJEmptyState } from "./dj/DJEmptyState";
+import { DJRanking } from "./dj/DJRanking";
 
 type Props = {
   boardId: string;
@@ -182,45 +183,53 @@ export function DJBoard({
 
   const isEmpty = queueCards.length === 0;
 
+  // Ranking sidebar refetch signal — bumped on any queue mutation that could
+  // change counts (submit / status change / delete).
+  const rankingKey = cards.length + cards.filter((c) => c.queueStatus === "played").length;
+
   return (
     <main className="dj-board">
-      <header className="dj-board-header">
-        <h1>🎧 {boardTitle}</h1>
-        <div className="dj-board-meta">
-          <span className="dj-count">{queueCards.length}곡</span>
+      <div className="dj-board-main">
+        <header className="dj-board-header">
+          <h1>🎧 {boardTitle}</h1>
+          <div className="dj-board-meta">
+            <span className="dj-count">{queueCards.length}곡</span>
+          </div>
+        </header>
+
+        {nowPlaying && (
+          <DJNowPlayingHeader
+            card={nowPlaying}
+            canControl={canControl}
+            onNext={handleNextTrack}
+          />
+        )}
+
+        {isEmpty ? (
+          <DJEmptyState canControl={canControl} onAdd={() => setSubmitOpen(true)} />
+        ) : (
+          <DJQueueList
+            cards={upNext}
+            canControl={canControl}
+            currentStudentId={currentStudentId}
+            onStatus={handleStatus}
+            onDelete={handleDelete}
+            onReorder={handleReorder}
+          />
+        )}
+
+        <div className="dj-board-footer">
+          <button
+            type="button"
+            className="dj-submit-btn"
+            onClick={() => setSubmitOpen(true)}
+          >
+            + 곡 신청
+          </button>
         </div>
-      </header>
-
-      {nowPlaying && (
-        <DJNowPlayingHeader
-          card={nowPlaying}
-          canControl={canControl}
-          onNext={handleNextTrack}
-        />
-      )}
-
-      {isEmpty ? (
-        <DJEmptyState canControl={canControl} onAdd={() => setSubmitOpen(true)} />
-      ) : (
-        <DJQueueList
-          cards={upNext}
-          canControl={canControl}
-          currentStudentId={currentStudentId}
-          onStatus={handleStatus}
-          onDelete={handleDelete}
-          onReorder={handleReorder}
-        />
-      )}
-
-      <div className="dj-board-footer">
-        <button
-          type="button"
-          className="dj-submit-btn"
-          onClick={() => setSubmitOpen(true)}
-        >
-          + 곡 신청
-        </button>
       </div>
+
+      <DJRanking boardId={boardId} refreshKey={rankingKey} />
 
       {submitOpen && (
         <DJSubmitForm

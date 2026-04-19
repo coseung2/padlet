@@ -195,11 +195,15 @@ export default async function BoardPage({
   const quizzes = quizzesRaw ?? [];
 
   // Role resolution moved into getEffectiveBoardRole (teacher + student DJ +
-  // classroom-student baseline). studentViewer is set whenever the caller is
-  // a student in this classroom — regardless of role — for identity-kind
-  // checks downstream.
+  // classroom-student baseline). studentViewer is the identity signal for
+  // downstream viewer-kind checks — it must ONLY be set when the caller is
+  // resolving as a student. When a NextAuth user session is present (teacher)
+  // the teacher identity wins, even if a stale student cookie coexists in the
+  // same browser (a common teacher-testing scenario that otherwise renders
+  // the teacher header with a random student's name).
   let studentViewer: { id: string; name: string; classroomId: string } | null = null;
   if (
+    !user &&
     student &&
     board.classroomId &&
     student.classroomId === board.classroomId
