@@ -1,0 +1,7 @@
+PASS 2026-04-19 phase8
+
+- code_review.md: 9 issues probed, B1 fix applied (accountId in overview API).
+  나머지는 알려진 제한 또는 의도된 동작
+- security_audit.md: OWASP A01-A10 + STRIDE + 금전 거래 위협 PASS
+- Karpathy 4 원칙 통과
+- typecheck 재실행: exit 0

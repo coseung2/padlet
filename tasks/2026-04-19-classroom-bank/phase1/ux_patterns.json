@@ -1,0 +1,62 @@
+{
+  "patterns": [
+    {
+      "pattern_id": "P1-balance-top-txn-below",
+      "description": "잔액 큰 숫자 최상단 + 거래 내역 최신순 타임라인. Toss 표준.",
+      "applies_to": ["/my/wallet", "/classroom/:id/bank 학생별 뷰"]
+    },
+    {
+      "pattern_id": "P2-qr-rotate-timer",
+      "description": "카드 QR 하단 '60초 후 갱신' 프로그레스 바. 사용자가 로테이트 예측 가능.",
+      "applies_to": ["/my/wallet 카드 탭"]
+    },
+    {
+      "pattern_id": "P3-fd-preview-calc",
+      "description": "적금 가입 모달에 '원금 X + 이자 Y = 만기 Z원' 실시간 계산.",
+      "applies_to": ["적금 가입 모달"]
+    },
+    {
+      "pattern_id": "P4-payment-double-gate",
+      "description": "QR 스캔 후 즉시 결제 금지. 상품 목록 + 총액 + 학생명 + 잔액 확인 후 명시적 '결제' 버튼.",
+      "applies_to": ["/classroom/:id/pay"]
+    },
+    {
+      "pattern_id": "P5-role-card-modal",
+      "description": "역할 카드 그리드 → 카드 클릭 → 모달에 체크박스 그룹으로 권한 편집. Slack/Notion 표준.",
+      "applies_to": ["/classroom/:id/roles"]
+    },
+    {
+      "pattern_id": "P6-teacher-audit-timeline",
+      "description": "교사 은행 화면에 전체 거래 필터링 타임라인. 타입/학생/기간 필터.",
+      "applies_to": ["/classroom/:id/bank"]
+    },
+    {
+      "pattern_id": "P7-optimistic-sse-reconcile",
+      "description": "결제 직후 학생 폰 SSE로 즉시 잔액 반영. 서버 실패 시 롤백.",
+      "applies_to": ["모든 금전 mutation"]
+    },
+    {
+      "pattern_id": "P8-classroom-top-nav",
+      "description": "상단 탭 nav: 학생명부 | 학급보드 | 학급역할 | 은행 | 매점. 앱 글로벌 사이드바 없이 학급 페이지 내부에만.",
+      "applies_to": ["/classroom/:id/* 전 페이지"]
+    }
+  ],
+  "rejected_patterns": [
+    {
+      "pattern_id": "R1-public-feed",
+      "reason": "Venmo 식 공개 피드. 학급 프라이버시 고려 거절."
+    },
+    {
+      "pattern_id": "R2-credit-products",
+      "reason": "신용카드/여신. 교육용에 부적절."
+    },
+    {
+      "pattern_id": "R3-push-notifications",
+      "reason": "Web push 인프라 scope out."
+    },
+    {
+      "pattern_id": "R4-card-design-presets",
+      "reason": "KakaoBank mini 수준 커스텀. 이번 MVP scope out, 향후 확장."
+    }
+  ]
+}

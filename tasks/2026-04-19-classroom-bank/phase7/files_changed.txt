@@ -1,0 +1,54 @@
+MODIFIED:
+prisma/schema.prisma
+src/app/classroom/[id]/page.tsx
+src/styles/classroom.css
+vercel.json
+
+ADDED (prisma):
+prisma/migrations/20260419_classroom_bank/migration.sql
+
+ADDED (libs):
+src/lib/bank-permissions.ts
+src/lib/qr-token.ts
+src/lib/bank.ts
+
+ADDED (API — bank):
+src/app/api/classrooms/[id]/bank/deposit/route.ts
+src/app/api/classrooms/[id]/bank/withdraw/route.ts
+src/app/api/classrooms/[id]/bank/fixed-deposits/route.ts
+src/app/api/classrooms/[id]/bank/fixed-deposits/[fdId]/cancel/route.ts
+src/app/api/classrooms/[id]/bank/overview/route.ts
+
+ADDED (API — store):
+src/app/api/classrooms/[id]/store/items/route.ts
+src/app/api/classrooms/[id]/store/items/[itemId]/route.ts
+src/app/api/classrooms/[id]/store/charge/route.ts
+
+ADDED (API — permissions/currency):
+src/app/api/classrooms/[id]/role-permissions/route.ts
+src/app/api/classrooms/[id]/role-permissions/[roleKey]/route.ts
+src/app/api/classrooms/[id]/currency/route.ts
+
+ADDED (API — wallet + cron):
+src/app/api/my/wallet/route.ts
+src/app/api/my/wallet/card-qr/route.ts
+src/app/api/cron/fd-maturity/route.ts
+
+ADDED (pages):
+src/app/classroom/[id]/students/page.tsx
+src/app/classroom/[id]/boards/page.tsx
+src/app/classroom/[id]/roles/page.tsx
+src/app/classroom/[id]/bank/page.tsx
+src/app/classroom/[id]/store/page.tsx
+src/app/classroom/[id]/pay/page.tsx
+src/app/my/wallet/page.tsx
+
+ADDED (components):
+src/components/classroom/ClassroomNav.tsx
+src/components/classroom/ClassroomRolesTab.tsx
+src/components/classroom/RolePermissionModal.tsx
+src/components/classroom/ClassroomBankTab.tsx
+src/components/classroom/ClassroomStoreTab.tsx
+src/components/classroom/ClassroomPayTab.tsx
+src/components/wallet/WalletHome.tsx
+src/components/wallet/WalletCardQR.tsx

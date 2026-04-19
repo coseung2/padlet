@@ -1,0 +1,39 @@
+{
+  "references": [
+    {
+      "id": "toss",
+      "product": "Toss (토스)",
+      "coverage": "통장 화면, 카드 QR 결제, 적금 만기 UI, 거래 상세 모달",
+      "recommendation": "primary"
+    },
+    {
+      "id": "kakaobank-mini",
+      "product": "KakaoBank mini (청소년)",
+      "coverage": "용돈 관리, 카드 디자인 프리셋, 미션 보상 패턴 (scope out for MVP)",
+      "recommendation": "secondary"
+    },
+    {
+      "id": "slack-admin",
+      "product": "Slack / Notion Workspace Settings",
+      "coverage": "역할 × 권한 매트릭스 UX — 역할 카드 → 상세 모달 패턴",
+      "recommendation": "primary for permissions UI"
+    }
+  ],
+  "internal_references": [
+    {
+      "id": "classroom-detail",
+      "path": "src/components/ClassroomDetail.tsx",
+      "coverage": "현재 학급 관리 단일 페이지 — phase7에서 /students, /boards, /roles로 분리"
+    },
+    {
+      "id": "dj-role-system",
+      "path": "src/lib/rbac.ts:getEffectiveBoardRole",
+      "coverage": "classroom-role 시스템 참조 — bank 권한은 별도 ClassroomRolePermission으로 레이어"
+    },
+    {
+      "id": "columns-board-trackMutation",
+      "path": "src/components/ColumnsBoard.tsx",
+      "coverage": "낙관적 mutation + SSE reconcile 패턴 — 은행 거래 UI에 재사용"
+    }
+  ]
+}

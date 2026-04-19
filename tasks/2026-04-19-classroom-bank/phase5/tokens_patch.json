@@ -1,0 +1,16 @@
+{
+  "tokens": {
+    "--color-bank-positive": {
+      "value": "var(--color-plant-active, #27a35f)",
+      "comment": "입금/만기/환불 초록. plant-active alias (동일 hex, 경제 도메인용 시맨틱 분리)",
+      "added_at": "2026-04-19"
+    },
+    "--color-bank-negative": {
+      "value": "var(--color-danger, #c62828)",
+      "comment": "결제/출금 빨강. danger alias",
+      "added_at": "2026-04-19"
+    }
+  },
+  "rationale": "신규 hex 없음. 기존 토큰을 경제 도메인 이름으로 alias만 추가. docs/design-system.md에 섹션 추가 필요 (phase11).",
+  "location": "src/styles/base.css (또는 bank.css 신규)"
+}

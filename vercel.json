@@ -13,6 +13,10 @@
     {
       "path": "/api/cron/expire-pending-links",
       "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/cron/fd-maturity",
+      "schedule": "5 15 * * *"
     }
   ]
 }

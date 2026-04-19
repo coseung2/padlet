@@ -110,6 +110,10 @@ model Classroom {
   inviteCodes     ClassInviteCode[]
   assessments     AssessmentTemplate[]
   roleAssignments ClassroomRoleAssignment[]
+  currency        ClassroomCurrency?
+  studentAccounts StudentAccount[]
+  storeItems      StoreItem[]
+  rolePermissions ClassroomRolePermission[]
 
   @@index([teacherId])
   @@index([code])
@@ -141,6 +145,7 @@ model Student {
   cardAuthors           CardAuthor[]              @relation("StudentCardAuthors")
   assessmentSubmissions AssessmentSubmission[]
   roleAssignments       ClassroomRoleAssignment[]
+  account               StudentAccount?
 
   @@unique([classroomId, number])
   @@index([classroomId])
@@ -1130,4 +1135,121 @@ model ClassroomRoleAssignment {
   @@unique([classroomId, studentId, classroomRoleId])
   @@index([classroomId, classroomRoleId])
   @@index([studentId])
+}
+
+// ───── Classroom Bank (2026-04-19) ─────────────────────────────────────
+// 학급 화폐 + 체크카드 + 한달만기 적금 + 매점 결제. 모든 mutation은
+// StudentAccount.balance + Transaction 원장에 기록. Transaction.balanceAfter
+// 필드로 감사 추적 (역순 재계산 가능).
+
+model ClassroomCurrency {
+  classroomId         String   @id
+  unitLabel           String   @default("원")
+  monthlyInterestRate Float? // 교사 입력. null = 적금 상품 비활성
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+}
+
+model StudentAccount {
+  id          String   @id @default(cuid())
+  classroomId String // 비정규화 (JOIN 회피)
+  studentId   String   @unique // 1학생 1통장
+  balance     Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  student       Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classroom     Classroom      @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  cards         StudentCard[]
+  transactions  Transaction[]
+  fixedDeposits FixedDeposit[]
+
+  @@index([classroomId])
+}
+
+model StudentCard {
+  id         String   @id @default(cuid())
+  accountId  String   @unique // MVP: 1 account = 1 card
+  cardNumber String   @unique // 표시용 "5501-1234"
+  qrSecret   String // HMAC secret for token rotation (per-card, AUTH_SECRET과 섞임)
+  status     String   @default("active") // active | frozen | revoked
+  issuedAt   DateTime @default(now())
+
+  account StudentAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+model StoreItem {
+  id          String   @id @default(cuid())
+  classroomId String
+  name        String
+  price       Int
+  stock       Int? // null = 무제한
+  imageUrl    String?
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  classroom    Classroom     @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([classroomId, archived])
+}
+
+model FixedDeposit {
+  id           String    @id @default(cuid())
+  accountId    String
+  principal    Int
+  monthlyRate  Float // 가입 시점 snapshot
+  startDate    DateTime  @default(now())
+  maturityDate DateTime
+  status       String    @default("active") // active | matured | early_withdrawn
+  maturedAt    DateTime?
+  openedById   String
+  openedByKind String // "teacher" | "banker"
+
+  account      StudentAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([accountId, status])
+  @@index([maturityDate, status]) // cron 만기 스캔
+}
+
+// 거래 원장.
+//   type: deposit | withdraw | purchase | refund | fd_open | fd_matured | fd_cancelled
+//   amount: 항상 양수, 방향은 type으로 결정
+//   balanceAfter: 거래 직후 잔액 (감사 추적 — Transaction 역순 누적으로 검증 가능)
+model Transaction {
+  id              String   @id @default(cuid())
+  accountId       String
+  type            String
+  amount          Int
+  balanceAfter    Int
+  note            String?
+  storeItemId     String?
+  fixedDepositId  String?
+  performedById   String
+  performedByKind String // "teacher" | "banker" | "store-clerk" | "system"
+  createdAt       DateTime @default(now())
+
+  account      StudentAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  storeItem    StoreItem?     @relation(fields: [storeItemId], references: [id], onDelete: SetNull)
+  fixedDeposit FixedDeposit?  @relation(fields: [fixedDepositId], references: [id], onDelete: SetNull)
+
+  @@index([accountId, createdAt])
+  @@index([fixedDepositId])
+}
+
+model ClassroomRolePermission {
+  id          String  @id @default(cuid())
+  classroomId String
+  roleKey     String // "banker" | "store-clerk" | ...
+  permission  String // PERMISSION_CATALOG key
+  granted     Boolean @default(true)
+
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+
+  @@unique([classroomId, roleKey, permission])
+  @@index([classroomId, roleKey])
 }

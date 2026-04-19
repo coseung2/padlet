@@ -1,0 +1,6 @@
+QA_OK 2026-04-19 phase9
+
+AC-1~AC-8, AC-11: PASS (code-mapped)
+AC-9, AC-10: CONDITIONAL PASS (race conditions — production 실측 권장)
+AC-12: tsc exit 0, 빌드/migration은 Vercel에서 검증
+수동 브라우저 QA: production 배포 후 사용자 수행
