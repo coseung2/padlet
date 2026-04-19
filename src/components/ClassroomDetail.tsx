@@ -61,6 +61,73 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
   // so the table row lookup is O(1). Count = active links only.
   const [parentCounts, setParentCounts] = useState<Record<string, number>>({});
 
+  // Classroom-role defs + current (studentId → roleKey) assignments for the
+  // 역할 column dropdown. One role per student (enforced by PUT endpoint).
+  const [roleDefs, setRoleDefs] = useState<
+    { key: string; labelKo: string; emoji: string | null }[]
+  >([]);
+  const [studentRoleKey, setStudentRoleKey] = useState<Record<string, string>>({});
+  useEffect(() => {
+    async function loadRoles() {
+      try {
+        const res = await fetch(`/api/classrooms/${classroom.id}/roles`, {
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          defs: { id: string; key: string; labelKo: string; emoji: string | null }[];
+          assignments: { studentId: string; classroomRoleId: string }[];
+        };
+        setRoleDefs(
+          data.defs.map((d) => ({
+            key: d.key,
+            labelKo: d.labelKo,
+            emoji: d.emoji,
+          }))
+        );
+        const keyById = new Map(data.defs.map((d) => [d.id, d.key]));
+        const next: Record<string, string> = {};
+        for (const a of data.assignments) {
+          const k = keyById.get(a.classroomRoleId);
+          if (k) next[a.studentId] = k;
+        }
+        setStudentRoleKey(next);
+      } catch {
+        // silent — column falls back to "없음"
+      }
+    }
+    loadRoles();
+  }, [classroom.id]);
+
+  async function handleRoleChange(studentId: string, roleKey: string) {
+    const prev = studentRoleKey[studentId] ?? "";
+    const next = roleKey === "" ? "" : roleKey;
+    // Optimistic
+    setStudentRoleKey((cur) => {
+      const copy = { ...cur };
+      if (next === "") delete copy[studentId];
+      else copy[studentId] = next;
+      return copy;
+    });
+    const res = await fetch(`/api/classrooms/${classroom.id}/roles/set`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        studentId,
+        roleKey: next === "" ? null : next,
+      }),
+    });
+    if (!res.ok) {
+      // rollback
+      setStudentRoleKey((cur) => {
+        const copy = { ...cur };
+        if (prev === "") delete copy[studentId];
+        else copy[studentId] = prev;
+        return copy;
+      });
+    }
+  }
+
   // Count of pending approval requests across this classroom. Shown as a
   // red badge next to the "초대 코드·승인 관리" action-bar button so the
   // teacher sees inbox activity without leaving the student management
@@ -384,6 +451,7 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
                 <th className="classroom-th">QR</th>
                 <th className="classroom-th">코드</th>
                 <th className="classroom-th">학부모</th>
+                <th className="classroom-th">역할</th>
                 <th className="classroom-th classroom-th-actions">관리</th>
               </tr>
             </thead>
@@ -394,6 +462,9 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
                   student={s}
                   classroomId={classroom.id}
                   parentCount={parentCounts[s.id] ?? 0}
+                  roleKey={studentRoleKey[s.id] ?? ""}
+                  roleDefs={roleDefs}
+                  onRoleChange={(k) => handleRoleChange(s.id, k)}
                   checked={selected.has(s.id)}
                   onToggle={() => toggleSelect(s.id)}
                   onReissue={() => handleReissue(s.id)}
@@ -525,6 +596,9 @@ function StudentRow({
   student,
   classroomId,
   parentCount,
+  roleKey,
+  roleDefs,
+  onRoleChange,
   checked,
   onToggle,
   onReissue,
@@ -533,6 +607,9 @@ function StudentRow({
   student: Student;
   classroomId: string;
   parentCount: number;
+  roleKey: string;
+  roleDefs: { key: string; labelKo: string; emoji: string | null }[];
+  onRoleChange: (roleKey: string) => void;
   checked: boolean;
   onToggle: () => void;
   onReissue: () => void;
@@ -584,6 +661,21 @@ function StudentRow({
         >
           {parentCount === 0 ? "–" : `${parentCount}명`}
         </a>
+      </td>
+      <td className="classroom-td classroom-td-role">
+        <select
+          className="classroom-role-select"
+          value={roleKey}
+          onChange={(e) => onRoleChange(e.target.value)}
+          aria-label={`${student.name} 역할`}
+        >
+          <option value="">없음</option>
+          {roleDefs.map((d) => (
+            <option key={d.key} value={d.key}>
+              {d.emoji ? `${d.emoji} ` : ""}{d.labelKo}
+            </option>
+          ))}
+        </select>
       </td>
       <td className="classroom-td classroom-td-actions">
         <div className="classroom-row-actions">
