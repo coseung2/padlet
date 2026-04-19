@@ -2,6 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "./db";
+import { getCurrentUser } from "./auth";
 
 const SECRET = process.env.AUTH_SECRET ?? "dev-secret";
 const COOKIE_NAME = "student_session";
@@ -61,6 +62,18 @@ export async function createStudentSession(studentId: string, classroomId: strin
 }
 
 export async function getCurrentStudent() {
+  // Teacher session wins: if a NextAuth user is authenticated, ignore any
+  // stale student cookie. Same browser commonly carries both (teacher tests
+  // a student login) and mis-attribution of actions to the student is the
+  // class of bug that motivated this gate. If a workflow genuinely needs the
+  // raw student cookie regardless of user session, call
+  // `getCurrentStudentRaw()` instead.
+  const user = await getCurrentUser().catch(() => null);
+  if (user) return null;
+  return getCurrentStudentRaw();
+}
+
+export async function getCurrentStudentRaw() {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;

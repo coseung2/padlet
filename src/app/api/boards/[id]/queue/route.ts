@@ -30,14 +30,20 @@ export async function POST(
   }
 
   // Resolve identity. At least one of user/student required + must be in the
-  // board's classroom.
-  const [user, student] = await Promise.all([
+  // board's classroom. Teacher session wins — if the teacher's browser has
+  // a stale student cookie (common during classroom testing), ignore it so
+  // the submission isn't mis-attributed to that student. `actingStudent` is
+  // the student-identity signal used downstream for both permission resolve
+  // and author stamping.
+  const [user, rawStudent] = await Promise.all([
     getCurrentUser().catch(() => null),
     getCurrentStudent().catch(() => null),
   ]);
-  if (!user && !student) {
+  const actingStudent = user ? null : rawStudent;
+  if (!user && !actingStudent) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const student = actingStudent;
 
   const board = await db.board.findFirst({
     where: { OR: [{ id: boardIdOrSlug }, { slug: boardIdOrSlug }] },
