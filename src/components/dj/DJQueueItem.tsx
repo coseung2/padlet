@@ -63,6 +63,7 @@ export function DJQueueItem({
         <span
           className="dj-drag-handle"
           aria-label={`${card.title} 순서 변경`}
+          role="button"
         >
           ⋮⋮
         </span>
