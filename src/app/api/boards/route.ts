@@ -30,7 +30,6 @@ const CreateBoardSchema = z.object({
     "drawing",
     "breakout",
     "assessment",
-    "dj-queue",
   ]),
   description: z.string().max(2000).default(""),
   classroomId: z.string().optional(),
@@ -260,16 +259,6 @@ export async function POST(req: Request) {
     }
 
     // ── Non-breakout layouts (unchanged) ────────────────────────────────
-    // dj-queue: classroom required — the role-grant chain keys off
-    // board.classroomId, so a classroom-less DJ board would be teacher-only
-    // and defeat the purpose.
-    if (input.layout === "dj-queue" && !input.classroomId) {
-      return NextResponse.json(
-        { error: "DJ 큐 보드는 학급에 속해야 합니다" },
-        { status: 400 }
-      );
-    }
-
     // If columns layout with classroom, fetch students for auto-sections
     let students: { number: number | null; name: string }[] = [];
     if (input.layout === "columns" && input.classroomId) {

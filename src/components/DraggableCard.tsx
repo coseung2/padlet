@@ -30,8 +30,6 @@ export type CardData = {
   externalAuthorName?: string | null;
   studentAuthorName?: string | null;
   authorName?: string | null;
-  /** DJ queue status. null on non-dj-queue boards. */
-  queueStatus?: string | null;
   /** CardAuthor join rows. When empty, CardAuthorFooter falls back to the
    *  legacy pickAuthorName(external, student, author) chain. Sorted
    *  ascending by .order — primary is index 0. */

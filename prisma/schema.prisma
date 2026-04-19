@@ -23,23 +23,21 @@ model User {
   emailVerified DateTime?
   createdAt     DateTime  @default(now())
 
-  memberships            BoardMember[]
-  cards                  Card[]
-  submissions            Submission[]
-  reviews                SubmissionReview[]
-  accounts               Account[]
-  sessions               Session[]
-  classrooms             Classroom[]
-  templatesOwned         BreakoutTemplate[]        @relation("TemplateOwner")
-  issuedParentInvites    ParentInviteCode[]        @relation("TeacherInvite")
-  canvaConnect           CanvaConnectAccount?
+  memberships           BoardMember[]
+  cards                 Card[]
+  submissions           Submission[]
+  reviews               SubmissionReview[]
+  accounts              Account[]
+  sessions              Session[]
+  classrooms            Classroom[]
+  templatesOwned        BreakoutTemplate[]    @relation("TemplateOwner")
+  issuedParentInvites   ParentInviteCode[]    @relation("TeacherInvite")
+  canvaConnect          CanvaConnectAccount?
   // parent-class-invite-v2 — issued codes + audit FKs into ParentChildLink
-  classInvitesIssued     ClassInviteCode[]         @relation("ClassInviteIssued")
-  approvedParentLinks    ParentChildLink[]         @relation("LinkApprovedBy")
-  rejectedParentLinks    ParentChildLink[]         @relation("LinkRejectedBy")
-  revokedParentLinks     ParentChildLink[]         @relation("LinkRevokedBy")
-  // dj-board-queue — teacher audit for role assignments
-  roleAssignmentsGranted ClassroomRoleAssignment[] @relation("ClassroomRoleAssignedBy")
+  classInvitesIssued    ClassInviteCode[]     @relation("ClassInviteIssued")
+  approvedParentLinks   ParentChildLink[]     @relation("LinkApprovedBy")
+  rejectedParentLinks   ParentChildLink[]     @relation("LinkRejectedBy")
+  revokedParentLinks    ParentChildLink[]     @relation("LinkRevokedBy")
 }
 
 // ──── Canva Connect API token store ────
@@ -52,13 +50,13 @@ model User {
 // round-trip. It's cleared on successful exchangeCode. For a long-idle user
 // whose refresh token has also expired we simply require re-authorize.
 model CanvaConnectAccount {
-  userId       String    @id
-  accessToken  String?
-  refreshToken String?
-  expiresAt    DateTime?
-  pkceVerifier String?
-  updatedAt    DateTime  @updatedAt
-  createdAt    DateTime  @default(now())
+  userId        String    @id
+  accessToken   String?
+  refreshToken  String?
+  expiresAt     DateTime?
+  pkceVerifier  String?
+  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -103,13 +101,12 @@ model Classroom {
   teacherId String
   createdAt DateTime @default(now())
 
-  teacher         User                      @relation(fields: [teacherId], references: [id])
-  students        Student[]
-  boards          Board[]                   @relation("ClassroomBoards")
-  plantAllows     ClassroomPlantAllow[]
-  inviteCodes     ClassInviteCode[]
-  assessments     AssessmentTemplate[]
-  roleAssignments ClassroomRoleAssignment[]
+  teacher     User                  @relation(fields: [teacherId], references: [id])
+  students    Student[]
+  boards      Board[]               @relation("ClassroomBoards")
+  plantAllows ClassroomPlantAllow[]
+  inviteCodes ClassInviteCode[]
+  assessments AssessmentTemplate[]
 
   @@index([teacherId])
   @@index([code])
@@ -125,22 +122,21 @@ model Student {
   sessionVersion Int      @default(1)
   createdAt      DateTime @default(now())
 
-  classroom             Classroom                 @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  quizPlayers           QuizPlayer[]
-  studentPlants         StudentPlant[]
-  assets                StudentAsset[]
-  breakoutMemberships   BreakoutMembership[]
-  parents               ParentChildLink[]
-  parentInvites         ParentInviteCode[]
-  cardsAuthored         Card[]                    @relation("StudentCardAuthor")
-  oauthAuthCodes        OAuthAuthCode[]
-  oauthAccessTokens     OAuthAccessToken[]
-  oauthRefreshTokens    OAuthRefreshToken[]
-  canvaAppLink          CanvaAppLink?
-  assignmentSlots       AssignmentSlot[]          @relation("StudentAssignmentSlots")
-  cardAuthors           CardAuthor[]              @relation("StudentCardAuthors")
+  classroom           Classroom            @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  quizPlayers         QuizPlayer[]
+  studentPlants       StudentPlant[]
+  assets              StudentAsset[]
+  breakoutMemberships BreakoutMembership[]
+  parents             ParentChildLink[]
+  parentInvites       ParentInviteCode[]
+  cardsAuthored       Card[]               @relation("StudentCardAuthor")
+  oauthAuthCodes      OAuthAuthCode[]
+  oauthAccessTokens   OAuthAccessToken[]
+  oauthRefreshTokens  OAuthRefreshToken[]
+  canvaAppLink        CanvaAppLink?
+  assignmentSlots     AssignmentSlot[]     @relation("StudentAssignmentSlots")
+  cardAuthors         CardAuthor[]         @relation("StudentCardAuthors")
   assessmentSubmissions AssessmentSubmission[]
-  roleAssignments       ClassroomRoleAssignment[]
 
   @@unique([classroomId, number])
   @@index([classroomId])
@@ -236,23 +232,23 @@ model BoardMember {
 }
 
 model Card {
-  id                 String   @id @default(cuid())
-  boardId            String
-  sectionId          String?
-  authorId           String
-  title              String
-  content            String
-  color              String?
-  imageUrl           String?
+  id        String   @id @default(cuid())
+  boardId   String
+  sectionId String?
+  authorId  String
+  title     String
+  content   String
+  color     String?
+  imageUrl  String?
   // 160×120 WebP thumbnail generated from imageUrl on assignment submit
   // (AC-12). Populated by resizeToWebPThumbUrl → blob. Falls back to
   // imageUrl in slotRowToDTO when null so legacy rows keep working.
-  thumbUrl           String?
-  linkUrl            String?
-  linkTitle          String?
-  linkDesc           String?
-  linkImage          String?
-  videoUrl           String?
+  thumbUrl  String?
+  linkUrl   String?
+  linkTitle String?
+  linkDesc  String?
+  linkImage String?
+  videoUrl  String?
   // Student author (when the card was published from the Canva Content
   // Publisher app while the student was logged into Aura). Makes the card
   // a first-class child artifact — parent viewer filters on this FK to show
@@ -265,17 +261,13 @@ model Card {
   // Content Publisher app (or a pasted Canva design URL with successful
   // resolve). Enables CanvaEmbedSlot's thumbnail+live toggle UX.
   canvaDesignId      String?
-  x                  Float    @default(0)
-  y                  Float    @default(0)
-  width              Float    @default(240)
-  height             Float    @default(160)
-  order              Int      @default(0)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  // DJ queue status (layout="dj-queue"만 사용). null = 비-큐 카드.
-  // "pending" | "approved" | "played" | "rejected"
-  queueStatus String?
+  x         Float    @default(0)
+  y         Float    @default(0)
+  width     Float    @default(240)
+  height    Float    @default(160)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   board            Board             @relation(fields: [boardId], references: [id], onDelete: Cascade)
   section          Section?          @relation("SectionCards", fields: [sectionId], references: [id], onDelete: SetNull)
@@ -718,14 +710,14 @@ model BreakoutMembership {
 // for the single-source-of-truth child-scope matrix.
 
 model Parent {
-  id              String    @id @default(cuid())
-  email           String    @unique
-  name            String
-  tier            String    @default("free") // "free" | "pro"
-  parentDeletedAt DateTime? // soft delete; 90d anonymization Cron (PV-11)
-  anonymizedAt    DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  email            String    @unique
+  name             String
+  tier             String    @default("free") // "free" | "pro"
+  parentDeletedAt  DateTime? // soft delete; 90d anonymization Cron (PV-11)
+  anonymizedAt     DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   children ParentChildLink[]
   sessions ParentSession[]
@@ -773,15 +765,15 @@ enum ParentRevokedReason {
 }
 
 model ParentChildLink {
-  id        String @id @default(cuid())
-  parentId  String
-  studentId String
+  id             String                 @id @default(cuid())
+  parentId       String
+  studentId      String
 
   // v2 lifecycle
-  status ParentLinkStatus @default(pending)
+  status         ParentLinkStatus       @default(pending)
 
   // audit — set as status transitions
-  requestedAt    DateTime              @default(now())
+  requestedAt    DateTime               @default(now())
   approvedAt     DateTime?
   approvedById   String?
   rejectedAt     DateTime?
@@ -791,14 +783,14 @@ model ParentChildLink {
   revokedById    String?
   revokedReason  ParentRevokedReason?
 
-  createdAt DateTime  @default(now())
-  deletedAt DateTime? // soft delete (R-07 v1 compat)
+  createdAt      DateTime               @default(now())
+  deletedAt      DateTime?              // soft delete (R-07 v1 compat)
 
   parent     Parent  @relation(fields: [parentId], references: [id], onDelete: Cascade)
   student    Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
   approvedBy User?   @relation("LinkApprovedBy", fields: [approvedById], references: [id])
   rejectedBy User?   @relation("LinkRejectedBy", fields: [rejectedById], references: [id])
-  revokedBy  User?   @relation("LinkRevokedBy", fields: [revokedById], references: [id])
+  revokedBy  User?   @relation("LinkRevokedBy",  fields: [revokedById],  references: [id])
 
   @@unique([parentId, studentId])
   @@index([studentId])
@@ -884,20 +876,20 @@ model ParentSession {
 // See src/lib/oauth-server.ts for the runtime helpers.
 
 model OAuthClient {
-  id           String   @id // e.g. "canva" — visible client_id
-  name         String
+  id            String   @id          // e.g. "canva" — visible client_id
+  name          String
   // bcrypt hash of the client secret. Client secrets are rotated by
   // regenerating this row; no plaintext is kept.
-  secretHash   String
+  secretHash    String
   // JSON-encoded array of absolute redirect URIs the client is allowed to
   // receive authorization codes at. Canva registers exactly one per app.
-  redirectUris String
+  redirectUris  String
   // JSON-encoded array of scope strings (e.g. ["cards:write"]). Authorize
   // requests are rejected if they request a scope not in this list.
-  scopes       String
-  pkceRequired Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @default(now()) @updatedAt
+  scopes        String
+  pkceRequired  Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
 
   authCodes     OAuthAuthCode[]
   accessTokens  OAuthAccessToken[]
@@ -913,10 +905,10 @@ model OAuthAuthCode {
   clientId            String
   redirectUri         String
   scope               String
-  codeChallenge       String // PKCE S256 base64url
+  codeChallenge       String    // PKCE S256 base64url
   codeChallengeMethod String    @default("S256")
-  state               String? // opaque, echoed back; stored for audit
-  expiresAt           DateTime // +10 min from issuance
+  state               String?   // opaque, echoed back; stored for audit
+  expiresAt           DateTime  // +10 min from issuance
   consumedAt          DateTime?
   createdAt           DateTime  @default(now())
 
@@ -931,20 +923,20 @@ model OAuthAuthCode {
 model OAuthAccessToken {
   // SHA-256 hex of the plaintext token. Plaintext is only ever returned in
   // the token exchange response and never stored.
-  tokenHash      String    @id
+  tokenHash     String    @id
   // 8-char base62 prefix extracted from plaintext — O(1) lookup index. The
   // plaintext returned to Canva is `aurastu_{prefix}_{secret}`.
-  tokenPrefix    String    @unique
-  studentId      String
-  clientId       String
-  scope          String
-  expiresAt      DateTime // +30 days default
-  revokedAt      DateTime?
+  tokenPrefix   String    @unique
+  studentId     String
+  clientId      String
+  scope         String
+  expiresAt     DateTime  // +30 days default
+  revokedAt     DateTime?
   // When this access token was rotated out of a refresh_token grant we keep
   // the id of the new refresh token so audits can trace chains.
   refreshTokenId String?
-  createdAt      DateTime  @default(now())
-  lastUsedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  lastUsedAt    DateTime?
 
   student Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
   client  OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -955,18 +947,18 @@ model OAuthAccessToken {
 }
 
 model OAuthRefreshToken {
-  tokenHash       String    @id
-  tokenPrefix     String    @unique
-  studentId       String
-  clientId        String
-  scope           String
-  expiresAt       DateTime // +180 days default
-  revokedAt       DateTime?
+  tokenHash     String    @id
+  tokenPrefix   String    @unique
+  studentId     String
+  clientId      String
+  scope         String
+  expiresAt     DateTime  // +180 days default
+  revokedAt     DateTime?
   // Parent refresh token (set when the current token was rotated out of a
   // prior refresh grant). Used to detect refresh-token reuse attacks — if a
   // revoked refresh is presented, we also revoke the chain.
   parentTokenHash String?
-  createdAt       DateTime  @default(now())
+  createdAt     DateTime  @default(now())
 
   student Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
   client  OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -997,10 +989,10 @@ model CanvaAppLink {
 model AssessmentTemplate {
   id          String   @id @default(cuid())
   classroomId String
-  boardId     String? // Board(layout="assessment") shell link. nullable — template can exist without a board.
+  boardId     String?  // Board(layout="assessment") shell link. nullable — template can exist without a board.
   title       String
   durationMin Int      @default(30)
-  createdById String // teacher User.id
+  createdById String   // teacher User.id
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -1023,7 +1015,7 @@ model AssessmentQuestion {
   maxScore   Int      @default(1)
   createdAt  DateTime @default(now())
 
-  template AssessmentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  template AssessmentTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
   answers  AssessmentAnswer[]
 
   @@unique([templateId, order])
@@ -1036,7 +1028,7 @@ model AssessmentSubmission {
   studentId   String
   status      String    @default("in_progress") // "in_progress" | "submitted"
   startedAt   DateTime  @default(now())
-  endAt       DateTime // = startedAt + durationMin
+  endAt       DateTime  // = startedAt + durationMin
   submittedAt DateTime?
   createdAt   DateTime  @default(now())
 
@@ -1060,7 +1052,7 @@ model AssessmentAnswer {
   // MANUAL payload: { textAnswer: string }
   payload      Json
   autoScore    Int?
-  manualScore  Int? // teacher-assigned for MANUAL questions; null = pending
+  manualScore  Int?     // teacher-assigned for MANUAL questions; null = pending
   updatedAt    DateTime @updatedAt
 
   submission AssessmentSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
@@ -1082,52 +1074,4 @@ model GradebookEntry {
   submission AssessmentSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 
   @@index([releasedAt])
-}
-
-// ──── DJ Board — classroom role system ────
-// 학급 내 학생에게 "DJ"/"사서"/"은행원" 등의 역할을 부여하고, 해당 역할이
-// 특정 보드 레이아웃에서 BoardMember(owner/editor) 권한을 승계하도록 한다.
-// 데이터 주도 설계 — 새 역할 추가 = row insert, 코드 변경 없음.
-
-model ClassroomRoleDef {
-  id          String   @id @default(cuid())
-  key         String   @unique
-  labelKo     String
-  emoji       String?
-  description String   @default("")
-  createdAt   DateTime @default(now())
-
-  grants      BoardLayoutRoleGrant[]
-  assignments ClassroomRoleAssignment[]
-}
-
-model BoardLayoutRoleGrant {
-  id              String   @id @default(cuid())
-  classroomRoleId String
-  boardLayout     String // Board.layout 값 ("dj-queue" 등)
-  grantedRole     String // "owner" | "editor"
-  createdAt       DateTime @default(now())
-
-  classroomRole ClassroomRoleDef @relation(fields: [classroomRoleId], references: [id], onDelete: Cascade)
-
-  @@unique([classroomRoleId, boardLayout])
-  @@index([boardLayout])
-}
-
-model ClassroomRoleAssignment {
-  id              String   @id @default(cuid())
-  classroomId     String
-  studentId       String
-  classroomRoleId String
-  assignedById    String
-  assignedAt      DateTime @default(now())
-
-  classroom     Classroom        @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  student       Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  classroomRole ClassroomRoleDef @relation(fields: [classroomRoleId], references: [id], onDelete: Restrict)
-  assignedBy    User             @relation("ClassroomRoleAssignedBy", fields: [assignedById], references: [id])
-
-  @@unique([classroomId, studentId, classroomRoleId])
-  @@index([classroomId, classroomRoleId])
-  @@index([studentId])
 }

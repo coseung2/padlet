@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { ClassroomDetail } from "@/components/ClassroomDetail";
-import { ClassroomDJRolePanel } from "@/components/classroom/ClassroomDJRolePanel";
 import { notFound } from "next/navigation";
 
 type Props = {
@@ -83,14 +82,6 @@ export default async function ClassroomDetailPage({ params }: Props) {
         &larr; 학급 목록
       </a>
       <ClassroomDetail classroom={serialized} allBoards={allBoards} />
-      <ClassroomDJRolePanel
-        classroomId={classroom.id}
-        students={classroom.students.map((s) => ({
-          id: s.id,
-          name: s.name,
-          number: s.number,
-        }))}
-      />
     </main>
   );
 }
