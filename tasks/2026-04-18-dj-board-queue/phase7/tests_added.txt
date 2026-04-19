@@ -1,0 +1,6 @@
+테스트 추가 없음 — 이 repo는 관행상 phase9 e2e 브라우저 테스트에 검증을 집중한다
+(docs/current-features.md · prompts/feature/_index.md §QA). 단위 테스트 프레임워크가
+프로젝트에 정식 셋업되어 있지 않아 phase7에서 단위 테스트 추가 시 인프라 작업이
+선행되어야 하며, 이는 본 task 스코프 out (Karpathy Simplicity First).
+
+phase9 qa_report.md가 수용 기준 AC-1~AC-10을 브라우저에서 검증.

@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getCurrentStudent } from "@/lib/student-auth";
-import { getBoardRole, type Role } from "@/lib/rbac";
+import { getEffectiveBoardRole, type Role } from "@/lib/rbac";
 import { BoardCanvas } from "@/components/BoardCanvas";
 import { GridBoard } from "@/components/GridBoard";
 import { StreamBoard } from "@/components/StreamBoard";
@@ -16,6 +16,7 @@ import { EventSignupBoard } from "@/components/event/EventSignupBoard";
 import { DrawingBoard } from "@/components/DrawingBoard";
 import { AssessmentBoard } from "@/components/assessment/AssessmentBoard";
 import { BreakoutBoard } from "@/components/BreakoutBoard";
+import { DJBoard } from "@/components/DJBoard";
 import { cloneStructure } from "@/lib/breakout";
 import { parseObservationPoints, STALL_THRESHOLD_DAYS } from "@/lib/plant-schemas";
 import type { PlantJournalResponse } from "@/types/plant";
@@ -40,6 +41,7 @@ const LAYOUT_LABEL: Record<string, string> = {
   "event-signup": "행사 신청",
   drawing: "그림보드",
   breakout: "모둠 학습",
+  "dj-queue": "DJ 큐",
 };
 
 export default async function BoardPage({
@@ -139,9 +141,12 @@ export default async function BoardPage({
         orderBy: { createdAt: "desc" },
       })
     : null;
-  const rolePromise: Promise<Role | null> = user
-    ? getBoardRole(board.id, user.id)
-    : Promise.resolve(null);
+  // Effective role = teacher via BoardMember OR classroom-role-granted student
+  // OR classroom-student baseline (viewer) OR null.
+  const rolePromise: Promise<Role | null> = getEffectiveBoardRole(board.id, {
+    userId: user?.id,
+    studentId: student?.id,
+  });
   const breakoutAssignmentPromise = needsBreakoutAssignment
     ? db.breakoutAssignment.findUnique({
         where: { boardId: board.id },
@@ -189,11 +194,12 @@ export default async function BoardPage({
   const sections = sectionsRaw ?? [];
   const quizzes = quizzesRaw ?? [];
 
-  // Student viewer fallback when the teacher/NextAuth path didn't grant a role.
+  // Role resolution moved into getEffectiveBoardRole (teacher + student DJ +
+  // classroom-student baseline). studentViewer is set whenever the caller is
+  // a student in this classroom — regardless of role — for identity-kind
+  // checks downstream.
   let studentViewer: { id: string; name: string; classroomId: string } | null = null;
-  let effectiveRole: Role | null = role;
   if (
-    !effectiveRole &&
     student &&
     board.classroomId &&
     student.classroomId === board.classroomId
@@ -203,8 +209,8 @@ export default async function BoardPage({
       name: student.name,
       classroomId: student.classroomId,
     };
-    effectiveRole = "viewer";
   }
+  const effectiveRole: Role | null = role;
 
   // Determine the effective user id and display name
   const effectiveUserId = studentViewer?.id ?? user?.id ?? "";
@@ -234,6 +240,7 @@ export default async function BoardPage({
     externalAuthorName: c.externalAuthorName,
     studentAuthorName: c.studentAuthor?.name ?? null,
     authorName: c.author?.name ?? null,
+    queueStatus: c.queueStatus ?? null,
     authors:
       (c as { authors?: { id: string; studentId: string | null; displayName: string; order: number }[] }).authors ??
       [],
@@ -484,6 +491,17 @@ export default async function BoardPage({
         return <StreamBoard {...common} />;
       case "columns":
         return <ColumnsBoard {...common} initialSections={sectionProps} />;
+      case "dj-queue":
+        return (
+          <DJBoard
+            boardId={board!.id}
+            boardTitle={board!.title}
+            initialCards={cardProps}
+            currentRole={(effectiveRole ?? "viewer") as "owner" | "editor" | "viewer"}
+            currentUserId={user?.id ?? null}
+            currentStudentId={studentViewer?.id ?? null}
+          />
+        );
       case "breakout": {
         if (!breakoutAssignmentRaw) {
           return (
