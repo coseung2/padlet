@@ -194,6 +194,85 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
     };
   }, [activeCard, stop]);
 
+  // Media Session API — lets the OS treat this page as a playing-media app.
+  // Mobile browsers will usually allow background audio + show lock-screen
+  // controls only when metadata + action handlers are set. No-op on browsers
+  // without support.
+  useEffect(() => {
+    if (typeof navigator === "undefined") return;
+    if (!("mediaSession" in navigator)) return;
+    const ms = navigator.mediaSession;
+
+    if (!activeCard) {
+      ms.metadata = null;
+      ms.playbackState = "none";
+      return;
+    }
+
+    ms.metadata = new window.MediaMetadata({
+      title: activeCard.title,
+      artist: "DJ 큐",
+      artwork: activeCard.linkImage
+        ? [
+            { src: activeCard.linkImage, sizes: "480x360", type: "image/jpeg" },
+            { src: activeCard.linkImage, sizes: "320x180", type: "image/jpeg" },
+          ]
+        : [],
+    });
+
+    const handlers: Array<[MediaSessionAction, () => void]> = [
+      [
+        "play",
+        () => {
+          if (playerRef.current) {
+            try {
+              playerRef.current.playVideo();
+            } catch {}
+            setPlaying(true);
+          }
+        },
+      ],
+      [
+        "pause",
+        () => {
+          if (playerRef.current) {
+            try {
+              playerRef.current.pauseVideo();
+            } catch {}
+            setPlaying(false);
+          }
+        },
+      ],
+      [
+        "nexttrack",
+        () => {
+          advanceRef.current?.();
+        },
+      ],
+    ];
+    for (const [action, fn] of handlers) {
+      try {
+        ms.setActionHandler(action, fn);
+      } catch {
+        // unsupported action on this browser — skip
+      }
+    }
+
+    return () => {
+      for (const [action] of handlers) {
+        try {
+          ms.setActionHandler(action, null);
+        } catch {}
+      }
+    };
+  }, [activeCard]);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined") return;
+    if (!("mediaSession" in navigator)) return;
+    navigator.mediaSession.playbackState = playing ? "playing" : "paused";
+  }, [playing]);
+
   const value: Ctx = {
     activeCard,
     playing,
