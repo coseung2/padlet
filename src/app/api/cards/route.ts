@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getCurrentStudent } from "@/lib/student-auth";
 import { requirePermission, ForbiddenError } from "@/lib/rbac";
 import { isCanvaDesignUrl, resolveCanvaEmbedUrl, expandCanvaShortLink } from "@/lib/canva";
+import { extractVideoId, fetchYouTubeMeta, canonicalUrl } from "@/lib/youtube";
 import { setCardAuthors } from "@/lib/card-authors-service";
 
 const CreateCardSchema = z.object({
@@ -88,6 +89,7 @@ export async function POST(req: Request) {
     let linkTitle = input.linkTitle === undefined ? null : input.linkTitle;
     let linkImage = input.linkImage === undefined ? null : input.linkImage;
     let linkDesc = input.linkDesc === undefined ? null : input.linkDesc;
+    let videoUrl = input.videoUrl ?? null;
     if (linkUrl && isCanvaDesignUrl(linkUrl)) {
       // Canva's "링크 공유" button hands out canva.link short URLs —
       // expand to the canonical canva.com/{id}/{shareToken}/view form
@@ -110,6 +112,29 @@ export async function POST(req: Request) {
         // just don't have a thumbnail.
         linkImage = null;
       }
+    } else if (linkUrl) {
+      // YouTube oEmbed enrichment. Matches the DJ queue submit handler so
+      // columns/freeform/grid/stream cards with a YouTube URL get the same
+      // thumbnail + title + channel auto-fill instead of a bare link.
+      const videoId = extractVideoId(linkUrl);
+      if (videoId) {
+        const meta = await fetchYouTubeMeta(videoId);
+        if (meta) {
+          linkUrl = meta.canonicalUrl;
+          linkImage = meta.thumbnailUrl;
+          if (input.linkTitle === undefined) linkTitle = meta.title;
+          if (input.linkDesc === undefined) {
+            linkDesc = meta.authorName || null;
+          }
+          // Populate videoUrl so DJ-style inline embed renders work when
+          // a card UI chooses to show a player (opt-in per layout).
+          if (!videoUrl) videoUrl = meta.canonicalUrl;
+        } else if (!linkTitle && input.linkTitle === undefined) {
+          // oEmbed failed (private / deleted / rate-limited). Keep raw URL,
+          // no preview. Matches pre-enrichment behaviour.
+          linkUrl = canonicalUrl(videoId);
+        }
+      }
     }
 
     const card = await db.$transaction(async (tx) => {
@@ -127,7 +152,7 @@ export async function POST(req: Request) {
           linkTitle,
           linkDesc,
           linkImage,
-          videoUrl: input.videoUrl ?? null,
+          videoUrl,
           x: input.x,
           y: input.y,
           width: input.width ?? 240,

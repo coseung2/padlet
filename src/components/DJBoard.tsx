@@ -7,6 +7,7 @@ import { DJQueueList } from "./dj/DJQueueList";
 import { DJSubmitForm } from "./dj/DJSubmitForm";
 import { DJEmptyState } from "./dj/DJEmptyState";
 import { DJRanking } from "./dj/DJRanking";
+import { DJPlayedStack } from "./dj/DJPlayedStack";
 
 type Props = {
   boardId: string;
@@ -86,30 +87,30 @@ export function DJBoard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boardId]);
 
-  // Filter + sort
-  const queueCards = useMemo(() => {
-    // Non-DJ view: hide rejected items entirely.
+  // Active queue = pending + approved (non-played). Played cards get a
+  // separate pile on the left so they can be dragged back into the queue.
+  const activeQueue = useMemo(() => {
     const visible = cards.filter(
       (c) =>
         c.queueStatus &&
+        c.queueStatus !== "played" &&
         (canControl || c.queueStatus !== "rejected")
     );
     return [...visible].sort((a, b) => a.order - b.order);
   }, [cards, canControl]);
 
-  const playedIds = new Set(
-    queueCards.filter((c) => c.queueStatus === "played").map((c) => c.id)
-  );
-  const nowPlaying = useMemo(() => {
-    // First non-played, non-rejected, approved item. If none, null.
-    return queueCards.find(
-      (c) => c.queueStatus === "approved" && !playedIds.has(c.id)
-    ) ?? null;
-    // playedIds derived from queueCards already, deps only need queueCards
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queueCards]);
+  const playedCards = useMemo(() => {
+    return cards
+      .filter((c) => c.queueStatus === "played")
+      // Newest-played first (most recently moved to the pile at the top).
+      .sort((a, b) => b.order - a.order);
+  }, [cards]);
 
-  const upNext = queueCards.filter((c) => c.id !== nowPlaying?.id);
+  const nowPlaying = useMemo(() => {
+    return activeQueue.find((c) => c.queueStatus === "approved") ?? null;
+  }, [activeQueue]);
+
+  const upNext = activeQueue.filter((c) => c.id !== nowPlaying?.id);
 
   async function handleSubmit(youtubeUrl: string) {
     setError(null);
@@ -181,7 +182,49 @@ export function DJBoard({
     await handleStatus(nowPlaying.id, "played");
   }
 
-  const isEmpty = queueCards.length === 0;
+  // Drag-drop into the queue. Used for both queue-internal reorders and
+  // restoring a played card into the queue. If the dragged card is "played"
+  // we flip status to "approved" AND update its order.
+  async function handleQueueDrop(cardId: string, targetOrder: number) {
+    const card = cards.find((c) => c.id === cardId);
+    if (!card) return;
+    if (card.queueStatus === "played") {
+      // Restore — optimistic flip + reorder, server in two calls.
+      const prev = cards;
+      setCards((list) =>
+        list.map((c) =>
+          c.id === cardId
+            ? { ...c, queueStatus: "approved", order: targetOrder }
+            : c
+        )
+      );
+      await trackMutation(cardId, async () => {
+        const [statusRes, moveRes] = await Promise.all([
+          fetch(`/api/boards/${boardId}/queue/${cardId}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ status: "approved" }),
+          }),
+          fetch(`/api/boards/${boardId}/queue/${cardId}/move`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ order: targetOrder }),
+          }),
+        ]);
+        if (!statusRes.ok || !moveRes.ok) setCards(prev);
+      });
+    } else {
+      await handleReorder(cardId, targetOrder);
+    }
+  }
+
+  async function handleRestorePlayed(cardId: string) {
+    // Double-click shortcut from played stack — restore to end of queue.
+    const maxOrder = activeQueue.reduce((m, c) => Math.max(m, c.order), 0);
+    await handleQueueDrop(cardId, maxOrder + 1);
+  }
+
+  const isEmpty = activeQueue.length === 0;
 
   // Ranking sidebar refetch signal — bumped on any queue mutation that could
   // change counts (submit / status change / delete).
@@ -189,11 +232,17 @@ export function DJBoard({
 
   return (
     <main className="dj-board">
+      <DJPlayedStack
+        cards={playedCards}
+        canControl={canControl}
+        onRestore={handleRestorePlayed}
+      />
+
       <div className="dj-board-main">
         <header className="dj-board-header">
           <h1>🎧 {boardTitle}</h1>
           <div className="dj-board-meta">
-            <span className="dj-count">{queueCards.length}곡</span>
+            <span className="dj-count">{activeQueue.length}곡</span>
           </div>
         </header>
 
@@ -214,7 +263,7 @@ export function DJBoard({
             currentStudentId={currentStudentId}
             onStatus={handleStatus}
             onDelete={handleDelete}
-            onReorder={handleReorder}
+            onReorder={handleQueueDrop}
           />
         )}
 

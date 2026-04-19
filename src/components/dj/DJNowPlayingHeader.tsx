@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { CardData } from "../DraggableCard";
+import { useDJPlayer } from "./DJPlayerProvider";
 
 type Props = {
   card: CardData;
   canControl: boolean;
-  onNext: () => void;
+  onNext: () => void | Promise<void>;
 };
 
 function extractVideoId(url: string | null | undefined): string | null {
@@ -20,63 +21,14 @@ function extractVideoId(url: string | null | undefined): string | null {
   return null;
 }
 
-// Minimal YT.Player surface we use. Attach types here to avoid a full
-// `@types/youtube` dep.
-type YTPlayer = {
-  destroy: () => void;
-};
-type YTState = { data: number };
-declare global {
-  interface Window {
-    YT?: {
-      Player: new (
-        elementId: string,
-        config: {
-          videoId: string;
-          playerVars?: Record<string, string | number>;
-          events?: {
-            onStateChange?: (e: YTState) => void;
-            onReady?: (e: { target: { playVideo: () => void } }) => void;
-          };
-        }
-      ) => YTPlayer;
-    };
-    onYouTubeIframeAPIReady?: () => void;
-  }
-}
-
-// Load YT IFrame API once per page. Subsequent callers just wait for the
-// script to finish. Resolves when window.YT.Player is available.
-let ytReadyPromise: Promise<void> | null = null;
-function loadYouTubeAPI(): Promise<void> {
-  if (typeof window === "undefined") return Promise.resolve();
-  if (window.YT?.Player) return Promise.resolve();
-  if (ytReadyPromise) return ytReadyPromise;
-  ytReadyPromise = new Promise<void>((resolve) => {
-    const prev = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = () => {
-      if (prev) prev();
-      resolve();
-    };
-    if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
-      const tag = document.createElement("script");
-      tag.src = "https://www.youtube.com/iframe_api";
-      document.head.appendChild(tag);
-    }
-  });
-  return ytReadyPromise;
-}
-
-export function DJNowPlayingHeader({ card, canControl, onNext }: Props) {
-  const [playing, setPlaying] = useState(false);
-  const playerRef = useRef<YTPlayer | null>(null);
-  const mountIdRef = useRef(`dj-yt-player-${card.id}`);
-  // Keep the latest onNext in a ref so the YT event handler doesn't close
-  // over a stale callback (important for auto-advance after card changes).
-  const onNextRef = useRef(onNext);
-  useEffect(() => {
-    onNextRef.current = onNext;
-  }, [onNext]);
+export function DJNowPlayingHeader({
+  card,
+  canControl,
+  onNext,
+}: Props) {
+  const { activeCard, playing, play, toggle, setInlineSlot, setAdvanceHandler } =
+    useDJPlayer();
+  const inlineRef = useRef<HTMLDivElement | null>(null);
 
   const submitter =
     card.externalAuthorName ??
@@ -84,78 +36,59 @@ export function DJNowPlayingHeader({ card, canControl, onNext }: Props) {
     card.authorName ??
     "";
   const videoId = extractVideoId(card.videoUrl ?? card.linkUrl);
+  const isActive = activeCard?.id === card.id;
 
-  // When card changes, reset player state.
+  // Register our inline slot so the provider portals the iframe here.
+  // We DON'T condition on isActive — once the slot is registered, the
+  // provider will reuse it for whatever card is playing. This keeps the
+  // iframe anchored to the DJ board while mounted.
   useEffect(() => {
-    mountIdRef.current = `dj-yt-player-${card.id}`;
-    setPlaying(false);
-    if (playerRef.current) {
-      try {
-        playerRef.current.destroy();
-      } catch {
-        // already destroyed
-      }
-      playerRef.current = null;
-    }
-  }, [card.id]);
-
-  // Attach / tear down YT player when `playing` toggles.
-  useEffect(() => {
-    if (!playing || !videoId) {
-      if (playerRef.current) {
-        try {
-          playerRef.current.destroy();
-        } catch {
-          // ignore
-        }
-        playerRef.current = null;
-      }
-      return;
-    }
-
-    let cancelled = false;
-    loadYouTubeAPI().then(() => {
-      if (cancelled) return;
-      if (!window.YT?.Player) return;
-      playerRef.current = new window.YT.Player(mountIdRef.current, {
-        videoId,
-        playerVars: {
-          autoplay: 1,
-          rel: 0,
-          playsinline: 1,
-        },
-        events: {
-          onReady: (e) => {
-            try {
-              e.target.playVideo();
-            } catch {
-              // autoplay can be blocked by browser policy — user click should
-              // satisfy user-activation anyway
-            }
-          },
-          onStateChange: (e) => {
-            // data 0 = ended. Auto-advance to the next queued track.
-            if (e.data === 0) {
-              setPlaying(false);
-              onNextRef.current();
-            }
-          },
-        },
-      });
-    });
-
+    setInlineSlot(inlineRef.current);
     return () => {
-      cancelled = true;
-      if (playerRef.current) {
-        try {
-          playerRef.current.destroy();
-        } catch {
-          // ignore
-        }
-        playerRef.current = null;
-      }
+      setInlineSlot(null);
     };
-  }, [playing, videoId]);
+  }, [setInlineSlot]);
+
+  // Provider exposes a "next" callback slot that the mini player uses after
+  // the current track ends. Point it at the DJ board's own onNext so
+  // auto-advance keeps working even when the tab is backgrounded.
+  useEffect(() => {
+    setAdvanceHandler(() => onNext());
+    return () => {
+      setAdvanceHandler(null);
+    };
+  }, [onNext, setAdvanceHandler]);
+
+  // When the now-playing card changes (e.g., auto-advance after a track
+  // ended) AND something was previously playing in the provider, load the
+  // new track so the user doesn't have to click ▶ again.
+  useEffect(() => {
+    if (!activeCard) return;
+    if (activeCard.id === card.id) return;
+    if (!videoId) return;
+    play({
+      id: card.id,
+      title: card.title,
+      linkImage: card.linkImage ?? null,
+      videoId,
+    });
+  }, [card.id, card.title, card.linkImage, videoId, activeCard, play]);
+
+  function handlePlayToggle() {
+    if (!videoId) return;
+    if (isActive) {
+      toggle();
+    } else {
+      play({
+        id: card.id,
+        title: card.title,
+        linkImage: card.linkImage ?? null,
+        videoId,
+      });
+    }
+  }
+
+  const showingPlayer = isActive;
 
   return (
     <section
@@ -166,12 +99,15 @@ export function DJNowPlayingHeader({ card, canControl, onNext }: Props) {
     >
       <div className="dj-nowplaying-label">▶ NOW PLAYING</div>
       <div className="dj-nowplaying-body">
-        {playing && videoId ? (
-          <div className="dj-player-wrap">
-            <div id={mountIdRef.current} className="dj-player-iframe" />
-          </div>
-        ) : (
-          card.linkImage && (
+        <div className="dj-player-wrap">
+          {/* Provider portals the YT iframe into this slot when active.
+              When idle we show the thumbnail fallback below. */}
+          <div
+            ref={inlineRef}
+            className="dj-player-inline-slot"
+            data-empty={showingPlayer ? "false" : "true"}
+          />
+          {!showingPlayer && card.linkImage && (
             <img
               className="dj-thumb dj-thumb-lg"
               src={card.linkImage}
@@ -179,8 +115,8 @@ export function DJNowPlayingHeader({ card, canControl, onNext }: Props) {
               height={135}
               alt=""
             />
-          )
-        )}
+          )}
+        </div>
         <div className="dj-nowplaying-info">
           <div className="dj-track-title">{card.title}</div>
           <div className="dj-track-meta">
@@ -192,21 +128,18 @@ export function DJNowPlayingHeader({ card, canControl, onNext }: Props) {
               <button
                 type="button"
                 className="dj-play-btn"
-                onClick={() => setPlaying((v) => !v)}
-                aria-label={playing ? "재생 중지" : "재생"}
-                aria-pressed={playing}
+                onClick={handlePlayToggle}
+                aria-label={isActive && playing ? "일시정지" : "재생"}
+                aria-pressed={isActive && playing}
               >
-                {playing ? "■ 정지" : "▶ 재생"}
+                {isActive && playing ? "❚❚ 일시정지" : "▶ 재생"}
               </button>
             )}
             {canControl && (
               <button
                 type="button"
                 className="dj-next-btn"
-                onClick={() => {
-                  setPlaying(false);
-                  onNext();
-                }}
+                onClick={() => onNext()}
                 aria-label="다음 곡으로"
               >
                 ⏭ 다음
