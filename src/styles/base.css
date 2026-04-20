@@ -52,6 +52,16 @@
   --color-quiz-difficulty-medium: #c9a227;
   --color-quiz-difficulty-hard: #c62828;
 
+  /* Vibe-arcade (Seed 13). Rating amber + quota 3-stage + immersive sandbox bg.
+     Chat/quota/rating aliases reuse existing tokens to preserve palette consistency. */
+  --color-vibe-rating: #f5a623;
+  --color-vibe-rating-empty: #e5e5e5;
+  --color-vibe-quota-ok: var(--color-plant-active);
+  --color-vibe-quota-warn: #f5a623;
+  --color-vibe-quota-danger: var(--color-danger);
+  --color-vibe-sandbox-bg: #1a1a1a;
+  --color-vibe-chat-user-bg: var(--color-accent-tinted-bg);
+
   /* Radii */
   --radius-card: 12px;
   --radius-btn: 4px;

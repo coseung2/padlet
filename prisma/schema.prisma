@@ -146,6 +146,10 @@ model Student {
   assessmentSubmissions AssessmentSubmission[]
   roleAssignments       ClassroomRoleAssignment[]
   account               StudentAccount?
+  vibeProjectsAuthored  VibeProject[]             @relation("VibeProjectAuthor")
+  vibeSessions          VibeSession[]             @relation("VibeSessionAuthor")
+  vibeReviews           VibeReview[]              @relation("VibeReviewer")
+  vibePlaySessions      VibePlaySession[]         @relation("VibePlayer")
 
   @@unique([classroomId, number])
   @@index([classroomId])
@@ -153,7 +157,7 @@ model Student {
   @@index([textCode])
 }
 
-// layout: "freeform" | "grid" | "stream" | "columns" | "assignment" | "quiz" | "plant-roadmap" | "event-signup" | "drawing" | "breakout"
+// layout: "freeform" | "grid" | "stream" | "columns" | "assignment" | "quiz" | "plant-roadmap" | "event-signup" | "drawing" | "breakout" | "vibe-arcade"
 // (validated in app via zod)
 model Board {
   id          String   @id @default(cuid())
@@ -204,6 +208,8 @@ model Board {
   studentPlants      StudentPlant[]
   breakoutAssignment BreakoutAssignment?
   assignmentSlots    AssignmentSlot[]
+  vibeArcadeConfig   VibeArcadeConfig?
+  vibeProjects       VibeProject[]
 }
 
 // Columns/Kanban용 섹션 (grid/stream에선 사용 안 함)
@@ -1284,4 +1290,144 @@ model ClassroomRolePermission {
 
   @@unique([classroomId, roleKey, permission])
   @@index([classroomId, roleKey])
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Vibe-arcade (Seed 13) — 학급 Steam. Board(layout="vibe-arcade") 전용.
+// enabled는 런칭 플래그 역할(FeatureFlag 테이블 신설 대신 Config에 흡수).
+// ──────────────────────────────────────────────────────────────────────────
+
+model VibeArcadeConfig {
+  boardId                 String   @id
+  enabled                 Boolean  @default(false) // 보드별 런칭 게이트
+  // "teacher_approval_required"(v1 기본) | "auto_publish" | "hybrid_trusted"(v1.5)
+  moderationPolicy        String   @default("teacher_approval_required")
+  // 학생 1인 일일 Sonnet 토큰 상한(IN+OUT). null = 학급 풀 공유만.
+  perStudentDailyTokenCap Int?     @default(45000)
+  // 학급 전체 일일 토큰 풀. 0 = vibe-arcade 비활성(긴급 정지).
+  classroomDailyTokenPool Int      @default(1500000)
+  // U-4 학급 간 공유 (반 내부만 v1 기본)
+  crossClassroomVisible   Boolean  @default(false)
+  // U-2 "named" | "anonymous" | "hidden_to_peer"
+  reviewAuthorDisplay     String   @default("named")
+  // U-3 "stars_1_5" | "thumbs" | "emoji_5"(v2)
+  reviewRatingSystem      String   @default("stars_1_5")
+  // F-4 v1은 false 고정
+  allowRemix              Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+}
+
+model VibeProject {
+  id               String    @id @default(cuid())
+  boardId          String
+  classroomId      String    // 비정규화 — 학급 스코프 빠른 스캔
+  authorStudentId  String
+  title            String
+  description      String    @default("") // ≤500자
+  htmlContent      String    // 단일 HTML 원문. 서빙 시 CSP sandbox 헤더 부착
+  thumbnailUrl     String?   // 서버 Playwright headless 160×120 WebP
+  // 고정 태그 5종 중 1개: "게임"|"퀴즈"|"시뮬"|"아트"|"기타" (JSON 배열)
+  tags             String    @default("[]")
+  // "draft"|"pending_review"|"approved"|"rejected"|"flagged"|"hidden"
+  moderationStatus String    @default("draft")
+  moderationNote   String?   // ≤300자
+  approvedAt       DateTime?
+  approvedById     String?   // Teacher User.id
+  rejectedAt       DateTime?
+  rejectedById     String?
+  playCount        Int       @default(0)
+  uniquePlayCount  Int       @default(0)
+  reviewCount      Int       @default(0)
+  ratingAvg        Float?
+  version          Int       @default(1) // 재제출 시 증가
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  board        Board             @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  author       Student           @relation("VibeProjectAuthor", fields: [authorStudentId], references: [id], onDelete: Restrict)
+  sessions     VibeSession[]
+  reviews      VibeReview[]
+  playSessions VibePlaySession[]
+
+  @@index([boardId, moderationStatus])
+  @@index([classroomId, moderationStatus, createdAt])
+  @@index([authorStudentId])
+}
+
+model VibeSession {
+  id           String    @id @default(cuid())
+  projectId    String?   // null = 아직 프로젝트 저장 전
+  studentId    String
+  classroomId  String    // 비정규화 (쿼터 스캔)
+  messages     Json      // [{role, content, createdAt}]
+  tokensIn     Int       @default(0)
+  tokensOut    Int       @default(0)
+  // "active"|"completed"|"abandoned"|"failed"
+  status       String    @default("active")
+  startedAt    DateTime  @default(now())
+  endedAt      DateTime?
+  refusalCount Int       @default(0) // Anthropic stop_reason="refusal"
+
+  project VibeProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  student Student      @relation("VibeSessionAuthor", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([studentId, startedAt])
+  @@index([classroomId, startedAt])
+}
+
+model VibeReview {
+  id                String   @id @default(cuid())
+  projectId         String
+  reviewerStudentId String
+  // 1-5 별점. reviewRatingSystem="thumbs"면 1 또는 5만 허용.
+  rating            Int
+  comment           String   @default("")
+  // "visible"|"hidden_by_teacher"|"flagged"
+  moderationStatus  String   @default("visible")
+  flagCount         Int      @default(0) // 임계 3 → 자동 hidden
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  project  VibeProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reviewer Student     @relation("VibeReviewer", fields: [reviewerStudentId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, reviewerStudentId]) // 학생 1인 1리뷰
+  @@index([projectId])
+  @@index([reviewerStudentId])
+}
+
+model VibePlaySession {
+  id            String    @id @default(cuid())
+  projectId     String
+  studentId     String
+  startedAt     DateTime  @default(now())
+  endedAt       DateTime?
+  completed     Boolean   @default(false) // iframe postMessage "완료" 수신
+  reportedScore Int?      // 통계·랭킹 참고용 (게임 로직 신뢰 X)
+
+  project VibeProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  student Student     @relation("VibePlayer", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, startedAt])
+  @@index([studentId, startedAt])
+}
+
+model VibeQuotaLedger {
+  id            String   @id @default(cuid())
+  classroomId   String
+  studentId     String?  // null = 학급 합계 행
+  date          DateTime // 자정 기준 날짜 (KST)
+  tokensIn      Int      @default(0)
+  tokensOut     Int      @default(0)
+  sessionsCount Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([classroomId, studentId, date])
+  @@index([classroomId, date])
+  @@index([studentId, date])
 }
