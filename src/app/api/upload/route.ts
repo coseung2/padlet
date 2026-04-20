@@ -96,15 +96,16 @@ export async function POST(req: Request) {
       );
     }
 
-    // card-file-attachment: 파일은 새 탭 오픈 시 실행 방지를 위해 기본
-    // attachment로 서빙. PDF만 inline으로 유지해 <iframe> 인라인 뷰어 동작.
+    // card-file-attachment: 파일은 항상 attachment로 서빙 (PDF 포함).
+    // 인라인 뷰어 경로는 사용자 피드백(2026-04-20)으로 제거됨 —
+    // "미리보기 어차피 안띄울거니까 파일명이랑 다운로드 버튼만". Blob에
+    // 저장 시부터 강제 다운로드 지시를 심어 두면 새 탭 오픈 시 활성
+    // 콘텐츠 실행 위험도 자동으로 억제됨 (보안 이득 겸함).
     // 파일명은 RFC 6266 per-encode (ASCII fallback + UTF-8 확장).
     const asciiName = file.name.replace(/[^\x20-\x7e]/g, "_").replace(/"/g, "");
     const utf8Name = encodeURIComponent(file.name);
     const contentDisposition = isFile
-      ? file.type === "application/pdf"
-        ? `inline; filename="${asciiName}"; filename*=UTF-8''${utf8Name}`
-        : `attachment; filename="${asciiName}"; filename*=UTF-8''${utf8Name}`
+      ? `attachment; filename="${asciiName}"; filename*=UTF-8''${utf8Name}`
       : undefined;
 
     // Vercel Lambda filesystem is read-only outside /tmp — must use Blob

@@ -7,8 +7,6 @@ import {
   fileMimeToIcon,
   fileMimeToLabel,
   formatBytes,
-  isMobileUA,
-  LARGE_PDF_WARN_BYTES,
 } from "../file-attachment";
 
 describe("file-attachment · isAllowedFileUpload", () => {
@@ -104,18 +102,6 @@ describe("file-attachment · formatBytes", () => {
   });
 });
 
-describe("file-attachment · isMobileUA", () => {
-  it("matches iOS and Android UA strings", () => {
-    expect(isMobileUA("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)")).toBe(true);
-    expect(isMobileUA("Mozilla/5.0 (iPad; CPU OS 17_0)")).toBe(true);
-    expect(isMobileUA("Mozilla/5.0 (Linux; Android 14)")).toBe(true);
-  });
-  it("does not match desktop UA", () => {
-    expect(isMobileUA("Mozilla/5.0 (Windows NT 10.0; Win64; x64)")).toBe(false);
-    expect(isMobileUA("Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0)")).toBe(false);
-  });
-});
-
 describe("file-attachment · ALLOWED_FILE_MIMES", () => {
   it("covers exactly the 7 types promised by scope §2", () => {
     // 매핑 키 개수 ≥ 7 (HWP와 ZIP은 여러 MIME 변형 허용이라 키가 더 많을 수 있음)
@@ -129,12 +115,6 @@ describe("file-attachment · ALLOWED_FILE_MIMES", () => {
     expect(keys.some((k) => k.toLowerCase().includes("hwp"))).toBe(true);
     expect(keys).toContain("text/plain");
     expect(keys.some((k) => k.includes("zip"))).toBe(true);
-  });
-});
-
-describe("file-attachment · LARGE_PDF_WARN_BYTES", () => {
-  it("is 10 MB per scope AC-9", () => {
-    expect(LARGE_PDF_WARN_BYTES).toBe(10 * 1024 * 1024);
   });
 });
 

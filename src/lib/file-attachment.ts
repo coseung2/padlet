@@ -57,14 +57,6 @@ export function formatBytes(n: number): string {
   return `${gb.toFixed(2)} GB`;
 }
 
-/** iOS Safari 등 `<iframe>` 내 PDF 뷰어가 동작 안 하는 UA 감지. */
-export function isMobileUA(ua: string): boolean {
-  return /iPhone|iPad|iPod|Android/i.test(ua);
-}
-
-/** PDF 인라인 뷰어에서 로딩이 느릴 수 있다고 경고할 기준 바이트. */
-export const LARGE_PDF_WARN_BYTES = 10 * 1024 * 1024; // 10 MB
-
 /**
  * fileUrl이 이 프로젝트의 업로드 경로에서 나온 URL인지 확인.
  * - 프로덕션: `*.public.blob.vercel-storage.com` (Vercel Blob 공식 호스트)
