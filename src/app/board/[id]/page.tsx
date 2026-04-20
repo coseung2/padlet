@@ -17,6 +17,7 @@ import { DrawingBoard } from "@/components/DrawingBoard";
 import { AssessmentBoard } from "@/components/assessment/AssessmentBoard";
 import { BreakoutBoard } from "@/components/BreakoutBoard";
 import { DJBoard } from "@/components/DJBoard";
+import { VibeArcadeBoard } from "@/components/VibeArcadeBoard";
 import { cloneStructure } from "@/lib/breakout";
 import { parseObservationPoints, STALL_THRESHOLD_DAYS } from "@/lib/plant-schemas";
 import type { PlantJournalResponse } from "@/types/plant";
@@ -729,6 +730,21 @@ export default async function BoardPage({
             boardId={board!.id}
             classroomId={board!.classroomId ?? ""}
             viewerKind={viewerKind}
+          />
+        );
+      }
+      case "vibe-arcade": {
+        const viewerKind: "teacher" | "student" | "none" = studentViewer
+          ? "student"
+          : effectiveRole === "owner" || effectiveRole === "editor"
+            ? "teacher"
+            : "none";
+        return (
+          <VibeArcadeBoard
+            boardId={board!.id}
+            classroomId={board!.classroomId ?? ""}
+            viewerKind={viewerKind}
+            studentId={studentViewer?.id ?? null}
           />
         );
       }
