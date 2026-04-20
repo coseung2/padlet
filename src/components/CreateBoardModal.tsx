@@ -15,6 +15,7 @@ const LAYOUTS = [
   { id: "breakout", emoji: "👥", label: "모둠 학습", desc: "템플릿 기반 모둠 협력 보드 (KWL · 브레인스토밍 등)" },
   { id: "assessment", emoji: "📝", label: "수행평가", desc: "MCQ 자동 채점 + 교사 확정·릴리스" },
   { id: "dj-queue", emoji: "🎧", label: "DJ 큐", desc: "학생이 YouTube 곡을 신청 · DJ가 재생 순서 관리" },
+  { id: "vibe-arcade", emoji: "🎮", label: "학급 아케이드", desc: "Claude Sonnet과 바이브 코딩으로 만든 게임·퀴즈를 플레이·리뷰" },
 ] as const;
 
 type ClassroomItem = {
@@ -72,7 +73,8 @@ export function CreateBoardModal({ classrooms, userTier = "pro", onClose }: Prop
     if (
       (layoutId === "columns" ||
         layoutId === "assessment" ||
-        layoutId === "dj-queue") &&
+        layoutId === "dj-queue" ||
+        layoutId === "vibe-arcade") &&
       classrooms.length > 0
     ) {
       setSelectedLayout(layoutId);
