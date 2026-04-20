@@ -659,7 +659,11 @@ export function ColumnsBoard({
                           <ContextMenu
                             items={[
                               { label: "수정", icon: "✏️", onClick: () => setEditingCard(c) },
-                              ...(canEdit
+                              // 교사(owner/editor) + 학생 자기 카드 모두에게 노출.
+                              // /api/cards/:id/authors는 canEditCard로 게이트하며
+                              // 학생 own-card를 이미 허용한다(student-author-edit
+                              // 2026-04-20). context menu에서도 조건을 맞춤.
+                              ...(canEdit || c.studentAuthorId === currentUserId
                                 ? [
                                     {
                                       label: "작성자 지정",
