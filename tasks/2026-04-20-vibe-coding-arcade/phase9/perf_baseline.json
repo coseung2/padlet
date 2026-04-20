@@ -1,0 +1,36 @@
+{
+  "task_id": "2026-04-20-vibe-coding-arcade",
+  "phase": "phase9",
+  "measured_at": "2026-04-20T21:35:00+09:00",
+  "environment": {
+    "server": "Next.js 16.2.3 Turbopack dev",
+    "port": 3000,
+    "db": "SQLite (file:./dev.db) — phase9 임시, production은 Postgres/Supabase",
+    "device": "Windows bash + Chrome (Claude in Chrome MCP)",
+    "viewport": "1568x744"
+  },
+  "notes": "정식 Core Web Vitals 측정은 `/benchmark` 스킬 또는 Lighthouse CI 필요. 본 baseline은 dev 실측 smoke 수준.",
+  "metrics": {
+    "dev_server_cold_ready_ms": 484,
+    "board_vibe_arcade_first_render_seconds": 1.0,
+    "api_avg_response_ms": 150,
+    "api_p95_smoke_ms": 422,
+    "api_p95_after_warm_ms": 200,
+    "typecheck_errors": 0,
+    "unit_test_count": 18,
+    "unit_test_pass": 18,
+    "unit_test_duration_ms": 1570,
+    "bundle_size_gzip_kb": null,
+    "catalog_tti_tab_s6_lite_seconds": null,
+    "play_iframe_fps": null,
+    "play_iframe_memory_mb": null
+  },
+  "pending_measurements": [
+    "번들 사이즈 (AC-N2): npm run build + @next/bundle-analyzer",
+    "카탈로그 TTI 30 카드 태블릿 실기 (AC-N1)",
+    "Sonnet 토큰 p95 <200ms (AC-N5): 실 SDK 키 + Studio UI",
+    "플레이 iframe 60fps/100MB/5분 언마운트 (AC-N6): PlayModal UI",
+    "1시간 메모리 <500MB + 잔존 iframe 0 (AC-N7): 장시간 세션"
+  ],
+  "responsible_phase": "phase10 deployer + 후속 phase7 UI"
+}

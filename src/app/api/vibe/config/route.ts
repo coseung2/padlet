@@ -25,6 +25,9 @@ export async function GET(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
+  const board = await db.board.findUnique({ where: { id: boardId } });
+  if (!board) return NextResponse.json({ error: "not_found" }, { status: 404 });
+
   const role = await getBoardRole(boardId, user.id);
   if (!role) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
@@ -38,6 +41,9 @@ export async function PATCH(req: Request) {
 
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const board = await db.board.findUnique({ where: { id: boardId } });
+  if (!board) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
   const role = await getBoardRole(boardId, user.id);
   if (role !== "owner" && role !== "editor") {
