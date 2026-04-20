@@ -12,16 +12,18 @@ export function kstDate(now: Date = new Date()): Date {
   return new Date(Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate()));
 }
 
+// Postgres UNIQUE 제약은 NULL을 distinct로 취급 — compound unique key에 null을 쓰면
+// findUnique가 불안정하고 동일 classroom+date에 여러 합계 행이 생길 수 있다.
+// 센티넬 문자열로 classroom-wide row를 표현해 compound unique가 정상 동작하게 한다.
+export const CLASSROOM_WIDE_SENTINEL = "__CLASSROOM__";
+
 export type QuotaCheckResult =
   | { ok: true; classroomUsed: number; studentUsed: number }
   | { ok: false; reason: "classroom_pool_exhausted" | "student_cap_exceeded" };
 
 /**
  * Pre-session check. Reads today's ledger for the classroom + student rows.
- * If either would exceed its cap with estimated next-session usage, deny.
- *
- * Estimation: use 1 token as probe — actual enforcement happens via the
- * streaming provider, which increments `VibeQuotaLedger` and aborts on cap.
+ * Enforcement happens via incrementLedger during streaming.
  */
 export async function checkQuotaOrReject(args: {
   classroomId: string;
@@ -35,7 +37,7 @@ export async function checkQuotaOrReject(args: {
       where: {
         classroomId_studentId_date: {
           classroomId: args.classroomId,
-          studentId: null as unknown as string, // Prisma unique key with null for classroom-wide row
+          studentId: CLASSROOM_WIDE_SENTINEL,
           date,
         },
       },
@@ -104,13 +106,13 @@ export async function incrementLedger(args: {
       where: {
         classroomId_studentId_date: {
           classroomId: args.classroomId,
-          studentId: null as unknown as string,
+          studentId: CLASSROOM_WIDE_SENTINEL,
           date,
         },
       },
       create: {
         classroomId: args.classroomId,
-        studentId: null,
+        studentId: CLASSROOM_WIDE_SENTINEL,
         date,
         tokensIn: args.tokensIn,
         tokensOut: args.tokensOut,
@@ -132,13 +134,17 @@ export async function getClassroomQuotaToday(classroomId: string) {
     where: {
       classroomId_studentId_date: {
         classroomId,
-        studentId: null as unknown as string,
+        studentId: CLASSROOM_WIDE_SENTINEL,
         date,
       },
     },
   });
   const byStudent = await db.vibeQuotaLedger.findMany({
-    where: { classroomId, date, NOT: { studentId: null } },
+    where: {
+      classroomId,
+      date,
+      studentId: { not: CLASSROOM_WIDE_SENTINEL },
+    },
     orderBy: [{ tokensIn: "desc" }, { tokensOut: "desc" }],
   });
   const used = (classroom?.tokensIn ?? 0) + (classroom?.tokensOut ?? 0);

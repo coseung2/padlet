@@ -24,6 +24,21 @@ export async function GET(req: Request) {
   const student = await getCurrentStudent().catch(() => null);
   if (!user && !student) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
+  // Scope check — student viewers limited to their own classroom's board.
+  // Teacher/owner rely on NextAuth board membership.
+  const board = await db.board.findUnique({
+    where: { id: boardId },
+    select: { classroomId: true },
+  });
+  if (!board) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if (student && board.classroomId !== student.classroomId) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+  if (user && !student) {
+    const role = await getBoardRole(boardId, user.id);
+    if (!role) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
   // Only approved projects are catalog-visible (except for the author / teacher).
   const orderBy =
     tab === "popular"

@@ -19,8 +19,10 @@ const PII_PATTERNS: Array<{ kind: string; re: RegExp }> = [
 ];
 
 const HTML_BLACKLIST_TAGS = ["iframe", "object", "embed", "frame", "frameset"];
-const JS_SCHEME_RE = /\bjavascript:/gi;
-const DATA_HTML_RE = /\bdata:text\/html/gi;
+// NOTE: no /g flag — module-level RegExp + test() with /g is stateful
+// (lastIndex persists across calls) and produces alternating false results.
+const JS_SCHEME_RE = /\bjavascript:/i;
+const DATA_HTML_RE = /\bdata:text\/html/i;
 
 // Whitelisted CDN origins for external scripts/styles (AC-G? / R-11).
 export const CDN_WHITELIST = [

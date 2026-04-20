@@ -71,7 +71,8 @@ CREATE INDEX "VibeProject_authorStudentId_idx"
 CREATE TABLE "VibeSession" (
     "id"           TEXT NOT NULL,
     "projectId"    TEXT,
-    "studentId"    TEXT NOT NULL,
+    -- nullable — anonymize cron sets this to NULL after 7d inactivity.
+    "studentId"    TEXT,
     "classroomId"  TEXT NOT NULL,
     "messages"     JSONB NOT NULL,
     "tokensIn"     INTEGER NOT NULL DEFAULT 0,
@@ -90,7 +91,7 @@ ALTER TABLE "VibeSession"
 
 ALTER TABLE "VibeSession"
   ADD CONSTRAINT "VibeSession_studentId_fkey"
-  FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 CREATE INDEX "VibeSession_projectId_idx" ON "VibeSession"("projectId");
 CREATE INDEX "VibeSession_studentId_startedAt_idx" ON "VibeSession"("studentId", "startedAt");
@@ -152,7 +153,9 @@ CREATE INDEX "VibePlaySession_studentId_startedAt_idx" ON "VibePlaySession"("stu
 CREATE TABLE "VibeQuotaLedger" (
     "id"            TEXT NOT NULL,
     "classroomId"   TEXT NOT NULL,
-    "studentId"     TEXT,
+    -- Non-null + sentinel "__CLASSROOM__" for classroom-wide rollups.
+    -- Keeps the compound UNIQUE predictable (Postgres NULLs are distinct).
+    "studentId"     TEXT NOT NULL,
     "date"          TIMESTAMP(3) NOT NULL,
     "tokensIn"      INTEGER NOT NULL DEFAULT 0,
     "tokensOut"     INTEGER NOT NULL DEFAULT 0,

@@ -40,10 +40,9 @@ export class IframeLRU {
 
   private evictIfOverCap(): void {
     while (this.entries.size > CAP) {
-      const [oldestKey, entry] = this.entries.entries().next().value as [
-        string,
-        SandboxIframeHandle,
-      ];
+      const next = this.entries.entries().next();
+      if (next.done) break;
+      const [oldestKey, entry] = next.value;
       this.blankAndDetach(entry.el);
       this.entries.delete(oldestKey);
     }

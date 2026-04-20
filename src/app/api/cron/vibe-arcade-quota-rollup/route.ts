@@ -4,6 +4,7 @@
 
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { CLASSROOM_WIDE_SENTINEL } from "@/lib/vibe-arcade/quota-ledger";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -52,13 +53,13 @@ export async function GET(req: Request) {
       where: {
         classroomId_studentId_date: {
           classroomId,
-          studentId: null as unknown as string,
+          studentId: CLASSROOM_WIDE_SENTINEL,
           date: yesterdayStart,
         },
       },
       create: {
         classroomId,
-        studentId: null,
+        studentId: CLASSROOM_WIDE_SENTINEL,
         date: yesterdayStart,
         tokensIn: totals.tokensIn,
         tokensOut: totals.tokensOut,

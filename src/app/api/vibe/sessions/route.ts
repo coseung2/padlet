@@ -91,10 +91,21 @@ export async function POST(req: Request) {
 
   // SSE response.
   const encoder = new TextEncoder();
+  let aborted = false;
+  req.signal.addEventListener("abort", () => {
+    aborted = true;
+  });
+
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (obj: unknown) =>
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
+      const send = (obj: unknown) => {
+        if (aborted) return;
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
+        } catch {
+          // Controller closed by abort — stop quietly.
+        }
+      };
 
       send({ type: "session", id: session!.id });
 
@@ -134,7 +145,11 @@ export async function POST(req: Request) {
       } catch (err) {
         send({ type: "error", message: String((err as Error).message) });
       } finally {
-        controller.close();
+        try {
+          controller.close();
+        } catch {
+          // already closed (client abort)
+        }
       }
     },
   });

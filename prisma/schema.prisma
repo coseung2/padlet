@@ -1360,11 +1360,12 @@ model VibeProject {
 model VibeSession {
   id           String    @id @default(cuid())
   projectId    String?   // null = 아직 프로젝트 저장 전
-  studentId    String
-  classroomId  String    // 비정규화 (쿼터 스캔)
+  // nullable — 7일 미활성 익명화 cron이 studentId=null 로 전환 (AC-G5).
+  studentId    String?
+  classroomId  String    // 비정규화 (쿼터 스캔). Student 익명화 후에도 유지.
   messages     Json      // [{role, content, createdAt}]
   tokensIn     Int       @default(0)
-  tokensOut    Int       @default(0)
+  tokensOut   Int       @default(0)
   // "active"|"completed"|"abandoned"|"failed"
   status       String    @default("active")
   startedAt    DateTime  @default(now())
@@ -1372,7 +1373,7 @@ model VibeSession {
   refusalCount Int       @default(0) // Anthropic stop_reason="refusal"
 
   project VibeProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  student Student      @relation("VibeSessionAuthor", fields: [studentId], references: [id], onDelete: Cascade)
+  student Student?     @relation("VibeSessionAuthor", fields: [studentId], references: [id], onDelete: SetNull)
 
   @@index([projectId])
   @@index([studentId, startedAt])
@@ -1419,7 +1420,9 @@ model VibePlaySession {
 model VibeQuotaLedger {
   id            String   @id @default(cuid())
   classroomId   String
-  studentId     String?  // null = 학급 합계 행
+  // Non-null + 센티넬 "__CLASSROOM__" — Postgres의 UNIQUE NULL-distinct 동작으로
+  // compound unique가 깨지는 문제를 피한다. 값 관리는 `lib/vibe-arcade/quota-ledger.ts`.
+  studentId     String
   date          DateTime // 자정 기준 날짜 (KST)
   tokensIn      Int      @default(0)
   tokensOut     Int      @default(0)

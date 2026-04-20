@@ -32,10 +32,10 @@ export async function GET(req: Request) {
   const sessionsUpdated = await db.vibeSession.updateMany({
     where: {
       startedAt: { lt: threshold },
-      NOT: { studentId: null as unknown as string },
+      studentId: { not: null },
     },
     data: {
-      studentId: null as unknown as string,
+      studentId: null,
     },
   }).catch(() => ({ count: 0 }));
 
