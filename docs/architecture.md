@@ -324,3 +324,66 @@ bank {deposit, withdraw, fixed-deposits [open/cancel], overview}; store {items C
 `vercel.json` `/api/cron/fd-maturity` @ `5 15 * * *` UTC (00:05 KST). CRON_SECRET bearer 인증.
 
 **Deferred**: 카메라 QR 스캐너 lib, Redis nonce, 학생 간 이체, Apple/Google Wallet Pass, 3분할 지갑.
+
+## Vibe Coding Arcade — Seed 13 (2026-04-20)
+
+`Board.layout="vibe-arcade"` 신규 레이아웃. 교사 Sonnet 쿼터 잉여분을 학생 바이브 코딩 예산으로 전환하는 학급 Steam.
+
+### Data model (6 new)
+
+Migration `20260420_vibe_arcade_v1`. 기존 테이블 column 수정 0 → zero-downtime:
+
+- `VibeArcadeConfig` — `Board` 1:1 (`boardId` PK, onDelete Cascade). 7 설정 필드 + `enabled` gate(FeatureFlag 테이블 대신 흡수).
+- `VibeProject` — 학생 HTML 아티팩트. `authorStudentId` onDelete **Restrict**(작품 보존). indexes `(boardId, moderationStatus)` · `(classroomId, moderationStatus, createdAt)` · `(authorStudentId)`.
+- `VibeSession` — Sonnet 대화. `studentId String?` + onDelete **SetNull**(7일 익명화 cron). `messages Json`.
+- `VibeReview` — `@@unique([projectId, reviewerStudentId])`. `flagCount >=3` → `moderationStatus="hidden_by_teacher"` (application-level).
+- `VibePlaySession` — 플레이 원장. postMessage `{type:"completed"}` 수신 시 `uniquePlayCount` 조건부 증가.
+- `VibeQuotaLedger` — `studentId String` non-null + 센티넬 `"__CLASSROOM__"`로 학급 합계 행 구분. `@@unique([classroomId, studentId, date])`. Postgres NULL-distinct 회피.
+
+### Libs
+
+- `src/lib/vibe-arcade/types.ts` — Zod 스키마 6종 + realtime event union(`project.created/.approved/.rejected/.flagged` · `review.created` · `quota.updated`).
+- `src/lib/vibe-arcade/moderation-filter.ts` — `scanText`(욕설 + 전화/주민/이메일) · `scanHtml`(iframe/object/embed tag + javascript:/data:text/html scheme + 외부 URL 화이트리스트).
+- `src/lib/vibe-arcade/iframe-lru.ts` — module-level singleton LRU cap 3, about:blank 언마운트 (Seed 5 승계).
+- `src/lib/vibe-arcade/quota-ledger.ts` — `kstDate()` + `checkQuotaOrReject()` + `incrementLedger()` (`$transaction` upsert 2건). `CLASSROOM_WIDE_SENTINEL` export.
+- `src/lib/vibe-arcade/sandbox-renderer.ts` — CSP `sandbox`·`frame-src 'none'`·CDN 화이트리스트 헤더 + postMessage bridge. `escapedTitle`로 XSS 차단.
+- `src/lib/vibe-arcade/sonnet-provider.ts` — Anthropic SDK(`@anthropic-ai/sdk`) dynamic import + SSE stream + refusal/stop_reason 처리. 기본 모델 `claude-sonnet-4-6`(Haiku 다운그레이드 금지).
+- `src/lib/vibe-arcade/play-token.ts` — HMAC-SHA256 + base64url + `timingSafeEqual` + 1h TTL.
+
+### API (9 handler + 1 sandbox + 3 cron)
+
+| Method | Path | Role |
+|---|---|---|
+| GET · PATCH | `/api/vibe/config?boardId=X` | member(GET) / owner-editor(PATCH). 404 on missing board |
+| GET | `/api/vibe/projects?boardId&tab&tag` | classroomId scope 검증(student) + board role(user) |
+| POST | `/api/vibe/projects` | session 소유 student. `scanHtml` 통과 + `moderationStatus="pending_review"` 기본 |
+| POST | `/api/vibe/sessions` | SSE stream. `checkQuotaOrReject` 선행 + `req.signal` abort 지원 |
+| POST | `/api/vibe/reviews?projectId=X` | student not-author, classroom 매칭. self-flag/self-review 차단 |
+| POST | `/api/vibe/reviews/:id/flag` | student not-self. `flagCount>=3` → hidden |
+| POST | `/api/vibe/play-sessions` | student. `issuePlayToken(projectId, playSessionId)` 발급 |
+| PATCH | `/api/vibe/play-sessions/:id` | student. `$transaction` 내 `playCount++` + 조건부 `uniquePlayCount++` |
+| POST | `/api/vibe/moderation/:projectId` | owner/editor. approve/reject + note(reject 필수) |
+| GET | `/api/vibe/quota?boardId=X` | owner/editor. 학급 풀 + 학생별 내림차순 |
+| GET | `/sandbox/vibe/:projectId?pt=TOKEN` | **cross-origin `sandbox.aura-board.app`**. HMAC verify + project 조회 + CSP wrapped HTML |
+| GET | `/api/cron/vibe-arcade-{quota-rollup,anonymize,hard-delete}` | `x-vercel-cron` / `CRON_SECRET` |
+
+### Realtime
+- Channel: `board:${boardId}:vibe-arcade`
+- `publish()`는 기존 `src/lib/realtime.ts` placeholder 승계 — 엔진 swap 시 본 feature 무영향.
+
+### Components (현재 = 뼈대)
+
+- `src/components/VibeArcadeBoard.tsx` (client) — layout root. Board `layout="vibe-arcade"` 분기(`src/app/board/[id]/page.tsx`).
+- `src/components/vibe-arcade/StarRating.tsx` — radiogroup, 3 sizes, SVG stars.
+- `src/styles/vibe-arcade.css` — v2 Notion Soft, 토큰 99% 재사용.
+
+### 신규 design tokens (`src/styles/base.css`)
+
+7건 — alias 3개 포함 (quota-ok=plant-active · quota-danger=danger · chat-user-bg=accent-tinted-bg). 순신규 4개(rating amber · rating-empty · quota-warn · sandbox-bg #1a1a1a).
+
+### Deferred (phase7 후속 세션)
+
+VibeCodingStudio · PlayModal · ReviewPanel · TeacherModerationDashboard · 8 UI primitives · Playwright 썸네일 워커 · 교사 API Key DB 암호화 · Upstash rate limit · Slack 경보 · iframe postMessage origin 검증 클라(AC-N9).
+
+### Feature gate
+`VibeArcadeConfig.enabled` Boolean (기본 false). Pro tier 전용. `crossClassroomVisible` false 기본.
