@@ -14,6 +14,10 @@ type Props = {
     linkDesc?: string | null;
     linkImage?: string | null;
     videoUrl?: string | null;
+    fileUrl?: string | null;
+    fileName?: string | null;
+    fileSize?: number | null;
+    fileMimeType?: string | null;
     externalAuthorName?: string | null;
     studentAuthorName?: string | null;
     authorName?: string | null;
@@ -37,6 +41,10 @@ export const CardBody = memo(function CardBody({ card, titleAs = "h3" }: Props) 
         linkDesc={card.linkDesc}
         linkImage={card.linkImage}
         videoUrl={card.videoUrl}
+        fileUrl={card.fileUrl}
+        fileName={card.fileName}
+        fileSize={card.fileSize}
+        fileMimeType={card.fileMimeType}
       />
       <Title className="padlet-card-title">{card.title}</Title>
       <p className="padlet-card-content">{card.content}</p>

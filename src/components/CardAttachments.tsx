@@ -4,6 +4,7 @@ import { memo } from "react";
 import { extractCanvaDesignId, hasCanvaShareToken } from "@/lib/canva";
 import { CanvaEmbedSlot } from "./CanvaEmbedSlot";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
+import { CardFileAttachment } from "./CardFileAttachment";
 
 function getYouTubeId(url: string): string | null {
   const m =
@@ -19,13 +20,17 @@ type Props = {
   linkDesc?: string | null;
   linkImage?: string | null;
   videoUrl?: string | null;
+  fileUrl?: string | null;
+  fileName?: string | null;
+  fileSize?: number | null;
+  fileMimeType?: string | null;
 };
 
 // All props are primitives/null, so default shallow equality is safe.
 // Memoizing avoids re-rendering attachment previews on every unrelated
 // parent state update (drag, selection, modal toggles, etc.).
-export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl, linkTitle, linkDesc, linkImage, videoUrl }: Props) {
-  if (!imageUrl && !linkUrl && !videoUrl) return null;
+export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl, linkTitle, linkDesc, linkImage, videoUrl, fileUrl, fileName, fileSize, fileMimeType }: Props) {
+  if (!imageUrl && !linkUrl && !videoUrl && !fileUrl) return null;
 
   const ytId = videoUrl ? getYouTubeId(videoUrl) : null;
   const canvaDesignId = linkUrl ? extractCanvaDesignId(linkUrl) : null;
@@ -84,7 +89,7 @@ export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl
           linkImage={linkImage ?? null}
           linkDesc={linkDesc ?? null}
         />
-      ) : linkUrl && (
+      ) : linkUrl ? (
         <a
           href={linkUrl}
           target="_blank"
@@ -119,6 +124,14 @@ export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl
             </span>
           </div>
         </a>
+      ) : null}
+      {fileUrl && (
+        <CardFileAttachment
+          fileUrl={fileUrl}
+          fileName={fileName ?? null}
+          fileSize={fileSize ?? null}
+          fileMimeType={fileMimeType ?? null}
+        />
       )}
     </div>
   );

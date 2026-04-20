@@ -18,6 +18,11 @@ export type CardData = {
   linkDesc?: string | null;
   linkImage?: string | null;
   videoUrl?: string | null;
+  /** card-file-attachment — 일반 파일 첨부 (PDF/DOCX/XLSX/PPTX/HWP/TXT/ZIP) */
+  fileUrl?: string | null;
+  fileName?: string | null;
+  fileSize?: number | null;
+  fileMimeType?: string | null;
   x: number;
   y: number;
   width: number;

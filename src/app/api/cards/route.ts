@@ -7,6 +7,7 @@ import { requirePermission, ForbiddenError } from "@/lib/rbac";
 import { isCanvaDesignUrl, resolveCanvaEmbedUrl, expandCanvaShortLink } from "@/lib/canva";
 import { extractVideoId, fetchYouTubeMeta, canonicalUrl } from "@/lib/youtube";
 import { setCardAuthors } from "@/lib/card-authors-service";
+import { isAllowedFileUrl, isAllowedStoredMime } from "@/lib/file-attachment";
 
 const CreateCardSchema = z.object({
   boardId: z.string().min(1),
@@ -19,6 +20,11 @@ const CreateCardSchema = z.object({
   linkDesc: z.string().nullable().optional(),
   linkImage: z.string().nullable().optional(),
   videoUrl: z.string().url().nullable().optional(),
+  // card-file-attachment: 일반 파일 첨부 (PDF/DOCX/XLSX/PPTX/HWP/TXT/ZIP)
+  fileUrl: z.string().url().nullable().optional(),
+  fileName: z.string().max(255).nullable().optional(),
+  fileSize: z.number().int().nonnegative().nullable().optional(),
+  fileMimeType: z.string().max(100).nullable().optional(),
   x: z.number().default(0),
   y: z.number().default(0),
   width: z.number().optional(),
@@ -31,6 +37,32 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const input = CreateCardSchema.parse(body);
+
+    // card-file-attachment — 파일 필드 출처/MIME 화이트리스트 검증.
+    // CreateCardSchema는 형식(url·길이)만 검증하므로, 호스트·허용 MIME은
+    // 여기서 추가로 강제 (codex 리뷰 반영: /api/upload 우회 stored-XSS 차단).
+    if (input.fileUrl !== undefined && !isAllowedFileUrl(input.fileUrl)) {
+      return NextResponse.json(
+        { error: "fileUrl must be from the project upload storage" },
+        { status: 400 }
+      );
+    }
+    if (!isAllowedStoredMime(input.fileMimeType ?? null)) {
+      return NextResponse.json(
+        { error: "fileMimeType is not in the document whitelist" },
+        { status: 400 }
+      );
+    }
+    // 4개 필드 일관성: fileUrl이 있으면 나머지 3개도 반드시 동반 (누락된
+    // 렌더 경로는 UI가 깨짐). 없으면 4개 모두 null로 강제.
+    if (input.fileUrl) {
+      if (!input.fileName || !input.fileMimeType || !input.fileSize) {
+        return NextResponse.json(
+          { error: "fileUrl requires fileName, fileSize, fileMimeType" },
+          { status: 400 }
+        );
+      }
+    }
 
     // Auth precedence: teacher (NextAuth) → student (HMAC cookie). Same
     // order as resolveIdentity / PATCH / DELETE. A leftover student_session
@@ -153,6 +185,10 @@ export async function POST(req: Request) {
           linkDesc,
           linkImage,
           videoUrl,
+          fileUrl: input.fileUrl ?? null,
+          fileName: input.fileName ?? null,
+          fileSize: input.fileSize ?? null,
+          fileMimeType: input.fileMimeType ?? null,
           x: input.x,
           y: input.y,
           width: input.width ?? 240,

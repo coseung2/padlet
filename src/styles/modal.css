@@ -750,6 +750,72 @@
   background: rgba(0, 0, 0, 0.8);
 }
 
+/* -------- File attachment preview (card-file-attachment 2026-04-20) -------- */
+
+.modal-file-drop-hint {
+  font-size: 11px;
+  color: var(--color-text-faint);
+  margin-top: 2px;
+}
+
+.modal-file-preview-file {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--color-surface-alt);
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  min-width: 0;
+  /* 기존 modal-file-preview는 position:relative라 제거 버튼이 absolute.
+     파일 프리뷰는 인라인 플렉스라 absolute 제거 버튼이 필요 없음. */
+  position: static;
+  overflow: visible;
+}
+
+.modal-file-preview-icon {
+  font-size: 28px;
+  flex: 0 0 auto;
+  line-height: 1;
+}
+
+.modal-file-preview-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.modal-file-preview-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal-file-preview-meta {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.modal-file-preview-file .modal-file-remove {
+  position: static;
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--color-danger);
+  border: 1px solid var(--color-border);
+  flex: 0 0 auto;
+}
+
+.modal-file-preview-file .modal-file-remove:hover {
+  background: var(--color-danger);
+  color: white;
+  border-color: var(--color-danger);
+}
+
 /* -------- Modal Field Label -------- */
 
 .modal-field-label {

@@ -5,6 +5,7 @@ import { ForbiddenError } from "@/lib/rbac";
 import { resolveIdentities } from "@/lib/identity";
 import { canEditCard, canDeleteCard, type BoardLike, type CardLike } from "@/lib/card-permissions";
 import { isCanvaDesignUrl, resolveCanvaEmbedUrl, expandCanvaShortLink } from "@/lib/canva";
+import { isAllowedFileUrl, isAllowedStoredMime } from "@/lib/file-attachment";
 
 const PatchCardSchema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -16,6 +17,11 @@ const PatchCardSchema = z.object({
   linkDesc: z.string().nullable().optional(),
   linkImage: z.string().nullable().optional(),
   videoUrl: z.string().url().nullable().optional(),
+  // card-file-attachment: 일반 파일 첨부 (PDF/DOCX/XLSX/PPTX/HWP/TXT/ZIP)
+  fileUrl: z.string().url().nullable().optional(),
+  fileName: z.string().max(255).nullable().optional(),
+  fileSize: z.number().int().nonnegative().nullable().optional(),
+  fileMimeType: z.string().max(100).nullable().optional(),
   x: z.number().optional(),
   y: z.number().optional(),
   width: z.number().optional(),
@@ -66,6 +72,20 @@ export async function PATCH(
 
     const body = await req.json();
     const input = PatchCardSchema.parse(body);
+
+    // card-file-attachment — 파일 필드 출처/MIME 검증. POST와 동일 규칙.
+    if (input.fileUrl !== undefined && !isAllowedFileUrl(input.fileUrl)) {
+      return NextResponse.json(
+        { error: "fileUrl must be from the project upload storage" },
+        { status: 400 }
+      );
+    }
+    if (input.fileMimeType !== undefined && !isAllowedStoredMime(input.fileMimeType)) {
+      return NextResponse.json(
+        { error: "fileMimeType is not in the document whitelist" },
+        { status: 400 }
+      );
+    }
 
     // URL-change guard: re-resolve Canva oEmbed only when linkUrl actually
     // changes. Drag / resize PATCHes skip the outbound fetch.

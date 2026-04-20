@@ -258,6 +258,13 @@ model Card {
   linkDesc           String?
   linkImage          String?
   videoUrl           String?
+  // card-file-attachment (2026-04-20): 일반 문서 첨부(PDF/DOCX/XLSX/PPTX/HWP
+  // /TXT/ZIP). fileName은 원본 파일 이름(사용자 노출), fileSize는 byte,
+  // fileMimeType은 서버 검증된 MIME. 4개 모두 null → 파일 첨부 없음.
+  fileUrl            String?
+  fileName           String?
+  fileSize           Int?
+  fileMimeType       String?
   // Student author (when the card was published from the Canva Content
   // Publisher app while the student was logged into Aura). Makes the card
   // a first-class child artifact — parent viewer filters on this FK to show

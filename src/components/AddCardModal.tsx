@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { useLinkPreview } from "./useLinkPreview";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
+import { fileMimeToIcon, fileMimeToLabel, formatBytes } from "@/lib/file-attachment";
 
 export type AddCardData = {
   title: string;
@@ -13,6 +14,10 @@ export type AddCardData = {
   linkDesc?: string;
   linkImage?: string;
   videoUrl?: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  fileMimeType?: string;
   color?: string;
   sectionId?: string;
   // When set, the caller should attach this StudentAsset to the created card
@@ -47,16 +52,22 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
   const [imageUrl, setImageUrl] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
+  const [fileUrl, setFileUrl] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [fileSize, setFileSize] = useState<number>(0);
+  const [fileMimeType, setFileMimeType] = useState("");
   const [color, setColor] = useState<string | null>(null);
   const [sectionId, setSectionId] = useState(defaultSectionId ?? sections?.[0]?.id ?? "");
   const [showImage, setShowImage] = useState(false);
   const [showLink, setShowLink] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
+  const [showFile, setShowFile] = useState(false);
   const { preview, loading: previewLoading, fetchPreview, reset: resetPreview } = useLinkPreview();
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [libraryAssets, setLibraryAssets] = useState<LibraryAsset[] | null>(null);
   const [libraryLoading, setLibraryLoading] = useState(false);
@@ -93,16 +104,22 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
     setPickerOpen(false);
   }
 
-  async function handleFileUpload(file: File, type: "image" | "video") {
+  async function handleFileUpload(file: File, type: "image" | "video" | "file") {
     setUploading(true);
     try {
       const form = new FormData();
       form.append("file", file);
       const res = await fetch("/api/upload", { method: "POST", body: form });
       if (res.ok) {
-        const { url } = await res.json();
-        if (type === "image") setImageUrl(url);
-        else setVideoUrl(url);
+        const data = await res.json();
+        if (type === "image") setImageUrl(data.url);
+        else if (type === "video") setVideoUrl(data.url);
+        else {
+          setFileUrl(data.url);
+          setFileName(data.name ?? file.name);
+          setFileSize(typeof data.size === "number" ? data.size : file.size);
+          setFileMimeType(data.mimeType ?? file.type);
+        }
       } else {
         alert(`업로드 실패: ${await res.text()}`);
       }
@@ -136,6 +153,10 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
               linkDesc: preview?.description || undefined,
               linkImage: preview?.image || undefined,
               videoUrl: videoUrl || undefined,
+              fileUrl: fileUrl || undefined,
+              fileName: fileName || undefined,
+              fileSize: fileSize > 0 ? fileSize : undefined,
+              fileMimeType: fileMimeType || undefined,
               color: color || undefined,
               sectionId: sectionId || undefined,
               attachAssetId: pickedAssetId ?? undefined,
@@ -202,6 +223,14 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
               onClick={() => setShowVideo(!showVideo)}
             >
               🎬 동영상
+            </button>
+            <button
+              type="button"
+              className={`modal-attach-btn ${showFile ? "modal-attach-btn-active" : ""}`}
+              onClick={() => setShowFile(!showFile)}
+              aria-label="파일 첨부"
+            >
+              📎 파일
             </button>
             <button
               type="button"
@@ -282,6 +311,68 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
                     {preview.title && <div className="link-preview-card-title">{preview.title}</div>}
                     {preview.description && <div className="link-preview-card-desc">{preview.description}</div>}
                   </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── 파일 (개별 토글) ── */}
+          {showFile && (
+            <div className="modal-attach-section">
+              {fileUrl ? (
+                <div className="modal-file-preview modal-file-preview-file">
+                  <span className="modal-file-preview-icon" aria-hidden>
+                    {fileMimeToIcon(fileMimeType)}
+                  </span>
+                  <div className="modal-file-preview-body">
+                    <span className="modal-file-preview-name" title={fileName}>
+                      {fileName}
+                    </span>
+                    <span className="modal-file-preview-meta">
+                      {formatBytes(fileSize)} · {fileMimeToLabel(fileMimeType)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="modal-file-remove"
+                    onClick={() => {
+                      setFileUrl("");
+                      setFileName("");
+                      setFileSize(0);
+                      setFileMimeType("");
+                    }}
+                  >
+                    제거
+                  </button>
+                </div>
+              ) : (
+                <div
+                  className="modal-file-drop"
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("drag-over"); }}
+                  onDragLeave={(e) => e.currentTarget.classList.remove("drag-over")}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove("drag-over");
+                    const f = e.dataTransfer.files[0];
+                    if (f) handleFileUpload(f, "file");
+                  }}
+                >
+                  <span className="modal-file-drop-icon">📎</span>
+                  <span>{uploading ? "업로드 중..." : "클릭 또는 파일을 드래그하세요"}</span>
+                  <span className="modal-file-drop-hint">
+                    PDF · Word · Excel · PowerPoint · HWP · TXT · ZIP (최대 50MB)
+                  </span>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/x-hwp,application/haansofthwp,application/vnd.hancom.hwp,application/vnd.hancom.hwpx,text/plain,application/zip,application/x-zip-compressed,.pdf,.docx,.xlsx,.pptx,.hwp,.hwpx,.txt,.zip"
+                    hidden
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleFileUpload(f, "file");
+                    }}
+                  />
                 </div>
               )}
             </div>

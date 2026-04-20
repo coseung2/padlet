@@ -1,0 +1,26 @@
+{
+  "benchmarks": [
+    {
+      "product": "Padlet",
+      "feature": "card file attachment + inline PDF viewer",
+      "url": "https://padlet.com",
+      "capture": null,
+      "note": "기존 UX 원형 — 본 task의 baseline"
+    },
+    {
+      "product": "Notion",
+      "feature": "file block + PDF inline",
+      "url": "https://www.notion.so/help/embed-and-connect-other-apps",
+      "capture": null,
+      "note": "iframe 기반 인라인 뷰어, 확장자 기반 아이콘 매핑"
+    },
+    {
+      "product": "Google Classroom",
+      "feature": "post attachment",
+      "url": "https://classroom.google.com",
+      "capture": null,
+      "note": "인라인 없음 — 복잡도/수용 기준 하한 대조군"
+    }
+  ],
+  "note": "솔로 프로젝트 특성상 live 캡처는 생략. UX 관찰만으로 패턴 추출(research_pack.md §2 비교 표 참조)."
+}

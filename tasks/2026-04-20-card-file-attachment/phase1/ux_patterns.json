@@ -1,0 +1,32 @@
+{
+  "patterns": [
+    {
+      "pattern_id": "modal-attach-toggle-section",
+      "description": "AddCardModal에서 modal-attach-btn 토글 → modal-attach-section 개별 노출 (기존 이미지/동영상 패턴). '📎 파일' 버튼을 같은 계열로 추가.",
+      "source_url": "internal: src/components/AddCardModal.tsx",
+      "pros": ["일관성", "신규 학습 비용 0", "기존 스타일 재사용"],
+      "cons": ["버튼 수 5개로 증가 — 모바일 가로 공간 주의"]
+    },
+    {
+      "pattern_id": "dropzone-with-picker",
+      "description": "클릭 시 OS 파일 선택창 + 드래그드롭 동시 지원하는 존. accept 속성으로 확장자 제한.",
+      "source_url": "internal: modal-file-drop 클래스 기존 구현",
+      "pros": ["OS 네이티브 친숙도", "드래그 사용자·클릭 사용자 모두 커버"],
+      "cons": ["모바일에선 드래그 드롭 실사용 전무 — 클릭 위주 동작"]
+    },
+    {
+      "pattern_id": "pdf-iframe-inline-viewer",
+      "description": "application/pdf Content-Type + inline Content-Disposition으로 서빙되는 Blob을 <iframe src=...#view=FitH>에 삽입. 브라우저 내장 뷰어 활용.",
+      "source_url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Disposition",
+      "pros": ["번들 증가 없음", "브라우저 UX 재사용 (찾기/인쇄/페이지)"],
+      "cons": ["iOS Safari 제약 — UA 감지로 fallback 다운로드"]
+    },
+    {
+      "pattern_id": "non-pdf-file-card",
+      "description": "PDF 외 문서는 아이콘 + 원본 파일명 + 파일 크기 + 다운로드 버튼으로 렌더.",
+      "source_url": "reference: Classroom/Padlet의 비-PDF 케이스",
+      "pros": ["단순", "DOCX/XLSX/HWP 등 브라우저가 직접 렌더 못 하는 MIME 안전 처리"],
+      "cons": ["미리보기 없음 — 후속 task에서 Office Viewer 임베드 검토 여지"]
+    }
+  ]
+}

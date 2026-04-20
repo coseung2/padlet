@@ -21,6 +21,10 @@ type CardWire = {
   linkDesc: string | null;
   linkImage: string | null;
   videoUrl: string | null;
+  fileUrl: string | null;
+  fileName: string | null;
+  fileSize: number | null;
+  fileMimeType: string | null;
   x: number;
   y: number;
   width: number;
@@ -161,6 +165,10 @@ export async function GET(
             linkDesc: c.linkDesc,
             linkImage: c.linkImage,
             videoUrl: c.videoUrl,
+            fileUrl: c.fileUrl,
+            fileName: c.fileName,
+            fileSize: c.fileSize,
+            fileMimeType: c.fileMimeType,
             x: c.x,
             y: c.y,
             width: c.width,
