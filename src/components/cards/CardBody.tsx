@@ -18,6 +18,15 @@ type Props = {
     fileName?: string | null;
     fileSize?: number | null;
     fileMimeType?: string | null;
+    attachments?: Array<{
+      id: string;
+      kind: string;
+      url: string;
+      fileName: string | null;
+      fileSize: number | null;
+      mimeType: string | null;
+      order: number;
+    }>;
     externalAuthorName?: string | null;
     studentAuthorName?: string | null;
     authorName?: string | null;
@@ -45,6 +54,7 @@ export const CardBody = memo(function CardBody({ card, titleAs = "h3" }: Props) 
         fileName={card.fileName}
         fileSize={card.fileSize}
         fileMimeType={card.fileMimeType}
+        attachments={card.attachments}
       />
       <Title className="padlet-card-title">{card.title}</Title>
       <p className="padlet-card-content">{card.content}</p>

@@ -1,0 +1,25 @@
+{
+  "type": "feature",
+  "slug": "multi-attachment",
+  "task_id": "2026-04-20-multi-attachment",
+  "change_type": "enhancement",
+  "motivation": "현재 카드 1개에 이미지 1장·동영상 1개·파일 1개만 붙는 singleton 구조. 교사·학생 실사용에서 '한 카드에 사진 여러 장', '여러 문서 첨부'가 빈번(과제 증빙 스크린샷 3장, 발표 자료 PPT+PDF+음원 등). 다중 첨부 + 카드 모달 흐름 재구성.",
+  "user_story": "사용자로서 카드 추가 모달에서 이미지·동영상·파일을 한 번에 여러 개 선택하거나 순차 추가할 수 있고, 각각 미리보기+개별 제거 가능하며, 카드/상세 모달에서 목록으로 표시된다.",
+  "success_metric": "한 카드에 이미지 ≥5장 + 파일 ≥3개 동시 업로드 성공 ≥95%, 기존 단일 첨부 카드(legacy imageUrl/videoUrl/fileUrl)는 렌더 회귀 없음, 모달에서 항목 추가·제거 후 생성 시 모든 항목이 DB에 저장됨.",
+  "affected_surfaces": [
+    "prisma/schema.prisma",
+    "src/app/api/cards/route.ts",
+    "src/app/api/cards/[id]/route.ts",
+    "src/app/api/boards/[id]/stream/route.ts",
+    "src/app/board/[id]/page.tsx",
+    "src/components/AddCardModal.tsx",
+    "src/components/CardAttachments.tsx",
+    "src/components/CardFileAttachment.tsx",
+    "src/components/DraggableCard.tsx",
+    "src/components/cards/CardBody.tsx",
+    "src/components/cards/CardDetailModal.tsx",
+    "src/styles/card.css",
+    "src/styles/modal.css"
+  ],
+  "created_at": "2026-04-20T11:00:00+09:00"
+}

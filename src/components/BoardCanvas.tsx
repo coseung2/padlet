@@ -76,16 +76,17 @@ export function BoardCanvas({
   async function handleAdd(data: {
     title: string;
     content: string;
-    imageUrl?: string;
     linkUrl?: string;
     linkTitle?: string;
     linkDesc?: string;
     linkImage?: string;
-    videoUrl?: string;
-    fileUrl?: string;
-    fileName?: string;
-    fileSize?: number;
-    fileMimeType?: string;
+    attachments?: Array<{
+      kind: "image" | "video" | "file";
+      url: string;
+      fileName?: string;
+      fileSize?: number;
+      mimeType?: string;
+    }>;
     color?: string;
     attachAssetId?: string;
   }) {
@@ -101,16 +102,11 @@ export function BoardCanvas({
           boardId,
           title: data.title,
           content: data.content,
-          imageUrl: data.imageUrl || null,
           linkUrl: data.linkUrl || null,
           linkTitle: data.linkTitle || null,
           linkDesc: data.linkDesc || null,
           linkImage: data.linkImage || null,
-          videoUrl: data.videoUrl || null,
-          fileUrl: data.fileUrl || null,
-          fileName: data.fileName || null,
-          fileSize: typeof data.fileSize === "number" ? data.fileSize : null,
-          fileMimeType: data.fileMimeType || null,
+          attachments: data.attachments,
           color: data.color || null,
           ...nextPos,
         }),

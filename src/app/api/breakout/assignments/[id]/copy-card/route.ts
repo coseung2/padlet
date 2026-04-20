@@ -54,6 +54,20 @@ export async function POST(
 
     const sourceCard = await db.card.findUnique({
       where: { id: input.sourceCardId },
+      include: {
+        // multi-attachment (2026-04-20): 복제 시 첨부도 함께 이관.
+        attachments: {
+          orderBy: { order: "asc" },
+          select: {
+            kind: true,
+            url: true,
+            fileName: true,
+            fileSize: true,
+            mimeType: true,
+            order: true,
+          },
+        },
+      },
     });
     if (!sourceCard || sourceCard.boardId !== assignment.boardId) {
       return NextResponse.json({ error: "card_not_found" }, { status: 404 });
@@ -78,7 +92,11 @@ export async function POST(
     }
 
     const createdCards = await db.$transaction(async (tx) => {
-      const cards = [] as Awaited<ReturnType<typeof tx.card.create>>[];
+      const cards = [] as Array<
+        Awaited<ReturnType<typeof tx.card.create>> & {
+          attachments: Awaited<ReturnType<typeof tx.cardAttachment.findMany>>;
+        }
+      >;
       for (const sectionId of groupSectionIds) {
         // Skip the source section to avoid duplicating into the origin.
         if (sectionId === sourceCard.sectionId) continue;
@@ -94,12 +112,17 @@ export async function POST(
             title: sourceCard.title,
             content: sourceCard.content,
             color: sourceCard.color,
+            // 레거시 singleton 필드는 source에 있으면 유지(하위 호환).
             imageUrl: sourceCard.imageUrl,
             linkUrl: sourceCard.linkUrl,
             linkTitle: sourceCard.linkTitle,
             linkDesc: sourceCard.linkDesc,
             linkImage: sourceCard.linkImage,
             videoUrl: sourceCard.videoUrl,
+            fileUrl: sourceCard.fileUrl,
+            fileName: sourceCard.fileName,
+            fileSize: sourceCard.fileSize,
+            fileMimeType: sourceCard.fileMimeType,
             x: 0,
             y: 0,
             width: sourceCard.width,
@@ -107,14 +130,43 @@ export async function POST(
             order: (maxOrder._max.order ?? -1) + 1,
           },
         });
-        cards.push(c);
+        // multi-attachment: 첨부 배열 복제. createMany로 벌크 삽입.
+        if (sourceCard.attachments.length > 0) {
+          await tx.cardAttachment.createMany({
+            data: sourceCard.attachments.map((a) => ({
+              cardId: c.id,
+              kind: a.kind,
+              url: a.url,
+              fileName: a.fileName,
+              fileSize: a.fileSize,
+              mimeType: a.mimeType,
+              order: a.order,
+            })),
+          });
+        }
+        const newAttachments = await tx.cardAttachment.findMany({
+          where: { cardId: c.id },
+          orderBy: { order: "asc" },
+        });
+        cards.push({ ...c, attachments: newAttachments });
       }
       return cards;
     });
 
     return NextResponse.json({
       copiedTo: createdCards.length,
-      cards: createdCards,
+      cards: createdCards.map((c) => ({
+        ...c,
+        attachments: c.attachments.map((a) => ({
+          id: a.id,
+          kind: a.kind,
+          url: a.url,
+          fileName: a.fileName,
+          fileSize: a.fileSize,
+          mimeType: a.mimeType,
+          order: a.order,
+        })),
+      })),
     });
   } catch (e) {
     if (e instanceof ForbiddenError) {

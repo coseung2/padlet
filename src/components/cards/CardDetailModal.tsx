@@ -95,7 +95,8 @@ export function CardDetailModal({
     Boolean(card.linkImage) ||
     Boolean(card.videoUrl) ||
     Boolean(card.linkUrl) ||
-    Boolean(card.fileUrl);
+    Boolean(card.fileUrl) ||
+    (card.attachments?.length ?? 0) > 0;
 
   return (
     <>
@@ -163,6 +164,7 @@ export function CardDetailModal({
                 fileName={card.fileName}
                 fileSize={card.fileSize}
                 fileMimeType={card.fileMimeType}
+                attachments={card.attachments}
               />
             </section>
           )}

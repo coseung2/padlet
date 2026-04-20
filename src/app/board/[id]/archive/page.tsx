@@ -62,6 +62,20 @@ export default async function BreakoutArchivePage({
     db.card.findMany({
       where: { boardId: board.id },
       orderBy: { updatedAt: "desc" },
+      include: {
+        attachments: {
+          orderBy: { order: "asc" },
+          select: {
+            id: true,
+            kind: true,
+            url: true,
+            fileName: true,
+            fileSize: true,
+            mimeType: true,
+            order: true,
+          },
+        },
+      },
     }),
     db.breakoutMembership.findMany({
       where: { assignmentId: assignment.id },
@@ -220,6 +234,11 @@ export default async function BreakoutArchivePage({
                             linkDesc={c.linkDesc}
                             linkImage={c.linkImage}
                             videoUrl={c.videoUrl}
+                            fileUrl={c.fileUrl}
+                            fileName={c.fileName}
+                            fileSize={c.fileSize}
+                            fileMimeType={c.fileMimeType}
+                            attachments={c.attachments}
                           />
                           <h4 className="padlet-card-title">{c.title}</h4>
                           <p className="padlet-card-content">{c.content}</p>

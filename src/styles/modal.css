@@ -816,6 +816,80 @@
   border-color: var(--color-danger);
 }
 
+/* -------- Multi-attachment list (multi-attachment 2026-04-20) -------- */
+
+.modal-attach-notice {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 4px 0 0;
+}
+
+.modal-attach-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.modal-attach-list:empty {
+  display: none;
+}
+
+.modal-attach-list-item {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.modal-attach-list-item-image .optimized-img-wrap {
+  width: 100%;
+  max-height: 160px;
+  overflow: hidden;
+}
+
+.modal-attach-list-item-image .optimized-img-wrap img {
+  display: block;
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+}
+
+.modal-attach-list-item-video video {
+  display: block;
+  width: 100%;
+  max-height: 160px;
+  background: #000;
+}
+
+.modal-attach-item-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease;
+}
+
+.modal-attach-item-remove:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.modal-file-drop.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 /* -------- Modal Field Label -------- */
 
 .modal-field-label {

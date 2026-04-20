@@ -296,11 +296,32 @@ model Card {
   assetAttachments AssetAttachment[] @relation("CardAssetAttachments")
   assignmentSlot   AssignmentSlot?   @relation("AssignmentSlotCard")
   authors          CardAuthor[]
+  attachments      CardAttachment[]  @relation("CardAttachments")
 
   @@index([boardId])
   @@index([sectionId])
   @@index([authorId])
   @@index([studentAuthorId])
+}
+
+// multi-attachment (2026-04-20): 카드 1개에 이미지·동영상·파일 여러 개를
+// 붙일 수 있는 정규화 테이블. `kind`는 "image"|"video"|"file". 레거시
+// Card.imageUrl/videoUrl/fileUrl 단일 필드는 별개로 계속 존재하며,
+// attachments 배열이 비어있는 카드에 한해 렌더 fallback으로 사용됨.
+model CardAttachment {
+  id         String   @id @default(cuid())
+  cardId     String
+  kind       String   // "image" | "video" | "file"
+  url        String
+  fileName   String?
+  fileSize   Int?
+  mimeType   String?
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  card       Card     @relation("CardAttachments", fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@index([cardId])
 }
 
 model Submission {

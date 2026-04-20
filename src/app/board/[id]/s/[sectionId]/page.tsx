@@ -112,6 +112,18 @@ export default async function BreakoutPage({
     include: {
       author: { select: { name: true } },
       studentAuthor: { select: { name: true } },
+      attachments: {
+        orderBy: { order: "asc" },
+        select: {
+          id: true,
+          kind: true,
+          url: true,
+          fileName: true,
+          fileSize: true,
+          mimeType: true,
+          order: true,
+        },
+      },
     },
   });
 
@@ -137,6 +149,11 @@ export default async function BreakoutPage({
         linkDesc: c.linkDesc,
         linkImage: c.linkImage,
         videoUrl: c.videoUrl,
+        fileUrl: c.fileUrl,
+        fileName: c.fileName,
+        fileSize: c.fileSize,
+        fileMimeType: c.fileMimeType,
+        attachments: c.attachments,
         externalAuthorName: c.externalAuthorName,
         studentAuthorName: c.studentAuthor?.name ?? null,
         authorName: c.author?.name ?? null,

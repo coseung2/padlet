@@ -57,6 +57,12 @@ export async function GET(
                 linkUrl: true,
                 linkTitle: true,
                 createdAt: true,
+                attachments: {
+                  orderBy: { order: "asc" },
+                  where: { kind: "image" },
+                  select: { id: true, url: true, order: true },
+                  take: 1,
+                },
               },
             },
           },

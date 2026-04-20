@@ -18,11 +18,24 @@ export type CardData = {
   linkDesc?: string | null;
   linkImage?: string | null;
   videoUrl?: string | null;
-  /** card-file-attachment — 일반 파일 첨부 (PDF/DOCX/XLSX/PPTX/HWP/TXT/ZIP) */
+  /** card-file-attachment — 레거시 단일 파일 첨부 (1개). multi-attachment
+   *  시점 이후로는 신규 쓰기에 사용되지 않지만, 기존 카드의 렌더 fallback
+   *  경로를 위해 읽기 타입으로 유지. */
   fileUrl?: string | null;
   fileName?: string | null;
   fileSize?: number | null;
   fileMimeType?: string | null;
+  /** multi-attachment (2026-04-20): 정규화된 다중 첨부. 비어있으면
+   *  레거시 imageUrl/videoUrl/fileUrl이 fallback으로 렌더된다. */
+  attachments?: Array<{
+    id: string;
+    kind: string;
+    url: string;
+    fileName: string | null;
+    fileSize: number | null;
+    mimeType: string | null;
+    order: number;
+  }>;
   x: number;
   y: number;
   width: number;

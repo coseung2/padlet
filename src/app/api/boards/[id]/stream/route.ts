@@ -43,6 +43,15 @@ type CardWire = {
     displayName: string;
     order: number;
   }>;
+  attachments: Array<{
+    id: string;
+    kind: string;
+    url: string;
+    fileName: string | null;
+    fileSize: number | null;
+    mimeType: string | null;
+    order: number;
+  }>;
   createdAt: string;
 };
 
@@ -146,6 +155,18 @@ export async function GET(
                     order: true,
                   },
                 },
+                attachments: {
+                  orderBy: { order: "asc" },
+                  select: {
+                    id: true,
+                    kind: true,
+                    url: true,
+                    fileName: true,
+                    fileSize: true,
+                    mimeType: true,
+                    order: true,
+                  },
+                },
               },
             }),
             db.section.findMany({
@@ -185,6 +206,15 @@ export async function GET(
               id: a.id,
               studentId: a.studentId,
               displayName: a.displayName,
+              order: a.order,
+            })),
+            attachments: c.attachments.map((a) => ({
+              id: a.id,
+              kind: a.kind,
+              url: a.url,
+              fileName: a.fileName,
+              fileSize: a.fileSize,
+              mimeType: a.mimeType,
               order: a.order,
             })),
             createdAt: c.createdAt.toISOString(),

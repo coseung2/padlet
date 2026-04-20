@@ -17,6 +17,19 @@ type CardLike = {
   linkDesc: string | null;
   linkImage: string | null;
   videoUrl: string | null;
+  fileUrl?: string | null;
+  fileName?: string | null;
+  fileSize?: number | null;
+  fileMimeType?: string | null;
+  attachments?: Array<{
+    id: string;
+    kind: string;
+    url: string;
+    fileName: string | null;
+    fileSize: number | null;
+    mimeType: string | null;
+    order: number;
+  }>;
   externalAuthorName?: string | null;
   studentAuthorName?: string | null;
   authorName?: string | null;

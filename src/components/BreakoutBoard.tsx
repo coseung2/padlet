@@ -185,16 +185,11 @@ export function BreakoutBoard({
           boardId,
           title: data.title,
           content: data.content,
-          imageUrl: data.imageUrl || null,
           linkUrl: data.linkUrl || null,
           linkTitle: data.linkTitle || null,
           linkDesc: data.linkDesc || null,
           linkImage: data.linkImage || null,
-          videoUrl: data.videoUrl || null,
-          fileUrl: data.fileUrl || null,
-          fileName: data.fileName || null,
-          fileSize: typeof data.fileSize === "number" ? data.fileSize : null,
-          fileMimeType: data.fileMimeType || null,
+          attachments: data.attachments,
           color: data.color || null,
           x: 0, y: 0, order,
           sectionId: targetSection,
@@ -284,6 +279,20 @@ export function BreakoutBoard({
             linkDesc: (c.linkDesc as string | null) ?? null,
             linkImage: (c.linkImage as string | null) ?? null,
             videoUrl: (c.videoUrl as string | null) ?? null,
+            fileUrl: (c.fileUrl as string | null) ?? null,
+            fileName: (c.fileName as string | null) ?? null,
+            fileSize: (c.fileSize as number | null) ?? null,
+            fileMimeType: (c.fileMimeType as string | null) ?? null,
+            attachments:
+              (c.attachments as Array<{
+                id: string;
+                kind: string;
+                url: string;
+                fileName: string | null;
+                fileSize: number | null;
+                mimeType: string | null;
+                order: number;
+              }> | undefined) ?? [],
             x: Number(c.x ?? 0),
             y: Number(c.y ?? 0),
             width: Number(c.width ?? 240),

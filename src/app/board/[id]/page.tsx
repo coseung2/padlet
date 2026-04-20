@@ -106,6 +106,18 @@ export default async function BoardPage({
               order: true,
             },
           },
+          attachments: {
+            orderBy: { order: "asc" },
+            select: {
+              id: true,
+              kind: true,
+              url: true,
+              fileName: true,
+              fileSize: true,
+              mimeType: true,
+              order: true,
+            },
+          },
         },
       })
     : null;
@@ -251,6 +263,11 @@ export default async function BoardPage({
     queueStatus: c.queueStatus ?? null,
     authors:
       (c as { authors?: { id: string; studentId: string | null; displayName: string; order: number }[] }).authors ??
+      [],
+    // multi-attachment (2026-04-20): 정규화 첨부 배열. singleton 필드는
+    // 별개로 남겨 attachments가 비었을 때 fallback 렌더 경로가 사용.
+    attachments:
+      (c as { attachments?: { id: string; kind: string; url: string; fileName: string | null; fileSize: number | null; mimeType: string | null; order: number }[] }).attachments ??
       [],
   }));
 

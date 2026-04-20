@@ -46,6 +46,12 @@ export default async function ChildBreakoutPage({
               imageUrl: true,
               linkUrl: true,
               linkTitle: true,
+              attachments: {
+                orderBy: { order: "asc" },
+                where: { kind: "image" },
+                select: { id: true, url: true },
+                take: 1,
+              },
             },
           },
         },
@@ -129,7 +135,9 @@ export default async function ChildBreakoutPage({
                       {c.title}
                     </div>
                   ) : null}
-                  {c.imageUrl ? (
+                  {/* multi-attachment: attachments 이미지가 있으면 우선,
+                      없으면 legacy imageUrl로 fallback. */}
+                  {(c.attachments?.[0]?.url ?? c.imageUrl) ? (
                     <div
                       style={{
                         position: "relative",
@@ -142,7 +150,7 @@ export default async function ChildBreakoutPage({
                       }}
                     >
                       <OptimizedImage
-                        src={c.imageUrl}
+                        src={c.attachments?.[0]?.url ?? c.imageUrl!}
                         alt={c.title || "카드 이미지"}
                         fit="cover"
                       />

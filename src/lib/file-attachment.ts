@@ -1,5 +1,19 @@
 // card-file-attachment — 공용 유틸 (서버/클라이언트 모두)
 
+/** multi-attachment (2026-04-20): 카드 1개당 첨부 최대 개수. */
+export const MAX_ATTACHMENTS_PER_CARD = 10;
+
+/** multi-attachment: wire shape 카드 렌더/API 양쪽에서 공유. */
+export type AttachmentWire = {
+  id: string;
+  kind: "image" | "video" | "file";
+  url: string;
+  fileName: string | null;
+  fileSize: number | null;
+  mimeType: string | null;
+  order: number;
+};
+
 export const ALLOWED_FILE_MIMES: Record<string, string[]> = {
   "application/pdf": ["pdf"],
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ["docx"],

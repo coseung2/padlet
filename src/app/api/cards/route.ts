@@ -7,7 +7,7 @@ import { requirePermission, ForbiddenError } from "@/lib/rbac";
 import { isCanvaDesignUrl, resolveCanvaEmbedUrl, expandCanvaShortLink } from "@/lib/canva";
 import { extractVideoId, fetchYouTubeMeta, canonicalUrl } from "@/lib/youtube";
 import { setCardAuthors } from "@/lib/card-authors-service";
-import { isAllowedFileUrl, isAllowedStoredMime } from "@/lib/file-attachment";
+import { isAllowedFileUrl, isAllowedStoredMime, MAX_ATTACHMENTS_PER_CARD } from "@/lib/file-attachment";
 
 const CreateCardSchema = z.object({
   boardId: z.string().min(1),
@@ -25,6 +25,21 @@ const CreateCardSchema = z.object({
   fileName: z.string().max(255).nullable().optional(),
   fileSize: z.number().int().nonnegative().nullable().optional(),
   fileMimeType: z.string().max(100).nullable().optional(),
+  // multi-attachment (2026-04-20): 정규화된 첨부 배열. 이 필드가 있으면
+  // 위의 imageUrl/videoUrl/fileUrl(single) 필드보다 우선. 둘 다 허용해서
+  // 기존 클라이언트와 신규 클라이언트 모두 호환.
+  attachments: z
+    .array(
+      z.object({
+        kind: z.enum(["image", "video", "file"]),
+        url: z.string().url(),
+        fileName: z.string().max(255).nullable().optional(),
+        fileSize: z.number().int().nonnegative().nullable().optional(),
+        mimeType: z.string().max(100).nullable().optional(),
+      })
+    )
+    .max(MAX_ATTACHMENTS_PER_CARD)
+    .optional(),
   x: z.number().default(0),
   y: z.number().default(0),
   width: z.number().optional(),
@@ -61,6 +76,33 @@ export async function POST(req: Request) {
           { error: "fileUrl requires fileName, fileSize, fileMimeType" },
           { status: 400 }
         );
+      }
+    }
+
+    // multi-attachment (2026-04-20): attachments 배열 아이템 각각 검증.
+    // file kind는 singleton 경로와 동일 규칙 강제(URL 화이트리스트 + MIME).
+    if (input.attachments) {
+      for (const [i, a] of input.attachments.entries()) {
+        if (!isAllowedFileUrl(a.url)) {
+          return NextResponse.json(
+            { error: `attachments[${i}].url must be from the project upload storage` },
+            { status: 400 }
+          );
+        }
+        if (a.kind === "file") {
+          if (!isAllowedStoredMime(a.mimeType ?? null)) {
+            return NextResponse.json(
+              { error: `attachments[${i}].mimeType is not in the document whitelist` },
+              { status: 400 }
+            );
+          }
+          if (!a.fileName || !a.fileSize || !a.mimeType) {
+            return NextResponse.json(
+              { error: `attachments[${i}] (kind=file) requires fileName, fileSize, mimeType` },
+              { status: 400 }
+            );
+          }
+        }
       }
     }
 
@@ -206,7 +248,36 @@ export async function POST(req: Request) {
           { studentId: studentAuthorId, displayName: externalAuthorName },
         ]);
       }
+      // multi-attachment: 여러 첨부 일괄 저장. order는 배열 인덱스.
+      if (input.attachments && input.attachments.length > 0) {
+        await tx.cardAttachment.createMany({
+          data: input.attachments.map((a, idx) => ({
+            cardId: c.id,
+            kind: a.kind,
+            url: a.url,
+            fileName: a.fileName ?? null,
+            fileSize: a.fileSize ?? null,
+            mimeType: a.mimeType ?? null,
+            order: idx,
+          })),
+        });
+      }
       return c;
+    });
+
+    // 응답에 저장된 attachments 포함 (클라이언트 상태 즉시 반영).
+    const attachments = await db.cardAttachment.findMany({
+      where: { cardId: card.id },
+      orderBy: { order: "asc" },
+      select: {
+        id: true,
+        kind: true,
+        url: true,
+        fileName: true,
+        fileSize: true,
+        mimeType: true,
+        order: true,
+      },
     });
 
     // Mirror the server-side cardProps mapping (board/[id]/page.tsx) so
@@ -219,6 +290,7 @@ export async function POST(req: Request) {
         authorName: currentUserName,
         studentAuthorName: student?.name ?? null,
         externalAuthorName: card.externalAuthorName,
+        attachments,
       },
     });
   } catch (e) {
