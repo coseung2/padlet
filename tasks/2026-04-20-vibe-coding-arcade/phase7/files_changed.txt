@@ -1,0 +1,51 @@
+M  prisma/schema.prisma                                          # Board·Student 역관계 + 6 신규 모델 + layout 주석
+A  prisma/migrations/20260420_vibe_arcade_v1/migration.sql       # 6 테이블 + 인덱스 + FK
+
+M  src/styles/base.css                                           # 7 vibe-arcade 토큰 추가
+A  src/styles/vibe-arcade.css                                    # v2 Notion Soft 스타일
+M  src/app/globals.css                                           # vibe-arcade.css @import
+
+M  src/app/api/boards/route.ts                                   # CreateBoardSchema enum에 "vibe-arcade" 추가
+M  src/app/board/[id]/page.tsx                                   # VibeArcadeBoard import + case 분기 추가
+
+A  src/lib/vibe-arcade/types.ts                                  # Zod 스키마 + 타입 상수 + realtime event union
+A  src/lib/vibe-arcade/moderation-filter.ts                      # scanText/scanHtml (AC-G2/G3/R-11)
+A  src/lib/vibe-arcade/iframe-lru.ts                             # cap=3 LRU + about:blank 언마운트 (AC-N3)
+A  src/lib/vibe-arcade/quota-ledger.ts                           # 3단 쿼터 체크 + incrementLedger (AC-F9)
+A  src/lib/vibe-arcade/sandbox-renderer.ts                       # cross-origin CSP 헤더 + postMessage 브리지
+A  src/lib/vibe-arcade/sonnet-provider.ts                        # Anthropic Sonnet 스트리밍 래퍼
+A  src/lib/vibe-arcade/play-token.ts                             # HMAC playToken (1h TTL)
+
+A  src/app/api/vibe/config/route.ts                              # GET/PATCH (AC-F1)
+A  src/app/api/vibe/projects/route.ts                            # GET(catalog)/POST(create) (AC-F2/F10)
+A  src/app/api/vibe/sessions/route.ts                            # POST SSE (AC-F3/F8/F9)
+A  src/app/api/vibe/reviews/route.ts                             # POST (AC-F4/R-10)
+A  src/app/api/vibe/reviews/[id]/flag/route.ts                   # POST flag (R-10)
+A  src/app/api/vibe/play-sessions/route.ts                       # POST (playToken 발급, AC-F11)
+A  src/app/api/vibe/play-sessions/[id]/route.ts                  # PATCH (완료 원장 + 집계, AC-F5)
+A  src/app/api/vibe/moderation/[projectId]/route.ts              # POST approve|reject (AC-F12)
+A  src/app/api/vibe/quota/route.ts                               # GET 교사 쿼터 현황 (AC-F12 tab2)
+
+A  src/app/sandbox/vibe/[projectId]/route.ts                     # cross-origin 샌드박스 서빙 (AC-F11/G1/R-1)
+
+A  src/app/api/cron/vibe-arcade-anonymize/route.ts               # 7일 미활성 익명화 (AC-G5)
+A  src/app/api/cron/vibe-arcade-hard-delete/route.ts             # Pro 365일 하드 삭제 (AC-G5)
+A  src/app/api/cron/vibe-arcade-quota-rollup/route.ts            # 일별 rollup 무결성 점검
+
+A  src/components/VibeArcadeBoard.tsx                            # 레이아웃 root (gate-off + catalog + FAB 뼈대)
+A  src/components/vibe-arcade/StarRating.tsx                     # 별점 컴포넌트 (sm/md/lg, aria)
+
+A  src/lib/__tests__/vibe-arcade-moderation-filter.vitest.ts     # 10 assertion
+A  src/lib/__tests__/vibe-arcade-iframe-lru.vitest.ts            # 5 assertion
+A  src/lib/__tests__/vibe-arcade-play-token.vitest.ts            # 3 assertion
+
+# task 산출물 (phase0~6 산출물 + phase7 문서)
+A  tasks/2026-04-20-vibe-coding-arcade/                          # 전체 task 디렉토리
+
+# 설계 범위 밖 변경 사유:
+#   - src/app/api/boards/route.ts: 신규 layout enum 값 추가는 design_doc §1.2 Board 수정과
+#     일관. 기존 라우트 수정이지만 단일 line enum 확장이므로 surgical.
+#   - src/app/board/[id]/page.tsx: VibeArcadeBoard 마운트 case 추가. design_doc §3 컴포넌트
+#     트리의 /board/[id]/vibe-arcade/page.tsx 원안은 기존 [id]/page.tsx switch 패턴에 통합.
+#     → 기존 플로우 편승이 surgical. 별도 라우트 생성은 Karpathy §3 위반(기존 스타일 이탈).
+#   - src/app/globals.css: 신규 CSS @import 1 라인 — 기존 assessment/drawing 패턴과 동일.

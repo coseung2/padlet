@@ -1,0 +1,14 @@
+src/lib/__tests__/vibe-arcade-moderation-filter.vitest.ts    # scanText(pass/profanity/phone/email/rrn) + scanHtml(pass/iframe/js:/외부URL/CDN 화이트리스트)
+src/lib/__tests__/vibe-arcade-iframe-lru.vitest.ts            # cap=3 · 오래된 것 about:blank eviction · release/releaseAll · 재등록 시 recency refresh
+src/lib/__tests__/vibe-arcade-play-token.vitest.ts            # issue → verify happy path · 서명 변조 reject · malformed reject
+
+# TODO(phase7-followup) 단위 테스트 후속:
+# - quota-ledger.ts kstDate() 경계 + checkQuotaOrReject (Prisma mocking)
+# - sonnet-provider.ts extractHtmlBlock()
+# - sandbox-renderer.ts renderSandboxHtml() CSP 헤더 구성
+#
+# 통합 테스트 (phase9 QA 담당):
+# - POST /api/vibe/sessions SSE 스트림 + 쿼터 증분
+# - POST /api/vibe/projects 모더레이션 파싱 + 썸네일 큐잉
+# - /sandbox/vibe/:id CSP 헤더 검증 + JWT 인증
+# - 학생 제작 → 교사 승인 → 다른 학생 플레이 + 리뷰 E2E

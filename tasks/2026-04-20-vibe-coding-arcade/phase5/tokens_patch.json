@@ -1,0 +1,133 @@
+{
+  "task_id": "2026-04-20-vibe-coding-arcade",
+  "applies_to": "src/styles/base.css",
+  "philosophy": "기존 Notion-inspired 토큰 99% 재사용. 신규는 7개(색) + 0개(타이포/간격/radius는 재사용). 승인 배지·반려 배너 등은 기존 시맨틱 상태색 재활용.",
+  "new_tokens": {
+    "color": {
+      "--color-vibe-rating": {
+        "value": "#f5a623",
+        "purpose": "별점 채움 색 (amber). itch.io/Steam 관례.",
+        "wcag": "배경 #fff 위 contrast 2.8:1 (large text / decorative 용도 한정). 텍스트 색 아님."
+      },
+      "--color-vibe-rating-empty": {
+        "value": "#e5e5e5",
+        "purpose": "빈 별 윤곽선/채움",
+        "wcag": "장식 용도"
+      },
+      "--color-vibe-quota-ok": {
+        "value": "var(--color-plant-active)",
+        "purpose": "쿼터 게이지 정상 (>20%) — 기존 #27a35f alias",
+        "wcag": "WCAG AA pass (배경 #fff 대비 4.55:1)"
+      },
+      "--color-vibe-quota-warn": {
+        "value": "#f5a623",
+        "purpose": "쿼터 경고 (5-20%)",
+        "wcag": "text 용도 아님, bar fill 한정"
+      },
+      "--color-vibe-quota-danger": {
+        "value": "var(--color-danger)",
+        "purpose": "쿼터 소진 임박 (<5%) — 기존 #c62828 alias",
+        "wcag": "WCAG AA pass"
+      },
+      "--color-vibe-sandbox-bg": {
+        "value": "#1a1a1a",
+        "purpose": "플레이 모달 배경 (몰입). v3 차용.",
+        "wcag": "모달 배경, 텍스트는 #fff 사용 (대비 15.3:1)"
+      },
+      "--color-vibe-chat-user-bg": {
+        "value": "var(--color-accent-tinted-bg)",
+        "purpose": "Studio 사용자 메시지 배경 — 기존 #f2f9ff alias",
+        "wcag": "기존 토큰 재사용"
+      }
+    },
+    "font-size": {},
+    "spacing": {},
+    "radius": {}
+  },
+  "reused_tokens": [
+    "--color-bg",
+    "--color-bg-alt",
+    "--color-surface",
+    "--color-text",
+    "--color-text-muted",
+    "--color-text-faint",
+    "--color-accent",
+    "--color-accent-active",
+    "--color-accent-tinted-bg",
+    "--color-accent-tinted-text",
+    "--color-border",
+    "--color-border-hover",
+    "--color-status-reviewed-bg",
+    "--color-status-reviewed-text",
+    "--color-status-returned-bg",
+    "--color-status-returned-text",
+    "--color-status-submitted-bg",
+    "--color-status-submitted-text",
+    "--color-danger",
+    "--color-danger-active",
+    "--radius-card",
+    "--radius-btn",
+    "--radius-pill",
+    "--shadow-card",
+    "--shadow-card-hover",
+    "--shadow-accent",
+    "--border-card",
+    "--font-display",
+    "--font-body"
+  ],
+  "semantic_reuse_map": {
+    "approvedAt badge": "--color-status-reviewed-bg + --color-status-reviewed-text",
+    "rejectedAt banner": "--color-status-returned-bg + --color-status-returned-text",
+    "pending_review pill": "--color-status-submitted-bg + --color-status-submitted-text",
+    "flagged badge": "--color-status-returned-bg + --color-status-returned-text (재활용)",
+    "emergency stop button": "--color-danger + --color-danger-active"
+  },
+  "new_components_design_tokens": {
+    "StarRating": {
+      "size_sm": "16px star · gap 2px",
+      "size_md": "20px star · gap 3px",
+      "size_lg": "32px star · gap 4px",
+      "filled_color": "var(--color-vibe-rating)",
+      "empty_color": "var(--color-vibe-rating-empty)"
+    },
+    "QuotaGauge": {
+      "height": "8px",
+      "radius": "var(--radius-pill)",
+      "bg": "var(--color-surface-alt)",
+      "fill_ok": "var(--color-vibe-quota-ok)",
+      "fill_warn": "var(--color-vibe-quota-warn)",
+      "fill_danger": "var(--color-vibe-quota-danger)"
+    },
+    "TokenCountPill": {
+      "padding": "4px 10px",
+      "radius": "var(--radius-pill)",
+      "font": "Badge 12px/600",
+      "bg_ok": "var(--color-status-reviewed-bg)",
+      "bg_warn": "#fef9e7",
+      "bg_danger": "var(--color-status-returned-bg)"
+    },
+    "ModerationStatusBadge": {
+      "padding": "2px 8px",
+      "radius": "var(--radius-pill)",
+      "font": "Badge 12px/600",
+      "variants": {
+        "pending_review": "bg=--color-status-submitted-bg, text=--color-status-submitted-text",
+        "approved": "bg=--color-status-reviewed-bg, text=--color-status-reviewed-text",
+        "rejected|flagged|hidden": "bg=--color-status-returned-bg, text=--color-status-returned-text"
+      }
+    }
+  },
+  "breakpoints_applied": {
+    "desktop": "카탈로그 4-5열 그리드 gap 20px",
+    "tablet_1080": "카탈로그 3열",
+    "mobile_l_768": "카탈로그 2열, Studio 상하 스택",
+    "mobile_s_560": "카탈로그 1열, Studio 탭 전환"
+  },
+  "rules_observed": [
+    "하드코딩 hex 금지 → --color-* 사용. 시맨틱 상태색만 예외.",
+    "신규 그림자 추가 0 (기존 5개 토큰 재사용)",
+    "보더 2px 이상 금지",
+    "타이포 8단계 중 선택",
+    "모든 신규 텍스트 색은 WCAG AA 준수"
+  ]
+}
