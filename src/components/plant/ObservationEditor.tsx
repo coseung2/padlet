@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ObservationDTO } from "@/types/plant";
 import { OptimizedImage } from "../ui/OptimizedImage";
+import { uploadFile } from "@/lib/upload-client";
 
 interface Image {
   url: string;
@@ -60,15 +61,8 @@ export function ObservationEditor({ open, title, initial, onCancel, onSubmit }: 
     try {
       const uploaded: Image[] = [];
       for (const f of arr) {
-        const fd = new FormData();
-        fd.append("file", f);
-        const res = await fetch("/api/upload", { method: "POST", body: fd });
-        if (!res.ok) {
-          const j = await res.json().catch(() => ({}));
-          throw new Error(j?.error ?? "업로드 실패");
-        }
-        const j = await res.json();
-        uploaded.push({ url: j.url });
+        const res = await uploadFile(f);
+        uploaded.push({ url: res.url });
       }
       setImages((prev) => [...prev, ...uploaded]);
     } catch (e) {

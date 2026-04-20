@@ -3,12 +3,10 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { randomBytes } from "crypto";
 import { put } from "@vercel/blob";
+import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { getCurrentUser } from "@/lib/auth";
 import { ALLOWED_FILE_MIMES, isAllowedFileUpload, normalizeUploadMime } from "@/lib/file-attachment";
-
-const ALLOWED_IMAGE = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"];
-const ALLOWED_VIDEO = ["video/mp4", "video/webm", "video/quicktime"];
-const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+import { ALLOWED_IMAGE, ALLOWED_VIDEO, MAX_SIZE, buildUploadPolicy } from "./upload-policy";
 
 /**
  * card-file-attachment — 매직바이트 검증.
@@ -50,6 +48,30 @@ export async function POST(req: Request) {
   try {
     await getCurrentUser(); // auth check
 
+    // upload-payload-too-large — 클라이언트는 @vercel/blob/client `upload()`로
+    // JSON 본문(generate-client-token 프로토콜)을 보낸다. handleUpload가
+    // 토큰을 발급하면 브라우저가 Blob 스토리지에 직접 PUT → Vercel Functions
+    // 요청 본문 4.5MB 한도를 우회. onBeforeGenerateToken에서 화이트리스트·
+    // 크기 상한을 토큰에 바인딩해 악용을 차단.
+    const contentType = req.headers.get("content-type") ?? "";
+    if (contentType.includes("application/json")) {
+      const body = (await req.json()) as HandleUploadBody;
+      const json = await handleUpload({
+        body,
+        request: req,
+        onBeforeGenerateToken: async (pathname, clientPayload) => {
+          return buildUploadPolicy(pathname, clientPayload);
+        },
+        onUploadCompleted: async () => {
+          // 카드/과제 DB 기록은 저장 시점(카드 생성/수정 API)에서 fileUrl을
+          // 받아 isAllowedFileUrl 화이트리스트로 재검증하므로 여기서는 no-op.
+        },
+      });
+      return NextResponse.json(json);
+    }
+
+    // 레거시 multipart 경로 — BLOB_READ_WRITE_TOKEN 없는 로컬 dev·외부 호출
+    // 호환용. 프로덕션 클라이언트는 위 JSON 경로를 사용한다.
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     if (!file) {
@@ -70,8 +92,8 @@ export async function POST(req: Request) {
     // 검사는 정상화된 MIME을 사용한다.
     const normalizedMime = normalizeUploadMime(file.type ?? "", file.name);
 
-    const isImage = ALLOWED_IMAGE.includes(normalizedMime);
-    const isVideo = ALLOWED_VIDEO.includes(normalizedMime);
+    const isImage = (ALLOWED_IMAGE as readonly string[]).includes(normalizedMime);
+    const isVideo = (ALLOWED_VIDEO as readonly string[]).includes(normalizedMime);
     // card-file-attachment: 문서 7종은 MIME + 확장자 AND 검증 (스푸핑 방어 R1)
     const isFile = !isImage && !isVideo && isAllowedFileUpload(normalizedMime, file.name);
 
@@ -166,6 +188,7 @@ export async function POST(req: Request) {
     });
   } catch (e) {
     console.error("[POST /api/upload]", e);
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+    const msg = e instanceof Error ? e.message : "Upload failed";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

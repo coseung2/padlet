@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import type { CardData } from "./DraggableCard";
 import { OptimizedImage } from "./ui/OptimizedImage";
+import { uploadFile } from "@/lib/upload-client";
 
 const COLOR_PRESETS = [
   null, "#ffd8f4", "#c3faf5", "#ffe6cd", "#fde0f0",
@@ -33,18 +34,13 @@ export function EditCardModal({ card, onSave, onClose }: Props) {
   async function handleFileUpload(file: File, type: "image" | "video") {
     setUploading(true);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: form });
-      if (res.ok) {
-        const { url } = await res.json();
-        if (type === "image") setImageUrl(url);
-        else setVideoUrl(url);
-      } else {
-        alert(`업로드 실패: ${await res.text()}`);
-      }
+      const { url } = await uploadFile(file);
+      if (type === "image") setImageUrl(url);
+      else setVideoUrl(url);
     } catch (err) {
+      const msg = err instanceof Error ? err.message : "업로드 실패";
       console.error(err);
+      alert(`업로드 실패: ${msg}`);
     }
     setUploading(false);
   }

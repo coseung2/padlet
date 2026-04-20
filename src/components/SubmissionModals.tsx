@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { uploadFile } from "@/lib/upload-client";
 
 export type SubmissionData = {
   id: string;
@@ -36,14 +37,9 @@ export function SubmitModal({
 
   async function handleFileUpload(file: File) {
     setUploading(true);
-    const form = new FormData();
-    form.append("file", file);
     try {
-      const res = await fetch("/api/upload", { method: "POST", body: form });
-      if (res.ok) {
-        const { url } = await res.json();
-        setFileUrl(url);
-      }
+      const { url } = await uploadFile(file);
+      setFileUrl(url);
     } catch {}
     setUploading(false);
   }

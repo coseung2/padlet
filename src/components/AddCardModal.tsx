@@ -9,6 +9,7 @@ import {
   formatBytes,
   MAX_ATTACHMENTS_PER_CARD,
 } from "@/lib/file-attachment";
+import { uploadFile } from "@/lib/upload-client";
 
 export type AttachmentDraft = {
   /** 클라이언트 전용 식별자(DB id 아님). React key용. */
@@ -148,41 +149,24 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
     file: File,
     kind: AttachmentDraft["kind"]
   ): Promise<{ ok: true; draft: AttachmentDraft } | { ok: false; reason: string }> {
-    const form = new FormData();
-    form.append("file", file);
-    let res: Response;
     try {
-      res = await fetch("/api/upload", { method: "POST", body: form });
+      const data = await uploadFile(file);
+      return {
+        ok: true,
+        draft: {
+          tempId: mintId(),
+          kind,
+          url: data.url,
+          fileName: data.name,
+          fileSize: data.size,
+          mimeType: data.mimeType,
+        },
+      };
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "network error";
-      console.error(`[upload ${kind}] network`, e);
-      return { ok: false, reason: `네트워크 오류 (${msg})` };
+      const msg = e instanceof Error ? e.message : "업로드 실패";
+      console.error(`[upload ${kind}] ${file.name}: ${msg}`);
+      return { ok: false, reason: msg };
     }
-    if (!res.ok) {
-      // 서버가 JSON으로 { error } 또는 plain text로 반환. 둘 다 커버.
-      let reason = `HTTP ${res.status}`;
-      const text = await res.text().catch(() => "");
-      try {
-        const j = JSON.parse(text) as { error?: string };
-        if (j.error) reason = j.error;
-      } catch {
-        if (text) reason = text;
-      }
-      console.error(`[upload ${kind}] ${file.name}: ${reason}`);
-      return { ok: false, reason };
-    }
-    const data = await res.json();
-    return {
-      ok: true,
-      draft: {
-        tempId: mintId(),
-        kind,
-        url: data.url,
-        fileName: data.name ?? file.name,
-        fileSize: typeof data.size === "number" ? data.size : file.size,
-        mimeType: data.mimeType ?? file.type,
-      },
-    };
   }
 
   // 여러 파일 순차 업로드 — 브라우저 메모리 & 서버 레이트 보수적으로.
