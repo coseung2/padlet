@@ -86,6 +86,52 @@
   --shadow-accent-hover: 0 8px 24px rgba(0, 117, 222, 0.3);
 
   --border-card: 1px solid var(--color-border);
+
+  /* Bank semantic (handoff ingest T1-1, 2026-04-20) */
+  --color-bank-positive: #27a35f;
+  --color-bank-negative: #c62828;
+
+  /* Monospace font stack (handoff ingest T1-1) */
+  --font-mono: "SF Mono", "Fira Code", ui-monospace, monospace;
+
+  /* Type scale as CSS variables — 8 roles locked in design-system.md §2.
+     Allows semantic .h1~.h5 / .ds-* utility classes to derive sizes from
+     a single source of truth without hard-coding. */
+  --text-display-size: 26px;
+  --text-display-weight: 700;
+  --text-display-ls: -0.5px;
+  --text-title-size: 20px;
+  --text-title-weight: 700;
+  --text-title-ls: -0.3px;
+  --text-subtitle-size: 16px;
+  --text-subtitle-weight: 700;
+  --text-subtitle-ls: -0.25px;
+  --text-section-size: 15px;
+  --text-section-weight: 700;
+  --text-section-ls: -0.15px;
+  --text-body-size: 15px;
+  --text-body-weight: 400;
+  --text-body-ls: 0;
+  --text-label-size: 13px;
+  --text-label-weight: 600;
+  --text-label-ls: 0;
+  --text-badge-size: 12px;
+  --text-badge-weight: 600;
+  --text-badge-ls: 0.125px;
+  --text-micro-size: 11px;
+  --text-micro-weight: 600;
+  --text-micro-ls: 0.1px;
+
+  /* Tap targets + modal sizing + iOS safe-area FAB (handoff ingest T1-1) */
+  --tap-min: 44px;
+  --modal-max: min(92vw, 640px);
+  --fab-bottom-safe: calc(32px + env(safe-area-inset-bottom, 0px));
+
+  /* Transition durations (handoff ingest T1-1) */
+  --t-fast: 120ms ease;
+  --t-normal: 150ms ease;
+  --t-slow: 180ms ease;
+  --t-modal: 200ms ease;
 }
 
 * {
