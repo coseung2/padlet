@@ -28,4 +28,10 @@ describe("dj-board right column layout (regression for 2026-04-20-dj-board-layou
     const body = block(".dj-ranking");
     expect(body).not.toMatch(/position\s*:\s*sticky/);
   });
+
+  it("grid children have explicit grid-column placement (prevents auto-placement collapse when DJPlayedStack returns null)", () => {
+    expect(css).toMatch(/\.dj-played-stack\s*\{[^}]*grid-column\s*:\s*1/);
+    expect(css).toMatch(/\.dj-board-main\s*\{[^}]*grid-column\s*:\s*2/);
+    expect(css).toMatch(/\.dj-ranking\s*\{[^}]*grid-column\s*:\s*3/);
+  });
 });

@@ -309,6 +309,14 @@
   align-items: start;
 }
 
+/* Explicit column placement — DJPlayedStack returns null when there are no
+   played cards, so auto-placement would misalign `.dj-board-main` into col 1
+   (160px) and cause its 240px Now-Playing thumbnail to overflow into the
+   ranking column. Pinning each child keeps the 3-col intent stable. */
+.dj-played-stack { grid-column: 1; }
+.dj-board-main   { grid-column: 2; }
+.dj-ranking      { grid-column: 3; }
+
 .dj-board-main {
   display: flex;
   flex-direction: column;
@@ -1042,6 +1050,11 @@
 @media (max-width: 1279px) {
   .dj-board {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .dj-played-stack,
+  .dj-board-main,
+  .dj-ranking {
+    grid-column: auto;
   }
   .dj-played-stack,
   .dj-ranking {
