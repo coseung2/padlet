@@ -7,6 +7,8 @@ import { requirePermission, ForbiddenError } from "@/lib/rbac";
 const PatchSectionSchema = z.object({
   title: z.string().min(1).max(100).optional(),
   order: z.number().int().optional(),
+  // shared-column-sort (2026-04-20): 칼럼별 정렬 모드. 교사만 설정 가능.
+  sortMode: z.enum(["manual", "newest", "oldest", "title"]).nullable().optional(),
 });
 
 export async function PATCH(

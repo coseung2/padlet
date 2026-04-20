@@ -212,6 +212,10 @@ model Section {
   boardId     String
   title       String
   order       Int     @default(0)
+  // shared-column-sort (2026-04-20): 교사가 선택한 칼럼별 정렬 모드가
+  // 학생 화면에도 공유되도록 서버에 저장. "manual" | "newest" | "oldest"
+  // | "title". null → 클라이언트가 "manual"로 처리(기존 행 하위호환).
+  sortMode    String?
   // Breakout view (T0-①): teacher-rotatable access token.
   // null = no public share link. When set, anyone with the token can view the
   // section-isolated Breakout route. Rotating replaces the value, invalidating

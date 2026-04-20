@@ -13,14 +13,21 @@ import { CanvaFolderModal } from "./CanvaFolderModal";
 import { SectionActionsPanel } from "./SectionActionsPanel";
 import type { CardData } from "./DraggableCard";
 
+type SortMode = "manual" | "newest" | "oldest" | "title";
+
 type SectionData = {
   id: string;
   title: string;
   order: number;
   accessToken?: string | null;
+  /** shared-column-sort (2026-04-20): 교사가 고른 칼럼별 정렬 모드.
+   *  null은 "manual"로 해석. SSE를 통해 학생에게도 실시간 전파됨. */
+  sortMode?: string | null;
 };
 
-type SortMode = "manual" | "newest" | "oldest" | "title";
+function toSortMode(v: string | null | undefined): SortMode {
+  return v === "newest" || v === "oldest" || v === "title" ? v : "manual";
+}
 
 const SORT_OPTIONS: { value: SortMode; label: string }[] = [
   { value: "manual", label: "수동" },
@@ -67,7 +74,6 @@ export function ColumnsBoard({
   const [exportSectionId, setExportSectionId] = useState<string | null>(null);
   const [folderSectionId, setFolderSectionId] = useState<string | null>(null);
   const [organizing, setOrganizing] = useState<string | null>(null);
-  const [sortBySection, setSortBySection] = useState<Record<string, SortMode>>({});
   const canEdit = currentRole === "owner" || currentRole === "editor";
   // Students can add cards to their classroom's columns board. Section
   // membership rules (sectionId must belong to this board) are enforced
@@ -86,31 +92,31 @@ export function ColumnsBoard({
     });
   }
 
-  /* ── Per-column sort persistence ── */
-  const sortStorageKey = `aura.columnSort.${boardId}`;
-  useEffect(() => {
+  /* ── Per-column sort persistence (shared-column-sort 2026-04-20) ──
+     localStorage 단독이 아닌 Section.sortMode 서버 값을 단일 소스로 사용.
+     교사가 드롭다운을 바꾸면 PATCH /api/sections/:id로 저장 → SSE
+     snapshot으로 학생 화면도 동기화. 학생은 드롭다운이 disabled라 읽기만. */
+  async function setSortFor(sectionId: string, mode: SortMode) {
+    if (!canEdit) return; // 권한 없는 경로는 UI-level에서도 단락.
+    const prev = sections;
+    // Optimistic — SSE 도착 전 즉시 반영.
+    setSections((list) =>
+      list.map((s) => (s.id === sectionId ? { ...s, sortMode: mode } : s))
+    );
     try {
-      const raw = window.localStorage.getItem(sortStorageKey);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as Record<string, SortMode>;
-      if (parsed && typeof parsed === "object") {
-        setSortBySection(parsed);
+      const res = await fetch(`/api/sections/${sectionId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ sortMode: mode }),
+      });
+      if (!res.ok) {
+        setSections(prev);
+        alert(`정렬 저장 실패: ${await res.text().catch(() => "")}`);
       }
-    } catch {
-      // ignore corrupt storage
+    } catch (e) {
+      setSections(prev);
+      console.error("[setSortFor]", e);
     }
-  }, [sortStorageKey]);
-
-  function setSortFor(sectionId: string, mode: SortMode) {
-    setSortBySection((prev) => {
-      const next = { ...prev, [sectionId]: mode };
-      try {
-        window.localStorage.setItem(sortStorageKey, JSON.stringify(next));
-      } catch {
-        // storage full / disabled — UX still works for the session
-      }
-      return next;
-    });
   }
 
   /* ── Realtime board stream ── */
@@ -265,6 +271,14 @@ export function ColumnsBoard({
   // Group cards by section once per cards/sort change, applying the per-column
   // sort mode. Manual mode falls back to the stored `order` field; the other
   // modes derive from createdAt or title.
+  // shared-column-sort: sortMode는 sections(서버) 기반. sections 변경 시
+  // 정렬 재계산 트리거되도록 의존성에 포함.
+  const sortModeById = useMemo(() => {
+    const map: Record<string, SortMode> = {};
+    for (const s of sections) map[s.id] = toSortMode(s.sortMode);
+    return map;
+  }, [sections]);
+
   const cardsBySection = useMemo(() => {
     const map = new Map<string, CardData[]>();
     for (const card of cards) {
@@ -274,11 +288,11 @@ export function ColumnsBoard({
       else map.set(key, [card]);
     }
     for (const [sectionId, bucket] of map) {
-      const mode = sortBySection[sectionId] ?? "manual";
+      const mode = sortModeById[sectionId] ?? "manual";
       bucket.sort(comparatorFor(mode));
     }
     return map;
-  }, [cards, sortBySection]);
+  }, [cards, sortModeById]);
 
   function getCardsForSection(sectionId: string): CardData[] {
     return cardsBySection.get(sectionId) ?? [];
@@ -537,7 +551,7 @@ export function ColumnsBoard({
           const hasCanva = sectionCards.some(
             (c) => c.linkUrl && (c.linkUrl.includes("canva.link") || c.linkUrl.includes("canva.com"))
           );
-          const sortMode: SortMode = sortBySection[section.id] ?? "manual";
+          const sortMode: SortMode = sortModeById[section.id] ?? "manual";
 
           // 섹션 헤더 ⋯ 한 개로 rename/delete + Canva 옵션 통합.
           // 공유(브레이크아웃) 진입점은 보드 헤더의 ⚙ → BoardSettingsPanel 로 이동.
@@ -615,6 +629,8 @@ export function ColumnsBoard({
                   className={`column-sort-select ${sortMode !== "manual" ? "column-sort-active" : ""}`}
                   aria-label="정렬 기준"
                   value={sortMode}
+                  disabled={!canEdit}
+                  title={canEdit ? undefined : "정렬은 선생님만 변경할 수 있어요"}
                   onChange={(e) => setSortFor(section.id, e.target.value as SortMode)}
                 >
                   {SORT_OPTIONS.map((opt) => (
@@ -762,7 +778,17 @@ export function ColumnsBoard({
       <CardDetailModal
         card={openCard}
         onClose={() => setOpenCard(null)}
-        cards={cards}
+        // 상세 모달 좌/우 네비게이션이 보드 전체 카드를 순환하지 않고 같은
+        // 섹션(칼럼) 내 카드만, 화면에 보이는 정렬 순서대로 순환하도록 필터.
+        // sortModeById를 그대로 반영해 "교사 정렬 = 학생 네비게이션 순서"
+        // 일관성 확보. 삭제된 카드는 cards에서 빠지므로 자동 반영.
+        cards={
+          openCard
+            ? cards
+                .filter((c) => c.sectionId === openCard.sectionId)
+                .sort(comparatorFor(sortModeById[openCard.sectionId ?? ""] ?? "manual"))
+            : cards
+        }
         onChange={setOpenCard}
         onEditAuthors={(c) => setAuthorEditCard(c)}
         canEditAuthors={(c) => canEdit || c.studentAuthorId === currentUserId}

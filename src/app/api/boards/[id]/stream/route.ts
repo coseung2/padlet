@@ -55,7 +55,7 @@ type CardWire = {
   createdAt: string;
 };
 
-type SectionWire = { id: string; title: string; order: number };
+type SectionWire = { id: string; title: string; order: number; sortMode: string | null };
 
 export async function GET(
   _req: Request,
@@ -224,6 +224,7 @@ export async function GET(
             id: s.id,
             title: s.title,
             order: s.order,
+            sortMode: s.sortMode,
           }));
 
           const cardsHash = hashStable(cards);
