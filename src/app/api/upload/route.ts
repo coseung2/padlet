@@ -6,7 +6,7 @@ import { put } from "@vercel/blob";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { getCurrentUser } from "@/lib/auth";
 import { ALLOWED_FILE_MIMES, isAllowedFileUpload, normalizeUploadMime } from "@/lib/file-attachment";
-import { ALLOWED_IMAGE, ALLOWED_VIDEO, MAX_SIZE, buildUploadPolicy } from "./upload-policy";
+import { ALLOWED_IMAGE, ALLOWED_VIDEO, MAX_SIZE, UploadPolicyError, buildUploadPolicy } from "./upload-policy";
 
 /**
  * card-file-attachment — 매직바이트 검증.
@@ -187,6 +187,11 @@ export async function POST(req: Request) {
       mimeType: normalizedMime,
     });
   } catch (e) {
+    // 정책 거부는 사용자 입력 이슈 → 400으로 매핑해 UI가 적절히 토스트.
+    if (e instanceof UploadPolicyError) {
+      console.error("[POST /api/upload] policy reject:", e.message);
+      return NextResponse.json({ error: e.message }, { status: 400 });
+    }
     console.error("[POST /api/upload]", e);
     const msg = e instanceof Error ? e.message : "Upload failed";
     return NextResponse.json({ error: msg }, { status: 500 });

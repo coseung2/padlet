@@ -1,0 +1,8 @@
+M  src/app/api/upload/route.ts
+A  src/app/api/upload/upload-policy.ts
+A  src/app/api/upload/upload-policy.vitest.ts
+A  src/lib/upload-client.ts
+M  src/components/AddCardModal.tsx
+M  src/components/EditCardModal.tsx
+M  src/components/SubmissionModals.tsx
+M  src/components/plant/ObservationEditor.tsx

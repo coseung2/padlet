@@ -3,6 +3,7 @@ import {
   ALLOWED_IMAGE,
   ALLOWED_VIDEO,
   MAX_SIZE,
+  UploadPolicyError,
   buildUploadPolicy,
   type UploadTokenPayload,
 } from "./upload-policy";
@@ -64,6 +65,29 @@ describe("upload-policy · buildUploadPolicy (FUNCTION_PAYLOAD_TOO_LARGE 회귀)
     expect(() =>
       buildUploadPolicy("uploads/", payloadFor("application/pdf")),
     ).toThrow(/filename/);
+  });
+
+  it("인코딩된 path separator(%2F, %5C)도 거부 — 우회 차단", () => {
+    expect(() =>
+      buildUploadPolicy("uploads/a%2Fb.pdf", payloadFor("application/pdf")),
+    ).toThrow(/encoded separators/);
+    expect(() =>
+      buildUploadPolicy("uploads/a%5Cb.pdf", payloadFor("application/pdf")),
+    ).toThrow(/encoded separators/);
+    // 대소문자 혼재도 동일 처리.
+    expect(() =>
+      buildUploadPolicy("uploads/a%2fb.pdf", payloadFor("application/pdf")),
+    ).toThrow(/encoded separators/);
+  });
+
+  it("모든 정책 거부는 UploadPolicyError — route가 400으로 매핑", () => {
+    expect(() =>
+      buildUploadPolicy("reports/x.pdf", payloadFor("application/pdf")),
+    ).toThrow(UploadPolicyError);
+    expect(() => buildUploadPolicy("uploads/x.pdf", null)).toThrow(UploadPolicyError);
+    expect(() =>
+      buildUploadPolicy("uploads/x.exe", payloadFor("application/x-msdownload")),
+    ).toThrow(UploadPolicyError);
   });
 
   it("허용되지 않은 MIME은 토큰 발급 거부", () => {

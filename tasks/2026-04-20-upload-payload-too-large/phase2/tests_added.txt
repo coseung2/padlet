@@ -1,0 +1,12 @@
+src/app/api/upload/upload-policy.vitest.ts — 9 regression cases:
+  1. PDF 정상 토큰 발급 (client-direct happy path)
+  2. 이미지 MIME 전체 화이트리스트 반환
+  3. 동영상 MIME 전체 화이트리스트 반환
+  4. DOCX(OOXML) MIME + 확장자 AND 검증
+  5. uploads/ 접두 미준수 시 거부 (path traversal 1차 방어)
+  6. 중첩 디렉터리 / 빈 파일명 거부
+  7. 허용 외 MIME 거부
+  8. MIME/확장자 미스매치 차단 (PDF MIME + .exe 파일명)
+  9. clientPayload 누락·비JSON·필수 필드 누락 거부
+
+실행 결과: 9 passed · 전체 스위트 122 passed / 11 files.

@@ -34,6 +34,14 @@ export type UploadTokenPayload = {
   originalName: string;
 };
 
+/** 정책 거부 에러 — route.ts의 외부 try/catch 가 이를 HTTP 400으로 매핑. */
+export class UploadPolicyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UploadPolicyError";
+  }
+}
+
 /**
  * upload-payload-too-large — 클라이언트가 제시한 pathname + clientPayload
  * (MIME)을 화이트리스트 기준으로 검증한 뒤 Blob client-token 생성 옵션을
@@ -48,11 +56,17 @@ export function buildUploadPolicy(
   clientPayload: string | null,
 ): UploadPolicy {
   if (!pathname.startsWith("uploads/")) {
-    throw new Error("invalid pathname: must start with 'uploads/'");
+    throw new UploadPolicyError("invalid pathname: must start with 'uploads/'");
+  }
+  // 인코딩된 path separator도 거부 — `%2F`·`%5C`로 우회하지 못하게.
+  if (/%2f|%5c/i.test(pathname)) {
+    throw new UploadPolicyError("invalid pathname: encoded separators are not allowed");
   }
   const filename = pathname.slice("uploads/".length);
-  if (!filename || filename.includes("/")) {
-    throw new Error("invalid pathname: filename must not be empty or contain '/'");
+  if (!filename || filename.includes("/") || filename.includes("\\")) {
+    throw new UploadPolicyError(
+      "invalid pathname: filename must not be empty or contain '/' or '\\'",
+    );
   }
 
   const claimed = parseClientPayload(clientPayload);
@@ -63,7 +77,7 @@ export function buildUploadPolicy(
   const isFile = !isImage && !isVideo && isAllowedFileUpload(mime, filename);
 
   if (!isImage && !isVideo && !isFile) {
-    throw new Error(
+    throw new UploadPolicyError(
       `지원하지 않는 파일 형식 (${mime || "type 없음"}, 파일=${filename})`,
     );
   }
@@ -91,15 +105,15 @@ export function buildUploadPolicy(
 
 /** clientPayload는 uploadFile()에서 JSON stringify한 { mimeType } shape. */
 function parseClientPayload(raw: string | null): { mimeType: string } {
-  if (!raw) throw new Error("missing clientPayload");
+  if (!raw) throw new UploadPolicyError("missing clientPayload");
+  let obj: { mimeType?: unknown };
   try {
-    const obj = JSON.parse(raw) as { mimeType?: unknown };
-    if (typeof obj.mimeType !== "string" || !obj.mimeType) {
-      throw new Error("invalid clientPayload: mimeType required");
-    }
-    return { mimeType: obj.mimeType };
-  } catch (e) {
-    if (e instanceof Error && e.message.startsWith("invalid clientPayload")) throw e;
-    throw new Error("invalid clientPayload: not JSON");
+    obj = JSON.parse(raw) as { mimeType?: unknown };
+  } catch {
+    throw new UploadPolicyError("invalid clientPayload: not JSON");
   }
+  if (typeof obj.mimeType !== "string" || !obj.mimeType) {
+    throw new UploadPolicyError("invalid clientPayload: mimeType required");
+  }
+  return { mimeType: obj.mimeType };
 }

@@ -1,0 +1,16 @@
+{
+  "type": "incident",
+  "slug": "upload-payload-too-large",
+  "task_id": "2026-04-20-upload-payload-too-large",
+  "severity": "high",
+  "symptom": "일정 크기 이상 파일(특히 PDF) 업로드 시 브라우저 측에 FUNCTION_PAYLOAD_TOO_LARGE 오류가 반환되어 첨부가 실패함",
+  "first_observed": "2026-04-20T00:00:00+09:00",
+  "affected_surfaces": [
+    "/api/upload",
+    "AddCardModal",
+    "EditCardModal",
+    "SubmissionModals",
+    "ObservationEditor"
+  ],
+  "created_at": "2026-04-20T12:00:00+09:00"
+}
