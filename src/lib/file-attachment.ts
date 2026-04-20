@@ -36,6 +36,36 @@ export function isAllowedFileUpload(mime: string, filename: string): boolean {
   return exts.some((ext) => lowered.endsWith(`.${ext}`));
 }
 
+/** 확장자 → 기본 MIME 역매핑. OneDrive/드래그드롭 등에서 브라우저가
+ *  `file.type`을 비우거나 `application/octet-stream`으로 넘기는 케이스를
+ *  복구. 매핑되지 않은 확장자는 null — 업로드 거부. */
+const EXT_TO_CANONICAL_MIME: Record<string, string> = {
+  pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  hwp: "application/x-hwp",
+  hwpx: "application/vnd.hancom.hwpx",
+  txt: "text/plain",
+  zip: "application/zip",
+};
+
+/** 파일명 확장자에서 canonical MIME을 추론. 매핑 실패 시 null. */
+export function mimeFromExtension(filename: string): string | null {
+  const dot = filename.lastIndexOf(".");
+  if (dot < 0) return null;
+  const ext = filename.slice(dot + 1).toLowerCase();
+  return EXT_TO_CANONICAL_MIME[ext] ?? null;
+}
+
+/** 클라이언트가 보낸 MIME이 비어있거나 generic(octet-stream)일 때
+ *  확장자 기반으로 정상화. 그 외는 원본 유지. */
+export function normalizeUploadMime(rawMime: string, filename: string): string {
+  const generic = !rawMime || rawMime === "application/octet-stream" || rawMime === "binary/octet-stream";
+  if (!generic) return rawMime;
+  return mimeFromExtension(filename) ?? rawMime;
+}
+
 /** MIME → 카드/모달 렌더용 이모지 아이콘. 매핑 실패 시 일반 📎. */
 export function fileMimeToIcon(mime: string): string {
   if (mime === "application/pdf") return "🗎";

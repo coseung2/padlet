@@ -168,6 +168,15 @@
   flex: 1;
   min-width: 0;
   height: 100%;
+  /* card-file-attachment (2026-04-20): 파일/문서 카드 뒤로 모달 다크
+     배경(#0b0b0d)이 비쳐보이던 증상. 첨부 컨테이너 자체에 밝은 배경 +
+     패딩을 주어 파일 카드가 정상 대비로 읽힘. 이미지/비디오는 기존과
+     동일하게 중앙 정렬되어 렌더되며, 라이트박스 필요한 경우는 상세 모달
+     자체가 아닌 별도 뷰어가 담당. */
+  background: var(--color-surface);
+  padding: 16px;
+  overflow-y: auto;
+  align-self: stretch;
 }
 
 /* Make the image/iframe fill the media pane with contain-fit so nothing

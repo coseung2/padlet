@@ -4,7 +4,7 @@ import path from "path";
 import { randomBytes } from "crypto";
 import { put } from "@vercel/blob";
 import { getCurrentUser } from "@/lib/auth";
-import { ALLOWED_FILE_MIMES, isAllowedFileUpload } from "@/lib/file-attachment";
+import { ALLOWED_FILE_MIMES, isAllowedFileUpload, normalizeUploadMime } from "@/lib/file-attachment";
 
 const ALLOWED_IMAGE = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"];
 const ALLOWED_VIDEO = ["video/mp4", "video/webm", "video/quicktime"];
@@ -60,14 +60,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "File too large (max 50MB)" }, { status: 400 });
     }
 
-    const isImage = ALLOWED_IMAGE.includes(file.type);
-    const isVideo = ALLOWED_VIDEO.includes(file.type);
+    // OneDrive 드래그·Files On-Demand 등에서 브라우저가 file.type을
+    // 비우거나 application/octet-stream으로 보내는 케이스 정상화.
+    // 확장자로 canonical MIME을 추론하고, 이후 모든 화이트리스트/매직바이트
+    // 검사는 정상화된 MIME을 사용한다.
+    const normalizedMime = normalizeUploadMime(file.type ?? "", file.name);
+
+    const isImage = ALLOWED_IMAGE.includes(normalizedMime);
+    const isVideo = ALLOWED_VIDEO.includes(normalizedMime);
     // card-file-attachment: 문서 7종은 MIME + 확장자 AND 검증 (스푸핑 방어 R1)
-    const isFile = !isImage && !isVideo && isAllowedFileUpload(file.type, file.name);
+    const isFile = !isImage && !isVideo && isAllowedFileUpload(normalizedMime, file.name);
 
     if (!isImage && !isVideo && !isFile) {
       return NextResponse.json(
-        { error: `Unsupported file type: ${file.type}` },
+        {
+          error: `Unsupported file type: ${file.type || "(unknown)"} (name=${file.name})`,
+        },
         { status: 400 }
       );
     }
@@ -76,7 +84,7 @@ export async function POST(req: Request) {
     const rawExt = file.name.split(".").pop()?.toLowerCase() ?? fallbackExt;
     // 확장자 화이트리스트: 업로드된 파일이 실제로 허용 MIME에 매핑된 확장자만 허용.
     const allowedExts = isFile
-      ? ALLOWED_FILE_MIMES[file.type] ?? []
+      ? ALLOWED_FILE_MIMES[normalizedMime] ?? []
       : null;
     const safeExt = /^[a-z0-9]+$/.test(rawExt)
       ? allowedExts
@@ -89,7 +97,7 @@ export async function POST(req: Request) {
 
     // card-file-attachment: 파일 경로만 매직바이트 검사. 이미지/비디오는
     // 기존 경로라 회귀 위험을 피함 (기존 정책 유지).
-    if (isFile && !verifyFileMagic(file.type, file.name, buffer.subarray(0, 16))) {
+    if (isFile && !verifyFileMagic(normalizedMime, file.name, buffer.subarray(0, 16))) {
       return NextResponse.json(
         { error: "File contents do not match the declared type" },
         { status: 400 }
@@ -108,6 +116,10 @@ export async function POST(req: Request) {
       ? `attachment; filename="${asciiName}"; filename*=UTF-8''${utf8Name}`
       : undefined;
 
+    // Blob에 저장할 contentType도 정상화된 MIME으로. 그래야 다운로드 시
+    // 올바른 Content-Type 헤더가 설정되어 파일이 정상 인식됨.
+    const storedContentType = normalizedMime || "application/octet-stream";
+
     // Vercel Lambda filesystem is read-only outside /tmp — must use Blob
     // in production. Fall back to public/uploads/ only for local dev
     // without BLOB_READ_WRITE_TOKEN.
@@ -116,7 +128,7 @@ export async function POST(req: Request) {
     if (blobToken) {
       const res = await put(pathname, buffer, {
         access: "public",
-        contentType: file.type,
+        contentType: storedContentType,
         token: blobToken,
         multipart: true,
         addRandomSuffix: false,
@@ -136,7 +148,8 @@ export async function POST(req: Request) {
       type,
       name: file.name,
       size: file.size,
-      mimeType: file.type,
+      // 정상화된 MIME을 반환해야 서버의 isAllowedStoredMime 재검증 통과.
+      mimeType: normalizedMime,
     });
   } catch (e) {
     console.error("[POST /api/upload]", e);
