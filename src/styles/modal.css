@@ -899,6 +899,50 @@
   pointer-events: none;
 }
 
+/* attachment reorder ↑/↓ (attachment-reorder 2026-04-20) */
+.modal-attach-reorder {
+  display: flex;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.modal-attach-reorder-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.modal-attach-reorder-btn:not(:disabled):hover {
+  background: var(--color-surface-alt);
+  border-color: var(--color-border-hover);
+}
+
+.modal-attach-reorder-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* 이미지/비디오는 프리뷰 위에 오버레이로 겹침. 파일 카드는 오버레이 안 씀. */
+.modal-attach-reorder-overlay {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+  padding: 2px;
+}
+
 /* -------- Modal Field Label -------- */
 
 .modal-field-label {

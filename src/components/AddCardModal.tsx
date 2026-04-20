@@ -147,49 +147,75 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
   async function uploadOne(
     file: File,
     kind: AttachmentDraft["kind"]
-  ): Promise<AttachmentDraft | null> {
+  ): Promise<{ ok: true; draft: AttachmentDraft } | { ok: false; reason: string }> {
     const form = new FormData();
     form.append("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: form });
+    let res: Response;
+    try {
+      res = await fetch("/api/upload", { method: "POST", body: form });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "network error";
+      console.error(`[upload ${kind}] network`, e);
+      return { ok: false, reason: `네트워크 오류 (${msg})` };
+    }
     if (!res.ok) {
-      const msg = await res.text().catch(() => "unknown");
-      console.error(`[upload ${kind}]`, msg);
-      return null;
+      // 서버가 JSON으로 { error } 또는 plain text로 반환. 둘 다 커버.
+      let reason = `HTTP ${res.status}`;
+      const text = await res.text().catch(() => "");
+      try {
+        const j = JSON.parse(text) as { error?: string };
+        if (j.error) reason = j.error;
+      } catch {
+        if (text) reason = text;
+      }
+      console.error(`[upload ${kind}] ${file.name}: ${reason}`);
+      return { ok: false, reason };
     }
     const data = await res.json();
     return {
-      tempId: mintId(),
-      kind,
-      url: data.url,
-      fileName: data.name ?? file.name,
-      fileSize: typeof data.size === "number" ? data.size : file.size,
-      mimeType: data.mimeType ?? file.type,
+      ok: true,
+      draft: {
+        tempId: mintId(),
+        kind,
+        url: data.url,
+        fileName: data.name ?? file.name,
+        fileSize: typeof data.size === "number" ? data.size : file.size,
+        mimeType: data.mimeType ?? file.type,
+      },
     };
   }
 
   // 여러 파일 순차 업로드 — 브라우저 메모리 & 서버 레이트 보수적으로.
+  // 입력 파일은 이름순으로 정렬 후 업로드해 attachment 저장 순서도 이름순.
   async function uploadMany(files: File[], kind: AttachmentDraft["kind"]) {
     setUploading(true);
     const failures: string[] = [];
-    for (const f of files) {
+    // 사용자가 선택한 파일을 한글/숫자 혼합 파일명에 대해 자연스럽게 정렬
+    // (예: "01차시"<"02차시"<"10차시"). localeCompare + numeric:true가 그 역할.
+    const sorted = [...files].sort((a, b) =>
+      a.name.localeCompare(b.name, "ko", { numeric: true, sensitivity: "base" })
+    );
+    for (const f of sorted) {
       if (attachmentsRef.current.length >= MAX_ATTACHMENTS_PER_CARD) {
-        failures.push(`${f.name} (첨부 최대 ${MAX_ATTACHMENTS_PER_CARD}개 초과)`);
+        failures.push(`${f.name}: 첨부 최대 ${MAX_ATTACHMENTS_PER_CARD}개 초과`);
         continue;
       }
-      const draft = await uploadOne(f, kind);
-      if (draft) {
+      const r = await uploadOne(f, kind);
+      if (r.ok) {
         setAttachments((prev) => {
-          const next = [...prev, draft];
+          const next = [...prev, r.draft];
           attachmentsRef.current = next;
           return next;
         });
       } else {
-        failures.push(f.name);
+        failures.push(`${f.name}: ${r.reason}`);
       }
     }
     setUploading(false);
     if (failures.length > 0) {
-      alert(`일부 업로드 실패:\n${failures.join("\n")}`);
+      alert(
+        `일부 업로드 실패 (${failures.length}/${files.length}):\n\n${failures.join("\n")}`
+      );
     }
   }
 
@@ -203,6 +229,46 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
       attachmentsRef.current = next;
       return next;
     });
+  }
+
+  /** 같은 kind 내에서 위/아래로 이동. 카드에 저장되는 최종 order는 서버
+   *  트랜잭션이 배열 인덱스로 매긴다(AddCardModal → payloadAttachments →
+   *  /api/cards에서 idx를 order로 사용). */
+  function moveAttachment(tempId: string, dir: -1 | 1) {
+    setAttachments((prev) => {
+      const idx = prev.findIndex((a) => a.tempId === tempId);
+      if (idx < 0) return prev;
+      const kind = prev[idx].kind;
+      // 같은 kind의 이웃을 찾아 교체. kind 간 순서는 건드리지 않음 —
+      // 렌더도 kind별 섹션으로 분리되므로 kind 내 재배치만 의미 있음.
+      const sameKindIndices = prev
+        .map((a, i) => (a.kind === kind ? i : -1))
+        .filter((i) => i >= 0);
+      const pos = sameKindIndices.indexOf(idx);
+      const swapPos = pos + dir;
+      if (swapPos < 0 || swapPos >= sameKindIndices.length) return prev;
+      const j = sameKindIndices[swapPos];
+      const next = [...prev];
+      [next[idx], next[j]] = [next[j], next[idx]];
+      attachmentsRef.current = next;
+      return next;
+    });
+  }
+
+  function isFirstOfKind(tempId: string): boolean {
+    const sameKind = attachments.filter((a) => {
+      const target = attachments.find((x) => x.tempId === tempId);
+      return target && a.kind === target.kind;
+    });
+    return sameKind[0]?.tempId === tempId;
+  }
+
+  function isLastOfKind(tempId: string): boolean {
+    const sameKind = attachments.filter((a) => {
+      const target = attachments.find((x) => x.tempId === tempId);
+      return target && a.kind === target.kind;
+    });
+    return sameKind[sameKind.length - 1]?.tempId === tempId;
   }
 
   return (
@@ -348,6 +414,26 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
                           fit="cover"
                         />
                       </div>
+                      <div className="modal-attach-reorder modal-attach-reorder-overlay">
+                        <button
+                          type="button"
+                          className="modal-attach-reorder-btn"
+                          onClick={() => moveAttachment(a.tempId, -1)}
+                          disabled={isFirstOfKind(a.tempId)}
+                          aria-label="위로"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          className="modal-attach-reorder-btn"
+                          onClick={() => moveAttachment(a.tempId, 1)}
+                          disabled={isLastOfKind(a.tempId)}
+                          aria-label="아래로"
+                        >
+                          ↓
+                        </button>
+                      </div>
                       <button
                         type="button"
                         className="modal-attach-item-remove"
@@ -430,6 +516,26 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
                   .map((a) => (
                     <div key={a.tempId} className="modal-attach-list-item modal-attach-list-item-video">
                       <video src={a.url} className="modal-preview-video-file" preload="metadata" />
+                      <div className="modal-attach-reorder modal-attach-reorder-overlay">
+                        <button
+                          type="button"
+                          className="modal-attach-reorder-btn"
+                          onClick={() => moveAttachment(a.tempId, -1)}
+                          disabled={isFirstOfKind(a.tempId)}
+                          aria-label="위로"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          className="modal-attach-reorder-btn"
+                          onClick={() => moveAttachment(a.tempId, 1)}
+                          disabled={isLastOfKind(a.tempId)}
+                          aria-label="아래로"
+                        >
+                          ↓
+                        </button>
+                      </div>
                       <button
                         type="button"
                         className="modal-attach-item-remove"
@@ -491,6 +597,26 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
                           {a.fileSize ? formatBytes(a.fileSize) : "—"} ·{" "}
                           {fileMimeToLabel(a.mimeType ?? "")}
                         </span>
+                      </div>
+                      <div className="modal-attach-reorder">
+                        <button
+                          type="button"
+                          className="modal-attach-reorder-btn"
+                          onClick={() => moveAttachment(a.tempId, -1)}
+                          disabled={isFirstOfKind(a.tempId)}
+                          aria-label="위로"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          className="modal-attach-reorder-btn"
+                          onClick={() => moveAttachment(a.tempId, 1)}
+                          disabled={isLastOfKind(a.tempId)}
+                          aria-label="아래로"
+                        >
+                          ↓
+                        </button>
                       </div>
                       <button
                         type="button"

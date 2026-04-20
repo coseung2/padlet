@@ -57,7 +57,11 @@ export async function POST(req: Request) {
     }
 
     if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: "File too large (max 50MB)" }, { status: 400 });
+      console.error(`[upload reject] oversize name=${file.name} size=${file.size} type=${file.type}`);
+      return NextResponse.json(
+        { error: `파일이 너무 큽니다 (${(file.size / 1024 / 1024).toFixed(1)}MB, 최대 50MB)` },
+        { status: 400 }
+      );
     }
 
     // OneDrive 드래그·Files On-Demand 등에서 브라우저가 file.type을
@@ -72,9 +76,12 @@ export async function POST(req: Request) {
     const isFile = !isImage && !isVideo && isAllowedFileUpload(normalizedMime, file.name);
 
     if (!isImage && !isVideo && !isFile) {
+      console.error(
+        `[upload reject] unsupported name=${file.name} rawType=${file.type} normalized=${normalizedMime}`
+      );
       return NextResponse.json(
         {
-          error: `Unsupported file type: ${file.type || "(unknown)"} (name=${file.name})`,
+          error: `지원하지 않는 파일 형식 (${normalizedMime || "type 없음"}, 파일=${file.name})`,
         },
         { status: 400 }
       );
@@ -98,8 +105,14 @@ export async function POST(req: Request) {
     // card-file-attachment: 파일 경로만 매직바이트 검사. 이미지/비디오는
     // 기존 경로라 회귀 위험을 피함 (기존 정책 유지).
     if (isFile && !verifyFileMagic(normalizedMime, file.name, buffer.subarray(0, 16))) {
+      const head = buffer.subarray(0, 8).toString("hex");
+      console.error(
+        `[upload reject] magic-mismatch name=${file.name} normalized=${normalizedMime} head=${head}`
+      );
       return NextResponse.json(
-        { error: "File contents do not match the declared type" },
+        {
+          error: `파일 내용이 형식과 일치하지 않아요 (head=${head}, 파일=${file.name}). 파일이 손상되었거나 다른 형식일 수 있어요.`,
+        },
         { status: 400 }
       );
     }
