@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { getCurrentStudent } from "@/lib/student-auth";
 import { generateQrToken, generateTextCode } from "@/lib/classroom-utils";
 
 const StudentEntry = z.object({
@@ -12,6 +13,61 @@ const StudentEntry = z.object({
 const AddStudentsSchema = z.object({
   students: z.array(StudentEntry).min(1).max(50),
 });
+
+/**
+ * GET /api/classroom/:id/students — roster for CardAuthorEditor.
+ *
+ * Access: classroom teacher (owner) OR student whose session is bound to
+ * this classroom. Students outside the classroom get 403. Parents are
+ * not recipients of this endpoint (they read child-scoped projections).
+ *
+ * student-author-edit (2026-04-20): added to support students editing
+ * authors on their own cards — the picker needs same-classroom roster.
+ */
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+
+    const classroom = await db.classroom.findUnique({
+      where: { id },
+      select: { id: true, teacherId: true },
+    });
+    if (!classroom) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
+
+    // Teacher path — owner of this classroom.
+    let teacherOk = false;
+    try {
+      const user = await getCurrentUser();
+      teacherOk = user?.id === classroom.teacherId;
+    } catch {
+      teacherOk = false;
+    }
+
+    // Student path — session bound to this classroom.
+    let studentOk = false;
+    if (!teacherOk) {
+      const student = await getCurrentStudent();
+      studentOk = !!student && student.classroomId === id;
+    }
+
+    if (!teacherOk && !studentOk) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+
+    const students = await db.student.findMany({
+      where: { classroomId: id },
+      orderBy: [{ number: "asc" }, { name: "asc" }],
+      select: { id: true, name: true, number: true },
+    });
+
+    return NextResponse.json({ students });
+  } catch (e) {
+    console.error("[GET /api/classroom/:id/students]", e);
+    return NextResponse.json({ error: "internal" }, { status: 500 });
+  }
+}
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {

@@ -70,12 +70,13 @@ export async function PUT(
       studentAuthorId: card.studentAuthorId,
     };
 
-    // Author re-assignment is a strictly teacher-owner action — students
-    // can edit their own card content via PATCH but cannot change who is
-    // credited. Enforce here to avoid UI-only gating.
-    const isTeacherOwner =
-      !!identity.teacher && identity.teacher.ownsBoardIds.has(board.id);
-    if (!isTeacherOwner || !canEditCard(identity, boardLike, cardLike)) {
+    // Author re-assignment gate — canEditCard already captures both
+    // teacher-owner AND student-own-card permissions. Boards without a
+    // classroom (free-form) keep the same rule: teacher owner only.
+    // student-author-edit (2026-04-20): students on their own card are
+    // now allowed per scope §2-IN. setCardAuthors' classroomId guard
+    // prevents a student from naming a student outside their classroom.
+    if (!canEditCard(identity, boardLike, cardLike)) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 

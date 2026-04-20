@@ -82,6 +82,10 @@ export function BoardCanvas({
     linkDesc?: string;
     linkImage?: string;
     videoUrl?: string;
+    fileUrl?: string;
+    fileName?: string;
+    fileSize?: number;
+    fileMimeType?: string;
     color?: string;
     attachAssetId?: string;
   }) {
@@ -103,6 +107,10 @@ export function BoardCanvas({
           linkDesc: data.linkDesc || null,
           linkImage: data.linkImage || null,
           videoUrl: data.videoUrl || null,
+          fileUrl: data.fileUrl || null,
+          fileName: data.fileName || null,
+          fileSize: typeof data.fileSize === "number" ? data.fileSize : null,
+          fileMimeType: data.fileMimeType || null,
           color: data.color || null,
           ...nextPos,
         }),
@@ -183,7 +191,8 @@ export function BoardCanvas({
         onClose={() => setOpenCard(null)}
         cards={cards}
         onChange={setOpenCard}
-        onEditAuthors={canEdit ? (c) => setAuthorEditCard(c) : undefined}
+        onEditAuthors={(c) => setAuthorEditCard(c)}
+        canEditAuthors={(c) => canEdit || c.studentAuthorId === currentUserId}
       />
       {authorEditCard && (
         <CardAuthorEditor

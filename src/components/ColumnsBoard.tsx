@@ -415,6 +415,10 @@ export function ColumnsBoard({
           linkDesc: data.linkDesc || null,
           linkImage: data.linkImage || null,
           videoUrl: data.videoUrl || null,
+          fileUrl: data.fileUrl || null,
+          fileName: data.fileName || null,
+          fileSize: typeof data.fileSize === "number" ? data.fileSize : null,
+          fileMimeType: data.fileMimeType || null,
           color: data.color || null,
           x: 0, y: 0, order,
           sectionId: targetSection,
@@ -761,7 +765,8 @@ export function ColumnsBoard({
         onClose={() => setOpenCard(null)}
         cards={cards}
         onChange={setOpenCard}
-        onEditAuthors={canEdit ? (c) => setAuthorEditCard(c) : undefined}
+        onEditAuthors={(c) => setAuthorEditCard(c)}
+        canEditAuthors={(c) => canEdit || c.studentAuthorId === currentUserId}
       />
 
       {panelState && (() => {

@@ -1,0 +1,18 @@
+{
+  "type": "feature",
+  "slug": "student-author-edit",
+  "task_id": "2026-04-20-student-author-edit",
+  "change_type": "enhancement",
+  "motivation": "카드 상세 토글의 '👥 작성자 지정' 버튼이 현재 교사 전용. 학생도 자기 카드에 공동 저자(같은 반 친구)를 지정할 수 있어야 그룹 과제·협업 흐름이 완성됨. 학생의 자기 카드 토글은 이미 노출되어 있으므로 권한·UI 게이트만 확장.",
+  "user_story": "학생으로서 내가 올린 카드를 열면 '작성자 지정' 버튼이 보이고, 같은 반 친구를 공동 저자로 추가/제거할 수 있다.",
+  "success_metric": "학생 UA로 자기 카드의 '작성자 지정' 버튼이 노출되고, 다른 학생의 카드에서는 버튼이 숨어야 함. PUT /api/cards/:id/authors에 학생 세션으로 호출 시 본인 카드는 200, 타인 카드는 403.",
+  "affected_surfaces": [
+    "src/app/api/cards/[id]/authors/route.ts",
+    "src/components/cards/CardDetailModal.tsx",
+    "src/components/BoardCanvas.tsx",
+    "src/components/GridBoard.tsx",
+    "src/components/StreamBoard.tsx",
+    "src/components/ColumnsBoard.tsx"
+  ],
+  "created_at": "2026-04-20T10:30:00+09:00"
+}

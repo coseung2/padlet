@@ -11,9 +11,14 @@ type Props = {
   /** Optional: cards list + setter for prev/next navigation. */
   cards?: CardData[];
   onChange?: (card: CardData) => void;
-  /** Teacher-only: opens CardAuthorEditor from inside the modal. When
-   *  undefined the author-edit button is hidden (student/parent path). */
+  /** Opens CardAuthorEditor from inside the modal. When undefined the
+   *  button is hidden. When defined, visibility is further gated by
+   *  `canEditAuthors` (per-card predicate) if provided. */
   onEditAuthors?: (card: CardData) => void;
+  /** Per-card gate — when set, the button only renders for cards that
+   *  return `true`. Lets teachers (all cards) and students (own cards)
+   *  share the same modal without leaking the editor to peers. */
+  canEditAuthors?: (card: CardData) => boolean;
 };
 
 export function CardDetailModal({
@@ -22,6 +27,7 @@ export function CardDetailModal({
   cards,
   onChange,
   onEditAuthors,
+  canEditAuthors,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -182,7 +188,7 @@ export function CardDetailModal({
               authorName={card.authorName}
               createdAt={card.createdAt}
             />
-            {onEditAuthors && (
+            {onEditAuthors && (canEditAuthors ? canEditAuthors(card) : true) && (
               <button
                 type="button"
                 className="card-detail-edit-authors"
