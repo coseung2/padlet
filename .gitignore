@@ -38,3 +38,5 @@ public/uploads/*
 # Private one-off scripts (PAT issuance, DB inspection). Underscore prefix
 # marks them as not for distribution.
 scripts/_*
+/dev.db*
+dev.log
