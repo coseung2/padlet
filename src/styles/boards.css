@@ -949,6 +949,36 @@
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* dj-played-delete-touchdrag — 태블릿 고려: 최소 탭 타겟 28px. 데스크톱은
+ * hover 시 뚜렷해지지만 평소에도 보이도록 opacity 0.6 → 1. */
+.dj-played-delete {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted, #888);
+  font-size: 18px;
+  line-height: 1;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: background 120ms ease, opacity 120ms ease;
+}
+
+.dj-played-item:hover .dj-played-delete,
+.dj-played-delete:focus-visible {
+  opacity: 1;
+}
+
+.dj-played-delete:hover {
+  background: rgba(255, 80, 80, 0.12);
+  color: #d24141;
 }
 
 @keyframes dj-played-slide-in {

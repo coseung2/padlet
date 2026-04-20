@@ -34,6 +34,20 @@ export function DJBoard({
   // mutations. Same pattern as ColumnsBoard.
   const pendingCardIds = useRef<Set<string>>(new Set());
 
+  // dj-played-delete-touchdrag — 태블릿에서 HTML5 DnD 이벤트가 터치로 발화되지
+  // 않아 재생완료 → 큐 복귀 드래그가 막힘. drag-drop-touch 폴리필을 클라이언트
+  // 진입 시점에만 동적으로 로드. `document.addEventListener`를 생성자에서 호출
+  // 하므로 SSR 경로에는 절대 실려서는 안 됨.
+  useEffect(() => {
+    let cancelled = false;
+    import("drag-drop-touch").catch((e) => {
+      if (!cancelled) console.error("[dj] touch-drag polyfill load failed", e);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   function trackMutation<T>(id: string, run: () => Promise<T>): Promise<T> {
     pendingCardIds.current.add(id);
     return run().finally(() => {
@@ -236,6 +250,7 @@ export function DJBoard({
         cards={playedCards}
         canControl={canControl}
         onRestore={handleRestorePlayed}
+        onDelete={handleDelete}
       />
 
       <div className="dj-board-main">

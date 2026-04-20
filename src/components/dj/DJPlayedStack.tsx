@@ -8,9 +8,12 @@ type Props = {
   /** Called when the user drags a played card back into the main queue.
    *  DJBoard maps that to: queueStatus = "approved" + reinsert at the end. */
   onRestore: (cardId: string) => void;
+  /** Called when the user taps the delete button on a played card.
+   *  DJBoard maps that to DELETE /api/boards/:id/queue/:cardId. */
+  onDelete: (cardId: string) => void;
 };
 
-export function DJPlayedStack({ cards, canControl, onRestore }: Props) {
+export function DJPlayedStack({ cards, canControl, onRestore, onDelete }: Props) {
   if (cards.length === 0) return null;
 
   function handleDragStart(
@@ -58,6 +61,24 @@ export function DJPlayedStack({ cards, canControl, onRestore }: Props) {
               />
             )}
             <span className="dj-played-item-title">{card.title}</span>
+            {canControl && (
+              <button
+                type="button"
+                className="dj-played-delete"
+                aria-label="재생 완료 곡 삭제"
+                title="삭제"
+                // 폴리필(drag-drop-touch)이 상위 li의 dragstart를 터치에서 합성
+                // 하므로, 버튼 영역을 드래그 원점에서 제외해 탭만 가도록.
+                draggable={false}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(card.id);
+                }}
+              >
+                ×
+              </button>
+            )}
           </li>
         ))}
       </ul>
