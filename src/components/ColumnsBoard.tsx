@@ -7,6 +7,7 @@ import { CardBody } from "./cards/CardBody";
 import { CardDetailModal } from "./cards/CardDetailModal";
 import { CardAuthorEditor, type SavedAuthor } from "./cards/CardAuthorEditor";
 import { ContextMenu } from "./ContextMenu";
+import { ColumnMenu } from "./columns/ColumnMenu";
 import { EditCardModal } from "./EditCardModal";
 import { ExportModal } from "./ExportModal";
 import { CanvaFolderModal } from "./CanvaFolderModal";
@@ -29,12 +30,6 @@ function toSortMode(v: string | null | undefined): SortMode {
   return v === "newest" || v === "oldest" || v === "title" ? v : "manual";
 }
 
-const SORT_OPTIONS: { value: SortMode; label: string }[] = [
-  { value: "manual", label: "수동" },
-  { value: "newest", label: "최신" },
-  { value: "oldest", label: "오래된" },
-  { value: "title", label: "제목" },
-];
 
 type PanelTab = "rename" | "delete";
 
@@ -625,21 +620,14 @@ export function ColumnsBoard({
               >
                 <h3 className="column-title">{section.title}</h3>
                 <span className="column-count">{sectionCards.length}</span>
-                <select
-                  className={`column-sort-select ${sortMode !== "manual" ? "column-sort-active" : ""}`}
-                  aria-label="정렬 기준"
-                  value={sortMode}
-                  disabled={!canEdit}
-                  title={canEdit ? undefined : "정렬은 선생님만 변경할 수 있어요"}
-                  onChange={(e) => setSortFor(section.id, e.target.value as SortMode)}
-                >
-                  {SORT_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-                {menuItems.length > 0 && <ContextMenu items={menuItems} />}
+                {(canEdit || menuItems.length > 0) && (
+                  <ColumnMenu
+                    sortMode={sortMode}
+                    canSort={canEdit}
+                    onSetSort={(mode) => setSortFor(section.id, mode)}
+                    actions={menuItems}
+                  />
+                )}
               </div>
               <div className={`column-cards ${overSectionId === section.id ? "column-cards-active" : ""}`}>
                 {sectionCards.map((c) => {

@@ -66,4 +66,14 @@
 - **결정 7**: `HomePage`의 `AuthHeader`를 TopNav 내부로 이동. `UserSwitcher`(mock 전환용)는 home header 내부에 유지.
 - **되돌리기**: TopNav.tsx 삭제 + layout.css `.ab-topnav*` 블록 제거 + home/classroom page에 기존 AuthHeader/back-link 복원.
 
+## T5-1 — ColumnsBoard 정렬 UX (케밥 라디오)
+
+- **결정 1**: `components/columns/ColumnMenu.tsx` **신규 전용 컴포넌트**. 공용 `ContextMenu`는 건드리지 않음.
+- **이유**: ContextMenu는 card-context 등 여러 곳에서 씀. 라디오 / 섹션라벨 / separator 지원을 위해 타입 확장하면 blast radius 큼. 전용 컴포넌트 = surgical.
+- **결정 2**: `misc.css`에 `.ctx-menu-label`, `.ctx-menu-sep`, `.ctx-menu-item-radio`, `.ctx-menu-check`, `.is-selected` 규칙 추가. `ctx-menu-*` prefix는 `ColumnMenu`에서도 재활용 — ContextMenu와 동일한 dropdown 외관 유지.
+- **결정 3**: handoff 라벨로 수치 조정: `"최신" → "최신순"`, `"오래된" → "오래된 순"`, `"제목" → "제목순"`. ColumnsBoard.tsx 내 `SORT_OPTIONS` 상수는 삭제하고 ColumnMenu 내부 상수로 이동.
+- **결정 4**: `.column-sort-select` / `.column-sort-active` CSS를 **바로 제거**. dead CSS 쌓지 않음 (Karpathy "backwards-compatibility hacks" 경고).
+- **결정 5**: 학생(viewer)은 sort 옵션 비노출. 기존 `disabled` select를 보여주던 UX가 사라지지만, 정렬 상태는 서버 snapshot으로 자동 적용되므로 기능 영향 없음.
+- **되돌리기**: boards.css에 `.column-sort-select` 블록 복원 + ColumnsBoard.tsx의 `<select>` 복원 + SORT_OPTIONS 상수 복원 + `columns/ColumnMenu.tsx` 삭제 + `misc.css` radio/label/sep 블록 제거.
+
 ---
