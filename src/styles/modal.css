@@ -6,6 +6,15 @@
   background: rgba(0, 0, 0, 0.4);
   z-index: 100;
   animation: fadeIn 150ms ease;
+  /* Center non-positioned children (e.g. .role-perm-modal). Modals that
+     opt into their own `position: fixed` layout (.add-card-modal,
+     .card-detail-modal, etc.) are unaffected because fixed positioning
+     takes them out of the flex flow. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  overflow-y: auto;
 }
 
 .add-card-modal {
