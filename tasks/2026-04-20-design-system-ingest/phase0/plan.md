@@ -195,7 +195,7 @@ T8(Vibe 재설계)이 전체 작업량의 절반 이상.
 - [x] **T9-1** StudentLoginForm 스타일 — `student.css` `.student-login-*` 블록을 handoff `.ab-login-*` 수치로 정렬 (padding 48/40, shadow 토큰화, mono 폰트 `--font-mono`, input 22px/ls6, error `--color-danger`) (2026-04-21)
 - [x] **T9-2** StudentDashboard 스타일 — greeting + badge + logout 한 줄 flex-row wrapper `.student-greeting-row` + `.student-sub` "오늘의 보드" 헤더 추가 (handoff `ab-student-*` 레이아웃) (2026-04-21)
 - [x] **T9-3** Student BoardView 제출 카드 — `assignment.css .assign-submit-card*` 수치 업그레이드 (padding 24, shadow 토큰, 15px 본문, focus ring), `.ds-pill` 제출됨 배지 + "선생님 검토 후 알림이 전송됩니다" 힌트 추가 (2026-04-21)
-- [ ] **T10-1** shared.css 최종 정돈
+- [~] **T10-1** shared.css 최종 정돈 — **partial**. 이번 세션: DJ CSS 리터럴(border-radius, transition ms) → 토큰 변환 (`.dj-nowplaying/.dj-ranking-section/.dj-ranking-tag/.dj-play-btn/.dj-next-btn`). Dead CSS 2건(.column-sort-select, .classroom-detail-code) T5/T6에서 제거. 전 CSS 파일 전면 리터럴→토큰 변환은 별도 follow-up task (2026-04-21)
 
 ### 선결 결정 필요 (스키마 또는 설계 영향) — ✅ 모두 컨펌 완료 (2026-04-21)
 - [x] **T2-1** PNG 아이콘 채택 — 번들의 `aura-app-icon-512.png` 사용

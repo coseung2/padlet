@@ -114,4 +114,15 @@
 - **후속**: T10 CSS 정리 단계에서 `border-radius: 8px/12px/999px` 리터럴을 `var(--radius-card)/var(--radius-pill)`로, `transition 150ms ease`를 `var(--t-normal)`로 바꾸는 **토큰 정규화 패스**로 흡수. 전면 네임스페이스 rename은 별도 follow-up task.
 - **사용자 확인 필요**: 이번 세션에서 DJ 보드 시각 변경을 기대했다면 별도 재작업 필요.
 
+## T8-1~T8-4 — Vibe + Gallery 재설계 (follow-up task)
+
+- **결정**: 이번 세션에선 **코드 변경 0**. 스키마 migration + 신규 board layout + Studio 재작성 + Gallery 보드 신규 = 약 12h 규모라 design-system-ingest task의 sub-task로 무겁다. 설계 문서 1건(`vibe_redesign_plan.md`)만 작성하고 **별도 feature task**로 분리.
+- **근거**: 사용자 컨펌 4건(T8-1 B안 / T8-2 매핑 / T8-3 신규 layout / T8-4 서버 프록시)을 설계 문서에 확정 기록. 후속 task 착수 시 즉시 구현 가능.
+- **follow-up task 제목 제안**: `2026-04-?-vibe-arcade-redesign-ingest` (feature 파이프라인)
+
+## T10-1 — CSS 정리 (partial)
+
+- **결정**: 이번 세션 실행 = **DJ CSS 4곳 리터럴→토큰 변환**만 (`.dj-nowplaying` 12px → `var(--radius-card)`, `.dj-play-btn/.dj-next-btn` 4px → `var(--radius-btn)`, `.dj-ranking-section` 8px → `var(--radius-card)`, `.dj-ranking-tag` 999px → `var(--radius-pill)`, transition 150ms ease → `var(--t-normal)`). dead CSS 정리(`.column-sort-select`, `.classroom-detail-code*`)는 T5-1/T6-2에서 이미 수행.
+- **미실행**: 15개 CSS 파일 전반의 리터럴(`150ms ease`, `border-radius: 4/8/12/20px`) → 토큰 일괄 변환. regression blast radius가 커서 **follow-up task**로 이관.
+
 ---
