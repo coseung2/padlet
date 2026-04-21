@@ -43,8 +43,11 @@ type Props = {
   allBoards: Board[]; // teacher's all boards for picker
 };
 
+type ClassroomTab = "students" | "parents" | "boards" | "settings";
+
 export function ClassroomDetail({ classroom, allBoards }: Props) {
   const router = useRouter();
+  const [tab, setTab] = useState<ClassroomTab>("students");
   const [students, setStudents] = useState(classroom.students);
   const [linkedBoardIds, setLinkedBoardIds] = useState<Set<string>>(
     new Set(classroom.boards.map((b) => b.id))
@@ -55,6 +58,9 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [showClassroomDelete, setShowClassroomDelete] = useState(false);
   const [deletingClassroom, setDeletingClassroom] = useState(false);
+  const [classroomName, setClassroomName] = useState(classroom.name);
+  const [renaming, setRenaming] = useState(false);
+  const [renameErr, setRenameErr] = useState<string | null>(null);
 
   // Per-student parent-link counts, loaded once on mount and refreshed on
   // approval/revoke actions elsewhere. Plain Record keyed by studentId
@@ -257,6 +263,30 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
     setDeleting(false);
   }
 
+  async function handleRenameClassroom(next: string) {
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === classroomName) return;
+    setRenaming(true);
+    setRenameErr(null);
+    try {
+      const res = await fetch(`/api/classroom/${classroom.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (res.ok) {
+        setClassroomName(trimmed);
+      } else {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        setRenameErr(body.error ?? `rename ${res.status}`);
+      }
+    } catch (err) {
+      setRenameErr((err as Error).message);
+    } finally {
+      setRenaming(false);
+    }
+  }
+
   async function handleDeleteClassroom() {
     setDeletingClassroom(true);
     try {
@@ -365,9 +395,9 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
           The field stays in the DB schema for future use. */}
       <div className="classroom-detail-header">
         <div className="classroom-detail-header-main">
-          <h1 className="classroom-detail-name">{classroom.name}</h1>
+          <h1 className="classroom-detail-name">{classroomName}</h1>
           <p className="classroom-detail-meta">
-            학생 {students.length}명 · 보드 {classroom.boards.length}개
+            학생 {students.length}명 · 보드 {linkedBoardIds.size}개
           </p>
         </div>
         <a
@@ -390,6 +420,54 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
         </a>
       </div>
 
+      {/* Tab nav (T6-2 handoff, 2026-04-21). 탭별 컨텐츠는 아래 조건부 렌더. */}
+      <nav className="classroom-tabs" role="tablist" aria-label="학급 관리 탭">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "students"}
+          className={`classroom-tab${tab === "students" ? " is-active" : ""}`}
+          onClick={() => setTab("students")}
+        >
+          학생 명단 <span className="classroom-tab-count">{students.length}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "parents"}
+          className={`classroom-tab${tab === "parents" ? " is-active" : ""}`}
+          onClick={() => setTab("parents")}
+        >
+          학부모 연결
+          {pendingCount > 0 && (
+            <span className="classroom-tab-badge" title={`승인 대기 ${pendingCount}건`}>
+              {pendingCount}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "boards"}
+          className={`classroom-tab${tab === "boards" ? " is-active" : ""}`}
+          onClick={() => setTab("boards")}
+        >
+          공유된 보드 <span className="classroom-tab-count">{linkedBoardIds.size}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "settings"}
+          className={`classroom-tab${tab === "settings" ? " is-active" : ""}`}
+          onClick={() => setTab("settings")}
+        >
+          설정
+        </button>
+      </nav>
+
+      {/* ────── TAB: 학생 명단 ────── */}
+      {tab === "students" && (
+      <>
       {/* Action bar */}
       <div className="classroom-action-bar">
         <button
@@ -414,22 +492,9 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
             {deleting ? "삭제 중..." : `${selected.size}명 삭제`}
           </button>
         )}
-        <QRPrintSheet students={students} classroomName={classroom.name} />
-        <button
-          type="button"
-          className="classroom-detail-delete"
-          onClick={() => setShowClassroomDelete(true)}
-          title="학급을 삭제하면 연결된 학부모 액세스도 해제됩니다."
-        >
-          🗑 학급 삭제
-        </button>
+        <QRPrintSheet students={students} classroomName={classroomName} />
       </div>
 
-      {/* Main grid — student table on the left, board column on the
-          right at equal height on wide screens, stacked on S6 Lite
-          portrait via CSS. */}
-      <div className="classroom-main-grid">
-      {/* Student table */}
       <div className="classroom-table-wrap">
         {students.length === 0 ? (
           <div className="classroom-empty">
@@ -483,8 +548,36 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
           </table>
         )}
       </div>
+      </>
+      )}
 
-      {/* Board management — right column of the main grid. */}
+      {/* ────── TAB: 학부모 연결 ────── */}
+      {tab === "parents" && (
+        <section className="classroom-parents-panel">
+          <div className="classroom-parents-summary">
+            <div>
+              <h2 className="classroom-panel-heading">학부모 초대 · 승인 관리</h2>
+              <p className="classroom-panel-hint">
+                학부모가 초대 코드로 자녀와 연결을 요청하면 여기서 승인합니다. 자세한 승인/거부 UI는
+                전용 페이지에서 이용하세요.
+              </p>
+            </div>
+            <div className="classroom-parents-stat">
+              <span className="classroom-parents-stat-num">{pendingCount}</span>
+              <span className="classroom-parents-stat-label">승인 대기</span>
+            </div>
+          </div>
+          <a
+            href={`/classroom/${classroom.id}/parent-access`}
+            className="classroom-parents-cta"
+          >
+            🔗 초대 코드 · 승인 관리 열기 →
+          </a>
+        </section>
+      )}
+
+      {/* ────── TAB: 공유된 보드 ────── */}
+      {tab === "boards" && (
       <div className="classroom-boards-section">
         <div className="classroom-boards-header">
           <h2 className="classroom-boards-heading">학급 보드</h2>
@@ -563,8 +656,62 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
           </div>
         )}
       </div>
+      )}
 
-      </div> {/* /classroom-main-grid */}
+      {/* ────── TAB: 설정 ────── */}
+      {tab === "settings" && (
+        <section className="classroom-settings-panel">
+          <h2 className="classroom-panel-heading">학급 설정</h2>
+
+          <div className="classroom-setting-row">
+            <label className="classroom-setting-label" htmlFor="classroom-name-input">
+              학급 이름
+            </label>
+            <div className="classroom-setting-name-row">
+              <input
+                id="classroom-name-input"
+                className="classroom-setting-input"
+                type="text"
+                defaultValue={classroomName}
+                maxLength={100}
+                onBlur={(e) => {
+                  if (e.target.value.trim() !== classroomName) {
+                    void handleRenameClassroom(e.target.value);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+                disabled={renaming}
+              />
+              {renaming && <span className="classroom-setting-saving">저장 중…</span>}
+            </div>
+            {renameErr && (
+              <p className="classroom-setting-err">이름 저장 실패: {renameErr}</p>
+            )}
+          </div>
+
+          <div className="classroom-setting-row classroom-setting-danger">
+            <div>
+              <p className="classroom-setting-label">학급 삭제</p>
+              <p className="classroom-setting-hint">
+                삭제하면 연결된 학부모 액세스가 전부 해제되고 학생 계정은 비활성됩니다.
+                되돌릴 수 없어요.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="classroom-detail-delete"
+              onClick={() => setShowClassroomDelete(true)}
+            >
+              🗑 학급 삭제
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* Add students modal */}
       {showAddStudents && (
@@ -583,7 +730,7 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
           cascades parent-link revokes and emails the affected parents. */}
       <ClassroomDeleteModal
         open={showClassroomDelete}
-        classroomName={classroom.name}
+        classroomName={classroomName}
         pendingCount={pendingCount}
         activeCount={Object.values(parentCounts).reduce((a, b) => a + b, 0)}
         onConfirm={async () => {

@@ -1553,3 +1553,253 @@
 @media (prefers-reduced-motion: reduce) {
   .wallet-qr-timer-bar { transition: none; }
 }
+
+/* =====================================================
+   Classroom tab panels (handoff T6-2, 2026-04-21)
+   학생 명단 / 학부모 연결 / 공유된 보드 / 설정 4탭
+   ===================================================== */
+
+.classroom-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+  overflow-x: auto;
+}
+
+.classroom-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color var(--t-normal), border-color var(--t-normal);
+  white-space: nowrap;
+}
+
+.classroom-tab:hover {
+  color: var(--color-text);
+}
+
+.classroom-tab.is-active {
+  color: var(--color-text);
+  border-bottom-color: var(--color-accent);
+  font-weight: 600;
+}
+
+.classroom-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-alt);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1px;
+}
+
+.classroom-tab.is-active .classroom-tab-count {
+  background: var(--color-accent-tinted-bg);
+  color: var(--color-accent-tinted-text);
+}
+
+.classroom-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-warning-tinted-bg);
+  color: var(--color-warning);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ---- Parents panel ---- */
+.classroom-parents-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.classroom-parents-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.classroom-panel-heading {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  margin: 0 0 6px;
+  color: var(--color-text);
+}
+
+.classroom-panel-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  max-width: 420px;
+}
+
+.classroom-parents-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 20px;
+  background: var(--color-warning-tinted-bg);
+  border-radius: var(--radius-card);
+  color: var(--color-warning);
+  min-width: 120px;
+}
+
+.classroom-parents-stat-num {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  line-height: 1;
+}
+
+.classroom-parents-stat-label {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  text-transform: none;
+}
+
+.classroom-parents-cta {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: var(--radius-btn);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background var(--t-normal);
+}
+
+.classroom-parents-cta:hover {
+  background: var(--color-accent-active);
+}
+
+/* ---- Settings panel ---- */
+.classroom-settings-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 640px;
+}
+
+.classroom-setting-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.classroom-setting-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.classroom-setting-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.classroom-setting-input {
+  max-width: 380px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-btn);
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--color-text);
+  background: var(--color-bg-alt);
+  outline: none;
+  transition: border-color var(--t-normal), box-shadow var(--t-normal);
+}
+
+.classroom-setting-input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(0, 117, 222, 0.15);
+}
+
+.classroom-setting-saving {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.classroom-setting-err {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-danger);
+}
+
+.classroom-setting-hint {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  max-width: 420px;
+}
+
+.classroom-setting-danger {
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 540px) {
+  .classroom-parents-summary {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .classroom-setting-danger {
+    flex-direction: column;
+  }
+  .classroom-setting-input {
+    max-width: 100%;
+  }
+}
