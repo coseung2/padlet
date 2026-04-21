@@ -139,3 +139,38 @@ h5.ds-h5 {
   background: var(--color-surface-alt);
   border-color: var(--color-border-hover);
 }
+
+/* ── Brand logo lockup (handoff shared.css Logo mark, T2-2) ──
+   Size is driven by the <img> inline style in <Logo size={…}>, so the
+   *-lg / *-sm class modifiers are kept for cases where markup chooses
+   the size via className (eg. legacy login wrapper). */
+.ab-logo-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.ab-logo-img {
+  display: block;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(139, 121, 255, 0.25);
+}
+.ab-logo-img-lg {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  margin: 0 auto 20px;
+}
+.ab-logo-img-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+.ab-logo-wordmark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: -0.3px;
+  color: var(--color-text);
+}

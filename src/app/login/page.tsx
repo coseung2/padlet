@@ -2,6 +2,7 @@
 
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { Logo } from "@/components/Logo";
 import { RoleIcon } from "@/components/login/RoleIcon";
 
 type Role = {
@@ -42,7 +43,9 @@ export default function LoginPage() {
   return (
     <main className="login-page">
       <div className="login-hub-card">
-        <div className="login-logo">A</div>
+        <div className="login-logo">
+          <Logo size={56} />
+        </div>
         <h1 className="login-title">Aura-board</h1>
         <p className="login-subtitle">어떤 역할로 들어가시나요?</p>
 
