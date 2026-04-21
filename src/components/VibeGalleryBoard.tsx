@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { StarRating } from "./vibe-arcade/StarRating";
+import { VibePlayModal } from "./vibe-arcade/VibePlayModal";
 
 type ViewerKind = "teacher" | "student" | "none";
 
@@ -34,6 +35,9 @@ export function VibeGalleryBoard(props: VibeGalleryBoardProps) {
   const [items, setItems] = useState<CatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [playing, setPlaying] = useState<{ id: string; title: string } | null>(null);
+
+  const canPlay = props.viewerKind === "student";
 
   useEffect(() => {
     let cancelled = false;
@@ -87,31 +91,47 @@ export function VibeGalleryBoard(props: VibeGalleryBoardProps) {
       ) : (
         <ul className="va-grid">
           {items.map((item) => (
-            <li key={item.id} className="va-card">
-              <div className="va-card-thumb">
-                {item.thumbnailUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={item.thumbnailUrl}
-                    alt={`${item.title} 썸네일`}
-                    loading="lazy"
-                    width={160}
-                    height={120}
-                  />
-                ) : (
-                  <div className="va-card-thumb-fallback" aria-hidden />
-                )}
-              </div>
-              <div className="va-card-meta">
-                <h3 className="va-card-title">{item.title}</h3>
-                <div className="va-card-stats">
-                  <StarRating value={item.ratingAvg ?? 0} size="sm" readonly />
-                  <span className="va-card-plays">▶ {item.playCount}</span>
+            <li key={item.id}>
+              <button
+                type="button"
+                className="va-card vg-card-btn"
+                onClick={canPlay ? () => setPlaying({ id: item.id, title: item.title }) : undefined}
+                disabled={!canPlay}
+                aria-label={`${item.title}${canPlay ? " 재생" : ""}`}
+              >
+                <div className="va-card-thumb">
+                  {item.thumbnailUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={item.thumbnailUrl}
+                      alt={`${item.title} 썸네일`}
+                      loading="lazy"
+                      width={160}
+                      height={120}
+                    />
+                  ) : (
+                    <div className="va-card-thumb-fallback" aria-hidden />
+                  )}
                 </div>
-              </div>
+                <div className="va-card-meta">
+                  <h3 className="va-card-title">{item.title}</h3>
+                  <div className="va-card-stats">
+                    <StarRating value={item.ratingAvg ?? 0} size="sm" readonly />
+                    <span className="va-card-plays">▶ {item.playCount}</span>
+                  </div>
+                </div>
+              </button>
             </li>
           ))}
         </ul>
+      )}
+
+      {playing && (
+        <VibePlayModal
+          projectId={playing.id}
+          title={playing.title}
+          onClose={() => setPlaying(null)}
+        />
       )}
     </section>
   );

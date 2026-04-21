@@ -741,3 +741,86 @@
   .vs-studio-body { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
   .vs-studio-editor { border-right: none; border-bottom: 1px solid var(--color-border); }
 }
+
+/* -------- Play modal (Phase 4, 2026-04-21) -------- */
+.vp-backdrop {
+  /* 상속: .vs-backdrop (fixed / flex center / 0.55 overlay). */
+}
+.vp-modal {
+  width: min(96vw, 960px);
+  height: min(88vh, 640px);
+  background: var(--color-vibe-sandbox-bg, #1a1a1a);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card-hover);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.vp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #111;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  color: #fff;
+  flex-shrink: 0;
+}
+.vp-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+}
+.vp-head .vs-studio-close {
+  color: #fff;
+  background: transparent;
+}
+.vp-head .vs-studio-close:hover {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+.vp-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  background: #000;
+}
+.vp-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #000;
+}
+.vp-err {
+  margin: auto;
+  max-width: 340px;
+  text-align: center;
+  color: #ffb0b0;
+  font-size: 13px;
+  padding: 16px;
+}
+.vp-loading {
+  margin: auto;
+  color: rgba(255,255,255,0.6);
+  font-size: 13px;
+}
+
+/* gallery / arcade card 버튼화 — .va-card의 bg/border/shadow/padding은 유지,
+   브라우저 기본 button 스타일(inline, text-align center, 시스템 폰트)만 덮는다. */
+.vg-card-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.vg-card-btn:disabled {
+  cursor: default;
+}
