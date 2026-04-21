@@ -113,18 +113,18 @@ export function CreateBoardModal({ classrooms, userTier = "pro", onClose }: Prop
           {step === "layout" && (
             <>
               <p className="create-board-hint">보드 유형을 선택하세요</p>
-              <div className="layout-picker">
+              <div className="layout-grid-picker">
                 {LAYOUTS.map((l) => (
                   <button
                     key={l.id}
                     type="button"
-                    className="layout-option"
+                    className="layout-grid-option"
                     onClick={() => handleSelect(l.id)}
                     disabled={busy}
                   >
-                    <span className="layout-option-emoji">{l.emoji}</span>
-                    <span className="layout-option-label">{l.label}</span>
-                    <span className="layout-option-desc">{l.desc}</span>
+                    <span className="layout-grid-option-emoji">{l.emoji}</span>
+                    <span className="layout-grid-option-label">{l.label}</span>
+                    <span className="layout-grid-option-desc">{l.desc}</span>
                   </button>
                 ))}
               </div>

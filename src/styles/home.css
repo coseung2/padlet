@@ -324,7 +324,68 @@
 /* -------- Create Board Modal -------- */
 
 .create-board-modal {
-  width: 520px;
+  width: min(92vw, 720px);
+}
+
+/* Layout picker — handoff-style 3-column grid for first step of CreateBoardModal
+   only. Other `.layout-picker` usages (classroom step, breakout, attach, canvas)
+   keep the vertical list layout since their items carry longer descriptions. */
+.layout-grid-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.layout-grid-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  gap: 6px;
+  padding: 16px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: border-color var(--t-normal), box-shadow var(--t-normal),
+    background var(--t-normal);
+}
+
+.layout-grid-option:hover {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-card);
+}
+
+.layout-grid-option:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.layout-grid-option-emoji {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.layout-grid-option-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.layout-grid-option-desc {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+@media (max-width: 540px) {
+  .layout-grid-picker {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .layout-picker {

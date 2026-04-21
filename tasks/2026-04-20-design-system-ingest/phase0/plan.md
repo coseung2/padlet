@@ -187,7 +187,7 @@ T8(Vibe 재설계)이 전체 작업량의 절반 이상.
 - [x] **T2-2** Logo 컴포넌트 도입 — `src/components/Logo.tsx` 신규 + `ds-utils.css` `.ab-logo-*` + login 페이지 교체 + `.login-logo` 레이아웃만 유지 (2026-04-21)
 - [ ] **T3-1** TopNav 도입 (탭 구성은 실제 라우트에 맞춰 조정)
 - [x] **T4-1** TeacherDashboard 카드 그리드 스타일 업그레이드 — `home.css` 수치 조정 + `.board-grid-kebab-*` 클래스화, Dashboard 인라인 스타일 제거 (2026-04-21)
-- [ ] **T4-2** CreateBoardModal 레이아웃 피커 스타일 업그레이드
+- [x] **T4-2** CreateBoardModal 레이아웃 피커 스타일 업그레이드 — `.layout-grid-picker/.layout-grid-option` 신규 (layout step 전용 3열 grid), classroom step 세로 리스트 유지, modal 720px (2026-04-21)
 - [ ] **T5-1** ColumnsBoard 정렬 UX (케밥 메뉴 내 라디오 + ✓ 체크)
 - [ ] **T6-1** ClassroomListPage 카드 그리드
 - [ ] **T6-2** ClassroomDetailPage (기존 nav와 조율)

@@ -42,4 +42,13 @@
 - **결정 4**: Header(title/subtitle/우측 2버튼) 블록은 T4-1 스코프 밖. T3-1(TopNav) 또는 별도 작업에서 다룸.
 - **되돌리기**: Dashboard.tsx 인라인 스타일 복원 + home.css `.board-grid-kebab-*`, `.board-grid-card-link` 블록 제거 + `.board-grid-card` 수치 원복.
 
+## T4-2 — CreateBoardModal 레이아웃 피커
+
+- **결정 1**: CreateBoardModal의 **layout step만** 3열 grid 신규 (`.layout-grid-picker`/`.layout-grid-option`). classroom step은 기존 세로 리스트(`.layout-picker`/`.layout-option`) 유지.
+- **이유**: 기존 `.layout-picker`는 CreateBreakoutBoardModal, AttachClassroomModal, CanvasSizePicker 등 4곳에서 재사용 중. 전역 grid 전환은 regression 위험. 신규 클래스 = surgical.
+- **결정 2**: 모달 폭 520px → `min(92vw, 720px)`. 3열에 11개 옵션이 들어갈 공간 확보.
+- **이유**: 3열 grid × emoji+label+desc 카드가 520px에서는 desc 잘림. classroom step도 같이 넓어지지만 해롭지 않음.
+- **결정 3**: 540px 이하에선 2열로 자동 전환(@media).
+- **되돌리기**: home.css의 `.layout-grid-*` 블록 + `.create-board-modal width` 복원(520px) + CreateBoardModal.tsx의 step=="layout" 섹션 className을 `.layout-picker/.layout-option/.layout-option-*`로 되돌리기.
+
 ---
