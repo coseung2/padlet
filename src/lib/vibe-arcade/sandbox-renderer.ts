@@ -29,19 +29,33 @@ export const SANDBOX_RESPONSE_HEADERS: Record<string, string> = {
 };
 
 /**
- * Wraps the student-authored HTML with a small bridge that posts
+ * Wraps the student-authored HTML/CSS/JS with a small bridge that posts
  * `{type:"completed"}` on user interaction. The bridge origin is the sandbox
  * subdomain itself; the parent must verify `event.origin` against that.
+ *
+ * 3-tab split (2026-04-21): args.htmlContent는 <body> 본문, args.cssContent는
+ * 선택적 student <style>, args.jsContent는 선택적 student <script>. 기존 단일
+ * HTML 호출자는 css/js를 생략하거나 ""로 전달해도 동일하게 동작한다.
  */
 export function renderSandboxHtml(args: {
   projectId: string;
   title: string;
   htmlContent: string;
+  cssContent?: string;
+  jsContent?: string;
   parentOrigin: string; // e.g. https://aura-board.app (or preview URL)
 }): string {
   const escapedTitle = args.title.replace(/[<>&"']/g, (c) =>
     c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === "&" ? "&amp;" : c === '"' ? "&quot;" : "&#39;",
   );
+
+  // CSS/JS 블록은 존재할 때만 태그 생성 — 빈 style/script 노드를 남기지 않음.
+  const studentStyle = args.cssContent && args.cssContent.trim().length > 0
+    ? `<style>\n${args.cssContent}\n</style>`
+    : "";
+  const studentScript = args.jsContent && args.jsContent.trim().length > 0
+    ? `<script>\n${args.jsContent}\n</script>`
+    : "";
 
   // The bridge script is trusted (server-emitted). Student HTML is appended after.
   const bridge = `<!doctype html>
@@ -51,6 +65,7 @@ export function renderSandboxHtml(args: {
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>${escapedTitle}</title>
 <style>html,body{margin:0;padding:0;height:100%;background:#000;color:#fff;font-family:system-ui,sans-serif}</style>
+${studentStyle}
 <script>
 (function(){
   // Bridge — parent receives play completion events.
@@ -68,7 +83,39 @@ export function renderSandboxHtml(args: {
 </head>
 <body>
 ${args.htmlContent}
+${studentScript}
 </body>
 </html>`;
   return bridge;
+}
+
+/**
+ * Client-side srcDoc builder for VibeStudio live preview. Same shape as
+ * renderSandboxHtml but without the bridge/postMessage plumbing — the
+ * editor iframe doesn't talk to the page.
+ */
+export function buildStudioSrcDoc(args: {
+  htmlContent: string;
+  cssContent?: string;
+  jsContent?: string;
+}): string {
+  const studentStyle = args.cssContent && args.cssContent.trim().length > 0
+    ? `<style>\n${args.cssContent}\n</style>`
+    : "";
+  const studentScript = args.jsContent && args.jsContent.trim().length > 0
+    ? `<script>\n${args.jsContent}\n</script>`
+    : "";
+  return `<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>html,body{margin:0;padding:0;height:100%;background:#fff;color:#111;font-family:system-ui,sans-serif}</style>
+${studentStyle}
+</head>
+<body>
+${args.htmlContent}
+${studentScript}
+</body>
+</html>`;
 }

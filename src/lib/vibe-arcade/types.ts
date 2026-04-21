@@ -47,12 +47,17 @@ export const VibeArcadeConfigPatchSchema = z.object({
 export type VibeArcadeConfigPatch = z.infer<typeof VibeArcadeConfigPatchSchema>;
 
 // ── Project create/edit ────────────────────────────────────────────────
+// 3-tab split (2026-04-21): htmlContent는 <body> 본문, cssContent / jsContent는
+// 각각 <style>/<script>로 합성. 기존 단일 HTML 호출자는 css/js를 생략해도 ""
+// default가 적용되어 하위 호환.
 export const VibeProjectCreateSchema = z.object({
   boardId: z.string().min(1),
   sessionId: z.string().min(1),
   title: z.string().min(1).max(40),
   description: z.string().max(500).default(""),
   htmlContent: z.string().min(1).max(500_000),
+  cssContent: z.string().max(200_000).default(""),
+  jsContent: z.string().max(300_000).default(""),
   tags: z.array(z.enum(VIBE_TAGS)).min(1).max(1),
 });
 export type VibeProjectCreate = z.infer<typeof VibeProjectCreateSchema>;
@@ -62,6 +67,8 @@ export const VibeProjectEditSchema = z.object({
   description: z.string().max(500).optional(),
   tags: z.array(z.enum(VIBE_TAGS)).min(1).max(1).optional(),
   htmlContent: z.string().min(1).max(500_000).optional(),
+  cssContent: z.string().max(200_000).optional(),
+  jsContent: z.string().max(300_000).optional(),
 });
 
 // ── Review ─────────────────────────────────────────────────────────────

@@ -91,8 +91,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
-  // HTML filter (AC-G2 / AC-G3).
-  const scan = scanHtml(input.htmlContent);
+  // HTML/CSS/JS filter (AC-G2 / AC-G3). 3-tab split 이후 세 필드 모두 스캔 — 어느
+  // 한 필드라도 위험 패턴이 있으면 거부한다 (CSS expression()/url(javascript:),
+  // JS eval/fetch-outside-allowlist 등이 독립적으로 유입될 수 있음).
+  const combinedForScan = [
+    input.htmlContent,
+    input.cssContent ? `<style>${input.cssContent}</style>` : "",
+    input.jsContent ? `<script>${input.jsContent}</script>` : "",
+  ].join("\n");
+  const scan = scanHtml(combinedForScan);
   if (!scan.pass) {
     return NextResponse.json(
       { error: "moderation_failed", hits: scan.hits },
@@ -118,6 +125,8 @@ export async function POST(req: Request) {
       title: input.title,
       description: input.description,
       htmlContent: input.htmlContent,
+      cssContent: input.cssContent,
+      jsContent: input.jsContent,
       tags: JSON.stringify(input.tags),
       moderationStatus: initialStatus,
     },

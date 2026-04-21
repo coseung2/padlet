@@ -157,7 +157,7 @@ model Student {
   @@index([textCode])
 }
 
-// layout: "freeform" | "grid" | "stream" | "columns" | "assignment" | "quiz" | "plant-roadmap" | "event-signup" | "drawing" | "breakout" | "vibe-arcade"
+// layout: "freeform" | "grid" | "stream" | "columns" | "assignment" | "quiz" | "plant-roadmap" | "event-signup" | "drawing" | "breakout" | "vibe-arcade" | "vibe-gallery"
 // (validated in app via zod)
 model Board {
   id          String   @id @default(cuid())
@@ -1327,7 +1327,12 @@ model VibeProject {
   authorStudentId  String
   title            String
   description      String    @default("") // ≤500자
-  htmlContent      String    // 단일 HTML 원문. 서빙 시 CSP sandbox 헤더 부착
+  // Vibe studio 3-tab split (2026-04-21). htmlContent는 <body> 본문만 보관하고
+  // cssContent/jsContent는 각각 <style>/<script>로 합성된다. 기존 단일-HTML 레코드는
+  // cssContent="", jsContent=""로 backfill 되며 렌더러가 그대로 동작 (body만 주입).
+  htmlContent      String    // <body> 본문 — CSP sandbox 헤더 부착
+  cssContent       String    @default("")
+  jsContent        String    @default("")
   thumbnailUrl     String?   // 서버 Playwright headless 160×120 WebP
   // 고정 태그 5종 중 1개: "게임"|"퀴즈"|"시뮬"|"아트"|"기타" (JSON 배열)
   tags             String    @default("[]")

@@ -42,6 +42,8 @@ export async function GET(
     projectId,
     title: project.title,
     htmlContent: project.htmlContent,
+    cssContent: project.cssContent,
+    jsContent: project.jsContent,
     parentOrigin: PARENT_ORIGIN,
   });
 
