@@ -45,6 +45,26 @@ type Props = {
 
 type ClassroomTab = "students" | "parents" | "boards" | "settings";
 
+/* Handoff roster avatar — hash name → COLOR_POOL, show initial. */
+const AVATAR_COLORS = ["#a69bff", "#ff9ebd", "#8ccfff", "#ffd28c", "#9ee5c1", "#ffb08c"];
+function avatarColor(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+function avatarInitial(name: string): string {
+  return name ? name.slice(0, 1) : "?";
+}
+
+type PendingApproval = {
+  linkId: string;
+  parentEmail: string;
+  studentId: string;
+  studentName: string;
+  studentNo: number;
+  requestedAt: string;
+};
+
 export function ClassroomDetail({ classroom, allBoards }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<ClassroomTab>("students");
@@ -140,6 +160,95 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
   // screen. 60s poll matches the polling cadence inside /parent-access.
   const [pendingCount, setPendingCount] = useState<number>(0);
 
+  // Inline approvals list (handoff ClassroomPages §학부모 연결 탭). The data
+  // shape maps to GET /api/parent/approvals?status=pending; per-row approve
+  // /reject hit /api/parent/approvals/:linkId/(approve|reject).
+  const [pending, setPending] = useState<PendingApproval[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+
+  async function loadPendingList() {
+    setPendingLoading(true);
+    try {
+      const res = await fetch(
+        `/api/parent/approvals?classroomId=${encodeURIComponent(classroom.id)}&status=pending`,
+        { cache: "no-store" }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setPending((data.items ?? []) as PendingApproval[]);
+        setPendingCount((data.items ?? []).length);
+      }
+    } finally {
+      setPendingLoading(false);
+    }
+  }
+
+  async function handleApprove(linkId: string) {
+    setApprovingId(linkId);
+    try {
+      const res = await fetch(`/api/parent/approvals/${linkId}/approve`, { method: "POST" });
+      if (res.ok) {
+        setPending((list) => list.filter((l) => l.linkId !== linkId));
+        setPendingCount((n) => Math.max(0, n - 1));
+      } else {
+        alert(`승인 실패: ${await res.text()}`);
+      }
+    } finally {
+      setApprovingId(null);
+    }
+  }
+
+  async function handleReject(linkId: string) {
+    const reason = prompt(
+      "거부 사유를 입력하세요 (학부모에게 전달됩니다. 미입력 시 기본 사유)",
+      "이름·번호 불일치"
+    );
+    if (reason === null) return;
+    setApprovingId(linkId);
+    try {
+      const res = await fetch(`/api/parent/approvals/${linkId}/reject`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ reason: reason.trim() || "기타" }),
+      });
+      if (res.ok) {
+        setPending((list) => list.filter((l) => l.linkId !== linkId));
+        setPendingCount((n) => Math.max(0, n - 1));
+      } else {
+        alert(`거부 실패: ${await res.text()}`);
+      }
+    } finally {
+      setApprovingId(null);
+    }
+  }
+
+  // CSV export — 학생 명단 다운로드. 출석번호·이름·textCode·연결 학부모 수.
+  function handleExportCsv() {
+    const rows = [
+      ["번호", "이름", "개별코드", "연결된_학부모_수"],
+      ...students.map((s) => [
+        String(s.number ?? ""),
+        s.name,
+        s.textCode,
+        String(parentCounts[s.id] ?? 0),
+      ]),
+    ];
+    // UTF-8 BOM 추가 — Excel이 한글 CJK 정상 인식.
+    const bom = "\uFEFF";
+    const csv = bom + rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const safeName = classroomName.replace(/[^\p{L}\p{N}_-]+/gu, "_");
+    a.download = `${safeName}_학생명단.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   // Teacher's last-visit timestamps per board, stored in localStorage
   // (browser-scoped, no DB migration). Boards whose `updatedAt` is newer
   // than the stored value get a "새 활동" highlight. Navigating into the
@@ -174,23 +283,11 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
         /* best-effort; header badges fall back to 0 */
       }
     }
-    async function loadPending() {
-      try {
-        const res = await fetch(
-          `/api/parent/approvals?classroomId=${encodeURIComponent(classroom.id)}&status=pending`,
-          { cache: "no-store" }
-        );
-        if (!res.ok) return;
-        const data = await res.json();
-        setPendingCount((data.items ?? []).length);
-      } catch {
-        /* ignore */
-      }
-    }
     loadParentLinks();
-    loadPending();
-    const poll = setInterval(loadPending, 60_000);
+    void loadPendingList();
+    const poll = setInterval(() => void loadPendingList(), 60_000);
     return () => clearInterval(poll);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classroom.id]);
 
   const allSelected = students.length > 0 && selected.size === students.length;
@@ -463,6 +560,29 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
         >
           설정
         </button>
+
+        {/* External tabs (handoff 4-tab + 3 extra per user spec 2026-04-21).
+            Role/bank/store pages are feature-rich so they stay on their own
+            routes; here we just mirror the tab style and navigate. */}
+        <span className="classroom-tabs-sep" aria-hidden="true" />
+        <a
+          className="classroom-tab classroom-tab-link"
+          href={`/classroom/${classroom.id}/roles`}
+        >
+          학급 역할
+        </a>
+        <a
+          className="classroom-tab classroom-tab-link"
+          href={`/classroom/${classroom.id}/bank`}
+        >
+          은행
+        </a>
+        <a
+          className="classroom-tab classroom-tab-link"
+          href={`/classroom/${classroom.id}/store`}
+        >
+          매점
+        </a>
       </nav>
 
       {/* ────── TAB: 학생 명단 ────── */}
@@ -493,6 +613,15 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
           </button>
         )}
         <QRPrintSheet students={students} classroomName={classroomName} />
+        <button
+          type="button"
+          className="classroom-action-btn"
+          onClick={handleExportCsv}
+          disabled={students.length === 0}
+          title="학생 명단 CSV 다운로드"
+        >
+          📄 CSV 내보내기
+        </button>
       </div>
 
       <div className="classroom-table-wrap">
@@ -520,6 +649,7 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
                   />
                 </th>
                 <th className="classroom-th classroom-th-num">#</th>
+                <th className="classroom-th" style={{ width: 44 }} aria-label="아바타" />
                 <th className="classroom-th">이름</th>
                 <th className="classroom-th">QR</th>
                 <th className="classroom-th">코드</th>
@@ -551,28 +681,84 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
       </>
       )}
 
-      {/* ────── TAB: 학부모 연결 ────── */}
+      {/* ────── TAB: 학부모 연결 (inline 승인 리스트, handoff 스타일) ────── */}
       {tab === "parents" && (
         <section className="classroom-parents-panel">
           <div className="classroom-parents-summary">
             <div>
-              <h2 className="classroom-panel-heading">학부모 초대 · 승인 관리</h2>
+              <h2 className="classroom-panel-heading">승인 대기 중인 신청</h2>
               <p className="classroom-panel-hint">
-                학부모가 초대 코드로 자녀와 연결을 요청하면 여기서 승인합니다. 자세한 승인/거부 UI는
-                전용 페이지에서 이용하세요.
+                학부모가 초대 코드로 자녀와의 연결을 요청했습니다. 7일 이내 승인하지 않으면 자동
+                만료됩니다. 여기서 바로 승인·거부할 수 있어요.
               </p>
             </div>
-            <div className="classroom-parents-stat">
-              <span className="classroom-parents-stat-num">{pendingCount}</span>
-              <span className="classroom-parents-stat-label">승인 대기</span>
-            </div>
+            <a
+              href={`/classroom/${classroom.id}/parent-access`}
+              className="classroom-parents-subcta"
+            >
+              초대 코드 발급·회전 →
+            </a>
           </div>
-          <a
-            href={`/classroom/${classroom.id}/parent-access`}
-            className="classroom-parents-cta"
-          >
-            🔗 초대 코드 · 승인 관리 열기 →
-          </a>
+
+          {pending.length === 0 ? (
+            <div className="classroom-parent-empty">
+              {pendingLoading ? "불러오는 중…" : "대기 중인 신청이 없습니다."}
+            </div>
+          ) : (
+            <ul className="classroom-parent-inbox">
+              {pending.map((p) => {
+                const days = Math.floor(
+                  (Date.now() - new Date(p.requestedAt).getTime()) / 86_400_000,
+                );
+                const daysLeft = Math.max(0, 7 - days);
+                return (
+                  <li key={p.linkId} className="classroom-parent-inbox-row">
+                    <span
+                      className="classroom-avatar"
+                      style={{ background: avatarColor(p.parentEmail) }}
+                      aria-hidden
+                    >
+                      {avatarInitial(p.parentEmail)}
+                    </span>
+                    <div className="classroom-parent-inbox-meta">
+                      <div className="classroom-parent-inbox-who">
+                        <span className="classroom-parent-inbox-email">{p.parentEmail}</span>
+                        <span className="classroom-parent-inbox-arrow">→</span>
+                        <span className="classroom-parent-inbox-student">
+                          {p.studentNo ? `${p.studentNo}번 ` : ""}{p.studentName}
+                        </span>
+                      </div>
+                      <div className="classroom-parent-inbox-sub">
+                        {days}일 전 신청 · D-{daysLeft}
+                      </div>
+                    </div>
+                    <span
+                      className={`classroom-parent-inbox-dleft ${daysLeft <= 2 ? "is-urgent" : ""}`}
+                      title={`자동 만료까지 ${daysLeft}일`}
+                    >
+                      D-{daysLeft}
+                    </span>
+                    <button
+                      type="button"
+                      className="classroom-parent-inbox-btn is-reject"
+                      onClick={() => handleReject(p.linkId)}
+                      disabled={approvingId === p.linkId}
+                    >
+                      거부
+                    </button>
+                    <button
+                      type="button"
+                      className="classroom-parent-inbox-btn is-approve"
+                      onClick={() => handleApprove(p.linkId)}
+                      disabled={approvingId === p.linkId}
+                    >
+                      {approvingId === p.linkId ? "…" : "승인"}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </section>
       )}
 
@@ -794,6 +980,15 @@ function StudentRow({
         />
       </td>
       <td className="classroom-td classroom-td-num">{student.number ?? "-"}</td>
+      <td className="classroom-td classroom-td-avatar">
+        <span
+          className="classroom-avatar"
+          style={{ background: avatarColor(student.name) }}
+          aria-hidden
+        >
+          {avatarInitial(student.name)}
+        </span>
+      </td>
       <td className="classroom-td classroom-td-name">{student.name}</td>
       <td className="classroom-td classroom-td-qr">
         {qrSrc ? (
