@@ -1,28 +1,22 @@
 // Vibe-arcade session streaming (Seed 13, AC-F3 / AC-F8 / AC-F9 / AC-N5).
-// POST: student starts (or continues) a Sonnet coding session. SSE stream.
+// POST: student starts (or continues) a coding session. SSE stream.
 //
-// This is the thin transport — quota check + persistence + stream forwarding.
-// Encryption of the teacher API key is not implemented here (phase7 follow-up);
-// we read SONNET_API_KEY env as a dev fallback with a clear TODO marker.
+// Teacher API Key resolution (2026-04-22): 교사가 /docs/ai-setup에 저장한
+// 암호화된 TeacherLlmKey를 board → classroom.teacherId로 풀어서 사용.
+// 학생 클라이언트로는 Key 원문이 절대 내려가지 않는다.
 
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentStudent } from "@/lib/student-auth";
 import { checkQuotaOrReject } from "@/lib/vibe-arcade/quota-ledger";
-import { streamSonnet, DEFAULT_SYSTEM_PROMPT } from "@/lib/vibe-arcade/sonnet-provider";
+import { streamLlm, DEFAULT_SYSTEM_PROMPT } from "@/lib/llm/stream";
+import { getTeacherKeyForBoard } from "@/lib/llm/teacher-key";
 
 const StartSchema = z.object({
   boardId: z.string().min(1),
   sessionId: z.string().optional(), // null = new session
   userMessage: z.string().min(1).max(4000),
 });
-
-// TODO(phase7-followup): replace with DB-backed decryption (CanvaConnectAccount-style).
-function resolveTeacherApiKey(): string {
-  const key = process.env.SONNET_API_KEY;
-  if (!key) throw new Error("SONNET_API_KEY env not set (dev fallback)");
-  return key;
-}
 
 export async function POST(req: Request) {
   const student = await getCurrentStudent();
@@ -49,6 +43,19 @@ export async function POST(req: Request) {
       status: 403,
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  // Resolve teacher-supplied API key (Claude/OpenAI/Gemini).
+  const teacherKey = await getTeacherKeyForBoard(boardId);
+  if (!teacherKey) {
+    return new Response(
+      JSON.stringify({
+        error: "llm_key_missing",
+        message:
+          "담임 선생님이 /docs/ai-setup에서 AI API Key를 먼저 저장해야 합니다.",
+      }),
+      { status: 503, headers: { "Content-Type": "application/json" } },
+    );
   }
 
   const quota = await checkQuotaOrReject({
@@ -110,8 +117,9 @@ export async function POST(req: Request) {
       send({ type: "session", id: session!.id });
 
       try {
-        const result = await streamSonnet({
-          apiKey: resolveTeacherApiKey(),
+        const result = await streamLlm({
+          provider: teacherKey.provider,
+          apiKey: teacherKey.apiKey,
           systemPrompt: DEFAULT_SYSTEM_PROMPT,
           messages: nextMessages,
           studentId: student.id,
@@ -141,7 +149,11 @@ export async function POST(req: Request) {
           },
         });
 
-        send({ type: "done", stopReason: result.stopReason });
+        if (result.stopReason === "error" && result.errorMessage) {
+          send({ type: "error", message: result.errorMessage });
+        } else {
+          send({ type: "done", stopReason: result.stopReason });
+        }
       } catch (err) {
         send({ type: "error", message: String((err as Error).message) });
       } finally {

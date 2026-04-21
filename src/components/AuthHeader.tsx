@@ -70,6 +70,13 @@ function SettingsMenu() {
         >
           🤖 생성형 AI 연결하기
         </Link>
+        <Link
+          href="/billing"
+          className="auth-settings-item"
+          role="menuitem"
+        >
+          💳 결제·구독
+        </Link>
       </div>
     </details>
   );

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LlmKeyForm } from "@/components/LlmKeyForm";
 
 export const metadata = {
   title: "생성형 AI 연결하기 · Aura-board",
@@ -190,14 +191,17 @@ export default function AiSetupPage() {
         <section className="docs-section">
           <h2 className="docs-h2">Key 저장</h2>
           <p className="docs-p">
-            연결 폼은 준비 중입니다. 학급 아케이드 보드가 활성화될 때 본
-            설정에서 Key 입력창이 열립니다. 그 전에 위 방법대로 각 사에서 Key를
-            미리 발급해 두시면 됩니다.
+            아래 폼에 Key를 붙여넣고 <strong>저장 + 검증</strong>을 누르면 즉시
+            각 사 API에 테스트 호출을 보내 유효성을 확인합니다. 검증이 통과하면
+            해당 교사 계정으로 생성한 모든 <strong>학급 아케이드</strong>·
+            <strong>바이브 갤러리</strong> 보드에서 바로 사용됩니다.
           </p>
+          <LlmKeyForm />
           <p className="docs-p docs-note">
             Key 유출 시 해당 사 대시보드에서 즉시 <strong>Revoke / Delete</strong>
-            처리 후 새 Key를 발급·교체하세요. Aura-board는 Key 변경 시 기존
-            학급 아케이드 세션을 끊고 새 Key로 재연결합니다.
+            처리 후 새 Key를 발급·교체하세요. 여기서 <strong>삭제</strong> 또는
+            <strong>다시 저장</strong>을 누르면 기존 학급 아케이드 세션이 새 Key로
+            전환됩니다.
           </p>
         </section>
 

@@ -40,6 +40,86 @@ model User {
   revokedParentLinks     ParentChildLink[]         @relation("LinkRevokedBy")
   // dj-board-queue — teacher audit for role assignments
   roleAssignmentsGranted ClassroomRoleAssignment[] @relation("ClassroomRoleAssignedBy")
+  // Teacher's own LLM API key (vibe-arcade + future AI features)
+  llmKey                 TeacherLlmKey?
+  // Billing (Toss Payments 정기결제 — Seed 14 scaffold, 2026-04-22)
+  subscription           TeacherSubscription?
+  paymentEvents          PaymentEvent[]
+}
+
+// ──── Teacher LLM API Key (Seed 13 follow-up, 2026-04-22) ────
+// 교사가 /docs/ai-setup 페이지에서 입력한 Claude/OpenAI/Gemini API Key.
+// 서버 AES-256-GCM 암호화 후 DB 저장. 학생 클라이언트에는 절대 내려가지 않고
+// 모든 호출은 서버 프록시(/api/vibe/sessions)에서 복호화 → 각 사 API로 포워딩.
+//
+// 1 teacher = 1 key row (재저장 시 upsert로 덮어쓰기).
+// verified/verifiedAt: 저장 시 각 사 API에 작은 테스트 호출을 보내 성공했는지.
+// lastError: 401/결제 실패 등을 UI에 표시하기 위한 최근 에러 메시지.
+model TeacherLlmKey {
+  userId     String    @id
+  provider   String // "claude" | "openai" | "gemini"
+  apiKeyEnc  String // base64(iv[12] || authTag[16] || ciphertext)
+  last4      String // 원문 API Key의 마지막 4자 (UI 표시용)
+  verified   Boolean   @default(false)
+  verifiedAt DateTime?
+  lastError  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ──── Billing / 정기결제 (Seed 14 scaffold, 2026-04-22) ────
+// 교사 계정 Free ↔ Pro 구독 상태. 1 user = 1 subscription (userId PK).
+// PG는 토스페이먼츠 빌링키 방식을 기본으로 하고, provider 필드로 추후
+// 포트원 등 확장할 수 있게 남겼다. billingKey는 결제 시 사용자 확인 불필요 —
+// 반드시 서버 프록시로만 사용, 절대 클라이언트에 내려가지 않는다.
+model TeacherSubscription {
+  userId             String    @id
+  // "free" | "pro_monthly" | "pro_yearly"
+  plan               String    @default("free")
+  // "active" | "trial" | "past_due" | "canceled" | "paused"
+  status             String    @default("active")
+  pgProvider         String    @default("toss") // "toss" | "portone"
+  pgCustomerKey      String?   @unique
+  pgBillingKey       String?
+  pgBillingKeyLast4  String?
+  amount             Int       @default(0) // KRW per period
+  currency           String    @default("KRW")
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  canceledAt         DateTime? // 구독 취소 예약 — 기간 만료 시점에 status=canceled
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events   PaymentEvent[]
+}
+
+// 결제·환불 이벤트 감사 로그. 웹훅·수동 호출 모두 여기에 insert.
+// rawPayload는 JSON(토스 응답 원본). 리콘실리에이션용.
+model PaymentEvent {
+  id             String   @id @default(cuid())
+  userId         String
+  // TeacherSubscription.userId. 구독 취소 후에도 이력은 남겨야 하므로 FK SetNull.
+  subscriptionId String?
+  // "charge" | "refund" | "cancel" | "billing_key_issued" | "webhook"
+  type           String
+  amount         Int      @default(0)
+  currency       String   @default("KRW")
+  // "pending" | "succeeded" | "failed"
+  status         String   @default("pending")
+  pgOrderId      String?  @unique
+  pgPaymentKey   String?
+  rawPayload     Json?
+  errorMessage   String?
+  createdAt      DateTime @default(now())
+
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription TeacherSubscription? @relation(fields: [subscriptionId], references: [userId], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([subscriptionId])
 }
 
 // ──── Canva Connect API token store ────

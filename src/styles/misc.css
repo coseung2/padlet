@@ -336,6 +336,306 @@
   color: var(--color-text);
 }
 
+/* -------- Teacher LLM API Key form (/docs/ai-setup 하단) -------- */
+
+.llm-key-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  background: var(--color-surface);
+  border: var(--border-card);
+  border-radius: var(--radius-card);
+  margin-top: 8px;
+}
+
+.llm-key-status {
+  padding: 10px 14px;
+  border-radius: var(--radius-btn);
+  background: var(--color-surface-alt);
+  font-size: 13px;
+}
+
+.llm-key-status.is-ok {
+  border-left: 3px solid var(--color-accent);
+}
+
+.llm-key-status.is-warn {
+  border-left: 3px solid var(--color-danger, #dc3545);
+}
+
+.llm-key-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.llm-key-status-dot {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.llm-key-status.is-ok .llm-key-status-dot {
+  color: var(--color-accent);
+}
+
+.llm-key-status.is-warn .llm-key-status-dot {
+  color: var(--color-danger, #dc3545);
+}
+
+.llm-key-status-text {
+  flex: 1;
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.llm-key-delete {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-btn);
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.llm-key-delete:hover:not(:disabled) {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.llm-key-error {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--color-danger, #dc3545);
+  word-break: break-word;
+}
+
+.llm-key-hint-small {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.llm-key-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.llm-key-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.llm-key-field > span {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.llm-key-select,
+.llm-key-input {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-btn);
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--color-surface);
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 150ms ease;
+}
+
+.llm-key-input {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.llm-key-select:focus,
+.llm-key-input:focus {
+  border-color: var(--color-accent);
+}
+
+.llm-key-hint {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.llm-key-submit {
+  align-self: flex-start;
+  background: var(--color-accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-btn);
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.llm-key-submit:hover:not(:disabled) {
+  background: var(--color-accent-active);
+}
+
+.llm-key-submit:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.llm-key-msg {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* -------- Billing / subscription (/billing) -------- */
+
+.billing-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 8px;
+}
+
+.billing-current {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--color-surface-alt);
+  border-radius: var(--radius-card);
+}
+
+.billing-badge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.5px;
+}
+
+.billing-badge.is-pro {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.billing-badge.is-free {
+  background: var(--color-border);
+  color: var(--color-text);
+}
+
+.billing-current-meta {
+  font-size: 13.5px;
+  color: var(--color-text);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.billing-muted {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.billing-plans {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.billing-plan-card {
+  background: var(--color-surface);
+  border: var(--border-card);
+  border-radius: var(--radius-card);
+  padding: 18px 16px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 150ms ease, transform 120ms ease;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--color-text);
+  font-family: inherit;
+}
+
+.billing-plan-card:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  transform: translateY(-1px);
+}
+
+.billing-plan-card.is-highlighted {
+  border-color: var(--color-accent);
+}
+
+.billing-plan-card:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.billing-plan-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+}
+
+.billing-plan-price {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.billing-plan-period {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.billing-plan-note {
+  font-size: 12px;
+  color: var(--color-accent);
+  margin-top: 6px;
+}
+
+.billing-cancel {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  border-radius: var(--radius-btn);
+  padding: 8px 16px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.billing-cancel:hover:not(:disabled) {
+  color: var(--color-danger, #dc3545);
+  border-color: var(--color-danger, #dc3545);
+}
+
+.billing-msg {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.billing-callback {
+  padding: 24px 0;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.billing-callback-success {
+  color: var(--color-accent);
+}
+
+.billing-callback-failed {
+  color: var(--color-danger, #dc3545);
+}
+
 /* -------- Event-signup public applicant page (/b/[slug]?t=…) -------- */
 
 .event-public-page {
