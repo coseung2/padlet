@@ -76,4 +76,15 @@
 - **결정 5**: 학생(viewer)은 sort 옵션 비노출. 기존 `disabled` select를 보여주던 UX가 사라지지만, 정렬 상태는 서버 snapshot으로 자동 적용되므로 기능 영향 없음.
 - **되돌리기**: boards.css에 `.column-sort-select` 블록 복원 + ColumnsBoard.tsx의 `<select>` 복원 + SORT_OPTIONS 상수 복원 + `columns/ColumnMenu.tsx` 삭제 + `misc.css` radio/label/sep 블록 제거.
 
+## T9-1/T9-2/T9-3 — Student 영역 스타일 정렬
+
+- **T9-1 결정**: `.student-login-*`를 handoff `.ab-login-*` 수치로 정렬. Input font-family를 `var(--font-mono)` 토큰 사용. 기존 강한 shadow (`0 24px 80px`)를 `var(--shadow-card)` Notion soft shadow로 교체.
+- **T9-1 트레이드오프**: 로그인 카드의 "pop" 효과가 약해짐. 학생이 카드에 집중하기 좋은 drama 손실. 필요 시 되돌리기.
+- **T9-2 결정**: greeting + badge + logout을 `<div.student-greeting-row>` (flex baseline gap 8 flex-wrap)으로 감쌈. 보드 그리드 위 `.student-sub "오늘의 보드"` 서브헤딩 추가 (boards.length>0일 때만).
+- **T9-2 결정**: `.student-logout-btn` 의 `margin-left: 8px` 제거 (wrapper의 gap이 대체).
+- **T9-3 결정**: `.assign-submit-card`를 실제 앱의 **이중 필드(textarea + linkUrl)** 구조 그대로 유지. handoff의 단순 textarea 구조로 다운그레이드하지 않음.
+- **T9-3 결정**: 스타일만 handoff 기준으로 업그레이드 — padding 18 → 24, shadow 추가, 입력 15px, focus accent shadow.
+- **T9-3 결정**: 제출 완료 상태(`isSubmitted && !isReturned`) 시 `.ds-pill "제출됨"` 배지 + 힌트 문구 표시. 기존엔 버튼 레이블("다시 제출하기")로만 암시했던 상태를 명시.
+- **되돌리기**: `.student-login-*` 원래 shadow/font-size, StudentDashboard greeting-row 래퍼 제거, `.assign-submit-card` padding/font-size 원복, AssignmentStudentView 제출됨 pill 블록 제거.
+
 ---

@@ -640,32 +640,48 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
-  padding: 18px;
+  box-shadow: var(--shadow-card);
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 .assign-submit-card__label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--color-text-muted);
-  letter-spacing: 0.1px;
+  letter-spacing: 0;
+  margin-bottom: -4px;
 }
 .assign-submit-card__textarea,
 .assign-submit-card__input {
-  background: var(--color-bg);
+  background: var(--color-bg-alt);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-btn);
-  padding: 10px 12px;
+  padding: 12px 14px;
   font-family: inherit;
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 1.5;
   color: var(--color-text);
   resize: vertical;
+  outline: none;
+  transition: border-color var(--t-normal), box-shadow var(--t-normal);
 }
-.assign-submit-card__textarea:focus-visible,
-.assign-submit-card__input:focus-visible {
-  outline: 2px solid var(--color-accent-tinted-text);
-  outline-offset: 1px;
+.assign-submit-card__textarea {
+  min-height: 120px;
+}
+.assign-submit-card__textarea:focus,
+.assign-submit-card__input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(0, 117, 222, 0.15);
+}
+.assign-submit-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--color-text-muted);
 }
 .assign-submit-card__actions {
   display: flex;
