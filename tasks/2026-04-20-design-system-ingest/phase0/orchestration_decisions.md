@@ -85,6 +85,7 @@
 - **T9-3 결정**: `.assign-submit-card`를 실제 앱의 **이중 필드(textarea + linkUrl)** 구조 그대로 유지. handoff의 단순 textarea 구조로 다운그레이드하지 않음.
 - **T9-3 결정**: 스타일만 handoff 기준으로 업그레이드 — padding 18 → 24, shadow 추가, 입력 15px, focus accent shadow.
 - **T9-3 결정**: 제출 완료 상태(`isSubmitted && !isReturned`) 시 `.ds-pill "제출됨"` 배지 + 힌트 문구 표시. 기존엔 버튼 레이블("다시 제출하기")로만 암시했던 상태를 명시.
+- **T9-3 후속 (2026-04-21 사용자 확인)**: 초기 힌트 "선생님 검토 후 알림이 전송됩니다" → "선생님이 확인합니다."로 수정. 제출 후 교사/학부모 자동 알림 경로가 코드베이스에 없어 빈 약속이 되는 걸 방지.
 - **되돌리기**: `.student-login-*` 원래 shadow/font-size, StudentDashboard greeting-row 래퍼 제거, `.assign-submit-card` padding/font-size 원복, AssignmentStudentView 제출됨 pill 블록 제거.
 
 ## T6-1/T6-2 — Classroom list + detail (사용자 **강조** 영역)

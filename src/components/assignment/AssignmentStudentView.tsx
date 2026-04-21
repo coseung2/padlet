@@ -76,7 +76,7 @@ export function AssignmentStudentView({ slot, guideText, canSubmit }: Props) {
         {isSubmitted && !isReturned && (
           <p className="assign-submit-status">
             <span className="ds-pill">제출됨</span>
-            <span>선생님 검토 후 알림이 전송됩니다.</span>
+            <span>선생님이 확인합니다.</span>
           </p>
         )}
         <label className="assign-submit-card__label" htmlFor="assign-content">
