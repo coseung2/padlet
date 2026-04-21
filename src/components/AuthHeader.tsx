@@ -63,6 +63,13 @@ function SettingsMenu() {
         >
           🎨 Canva 앱 연결 안내
         </Link>
+        <Link
+          href="/docs/ai-setup"
+          className="auth-settings-item"
+          role="menuitem"
+        >
+          🤖 생성형 AI 연결하기
+        </Link>
       </div>
     </details>
   );

@@ -55,6 +55,11 @@ export default function SupportPage() {
               </Link>
             </li>
             <li>
+              <Link href="/docs/ai-setup" className="docs-link">
+                생성형 AI 연결하기 (Claude · ChatGPT · Gemini)
+              </Link>
+            </li>
+            <li>
               <Link href="/terms" className="docs-link">이용약관</Link>
             </li>
             <li>
