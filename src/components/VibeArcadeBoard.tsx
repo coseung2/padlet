@@ -1,15 +1,22 @@
 "use client";
 
-// Vibe-arcade board root (Seed 13).
+// Vibe-arcade board root (Seed 13 + handoff 재설계 2026-04-21).
 // Layout-level entry rendered from src/app/board/[id]/page.tsx when
-// Board.layout === "vibe-arcade". Handles gate-off, catalog list, and
-// delegates into Studio / PlayModal / TeacherDashboard sub-components.
+// Board.layout === "vibe-arcade".
 //
-// Sub-components are scaffolded here as stubs. Full UI lands in follow-up
-// commits (phase7, this session only ships the skeleton + data fetching).
+// 탭:
+//   - 슬롯 (기본) : 학급 roster × 학생별 최신 VibeProject status 그리드
+//   - 카탈로그   : 승인된 프로젝트 신작/인기 탭
+//   - 평가 미작성 : 승인된 프로젝트 중 viewer가 리뷰 안 쓴 것
+//
+// Studio 진입(학생 슬롯 클릭) → VibeStudio 모달. 교사 슬롯 클릭(검토) →
+// (Phase 3) TeacherModerationPanel 모달. 지금은 Studio만 연결.
 
 import { useCallback, useEffect, useState } from "react";
 import { StarRating } from "./vibe-arcade/StarRating";
+import { StudentSlotCard } from "./vibe-arcade/StudentSlotCard";
+import { VibeStudio } from "./vibe-arcade/VibeStudio";
+import type { VibeSlotDTO } from "@/app/api/vibe/slots/route";
 
 type ViewerKind = "teacher" | "student" | "none";
 
@@ -46,17 +53,22 @@ type CatalogItem = {
 };
 
 const TABS = [
-  { key: "new", label: "신작" },
+  { key: "slots",   label: "🧑‍🎓 슬롯" },
+  { key: "new",     label: "신작" },
   { key: "popular", label: "인기" },
   { key: "to-review", label: "🎯 평가 미작성" },
 ] as const;
 
+type TabKey = (typeof TABS)[number]["key"];
+
 export function VibeArcadeBoard(props: VibeArcadeBoardProps) {
   const [config, setConfig] = useState<VibeArcadeConfig | null>(null);
-  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("new");
+  const [tab, setTab] = useState<TabKey>("slots");
   const [items, setItems] = useState<CatalogItem[]>([]);
+  const [slots, setSlots] = useState<VibeSlotDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [studioSlot, setStudioSlot] = useState<VibeSlotDTO | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,6 +85,21 @@ export function VibeArcadeBoard(props: VibeArcadeBoardProps) {
     return () => {
       cancelled = true;
     };
+  }, [props.boardId]);
+
+  const loadSlots = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/vibe/slots?boardId=${props.boardId}`);
+      if (!res.ok) throw new Error(`slots ${res.status}`);
+      const data = (await res.json()) as { slots: VibeSlotDTO[] };
+      setSlots(data.slots);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
   }, [props.boardId]);
 
   const loadCatalog = useCallback(async () => {
@@ -93,8 +120,10 @@ export function VibeArcadeBoard(props: VibeArcadeBoardProps) {
   }, [props.boardId, tab]);
 
   useEffect(() => {
-    if (config?.enabled) void loadCatalog();
-  }, [config?.enabled, loadCatalog]);
+    if (!config?.enabled) return;
+    if (tab === "slots") void loadSlots();
+    else void loadCatalog();
+  }, [config?.enabled, tab, loadSlots, loadCatalog]);
 
   if (!config) {
     return <div className="va-loading">불러오는 중…</div>;
@@ -117,12 +146,18 @@ export function VibeArcadeBoard(props: VibeArcadeBoardProps) {
     );
   }
 
+  const isTeacher = props.viewerKind === "teacher";
+
   return (
     <section className="va-root">
       <header className="va-header">
         <div>
           <h1 className="va-title">🎮 학급 아케이드</h1>
-          <p className="va-subtitle">반 친구들이 만든 작품을 플레이해 보세요</p>
+          <p className="va-subtitle">
+            {isTeacher
+              ? "학급 학생들의 진행 상황과 승인 대기를 한 화면에 모아봤어요."
+              : "나와 반 친구들이 만든 작품을 한자리에서 볼 수 있어요."}
+          </p>
         </div>
       </header>
 
@@ -144,7 +179,10 @@ export function VibeArcadeBoard(props: VibeArcadeBoardProps) {
       {error ? (
         <div className="va-error" role="alert">
           불러오기 실패: {error}
-          <button type="button" onClick={() => void loadCatalog()}>
+          <button
+            type="button"
+            onClick={() => (tab === "slots" ? void loadSlots() : void loadCatalog())}
+          >
             재시도
           </button>
         </div>
@@ -154,14 +192,16 @@ export function VibeArcadeBoard(props: VibeArcadeBoardProps) {
             <li key={i} className="va-card va-card-skeleton" aria-hidden />
           ))}
         </ul>
+      ) : tab === "slots" ? (
+        <SlotsView
+          slots={slots}
+          selfStudentId={props.studentId}
+          isTeacher={isTeacher}
+          onOpenSlot={setStudioSlot}
+        />
       ) : items.length === 0 ? (
         <div className="va-empty">
-          <p>첫 작품을 만들어 보세요</p>
-          {props.viewerKind === "student" ? (
-            <button type="button" className="va-cta">
-              + 새로 만들기
-            </button>
-          ) : null}
+          <p>아직 전시된 작품이 없어요.</p>
         </div>
       ) : (
         <ul className="va-grid">
@@ -193,13 +233,70 @@ export function VibeArcadeBoard(props: VibeArcadeBoardProps) {
         </ul>
       )}
 
-      {props.viewerKind === "student" ? (
-        <button type="button" className="va-fab" aria-label="새 작품 만들기">
+      {props.viewerKind === "student" && tab !== "slots" && (
+        <button
+          type="button"
+          className="va-fab"
+          aria-label="새 작품 만들기"
+          onClick={() => {
+            const selfSlot = slots.find((s) => s.studentId === props.studentId);
+            setStudioSlot(selfSlot ?? null);
+            // 슬롯 데이터가 비어있으면 뒤에서 fetch 후 재클릭. 빠른 경로 — 탭 전환.
+            if (!selfSlot) setTab("slots");
+          }}
+        >
           +
         </button>
-      ) : null}
+      )}
 
-      {/* TODO(phase7-followup): PlayModal, VibeCodingStudio, TeacherModerationDashboard */}
+      {studioSlot && (
+        <VibeStudio
+          boardId={props.boardId}
+          classroomId={props.classroomId}
+          slot={studioSlot}
+          viewerKind={props.viewerKind}
+          selfStudentId={props.studentId}
+          onClose={() => {
+            setStudioSlot(null);
+            // 저장 후 상태 반영
+            if (tab === "slots") void loadSlots();
+          }}
+        />
+      )}
     </section>
+  );
+}
+
+function SlotsView({
+  slots,
+  selfStudentId,
+  isTeacher,
+  onOpenSlot,
+}: {
+  slots: VibeSlotDTO[];
+  selfStudentId: string | null;
+  isTeacher: boolean;
+  onOpenSlot: (slot: VibeSlotDTO) => void;
+}) {
+  if (slots.length === 0) {
+    return (
+      <div className="va-empty">
+        <p>학급에 학생이 등록되어 있지 않아요.</p>
+      </div>
+    );
+  }
+  return (
+    <ul className="vs-grid">
+      {slots.map((s) => (
+        <li key={s.studentId}>
+          <StudentSlotCard
+            slot={s}
+            isSelf={s.studentId === selfStudentId}
+            isTeacher={isTeacher}
+            onOpen={onOpenSlot}
+          />
+        </li>
+      ))}
+    </ul>
   );
 }
