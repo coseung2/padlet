@@ -19,8 +19,8 @@ export default async function PlantMatrixPage({
   const canAccess = !!user?.id && classroom.teacherId === user.id;
 
   return (
-    <>
-      <header className="board-header" style={{ marginBottom: 16 }}>
+    <main className="board-page">
+      <header className="board-header">
         <div className="board-header-left">
           <Link href={`/classroom/${id}`} className="board-back-link" aria-label="학급으로">←</Link>
           <h1 className="board-title">매트릭스 뷰 — {classroom.name}</h1>
@@ -34,6 +34,6 @@ export default async function PlantMatrixPage({
           <p style={{ color: "var(--color-text-muted)" }}>이 학급의 담임 계정으로 로그인해 주세요.</p>
         </div>
       )}
-    </>
+    </main>
   );
 }

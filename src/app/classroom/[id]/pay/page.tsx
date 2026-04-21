@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getCurrentStudent } from "@/lib/student-auth";
 import { hasPermission } from "@/lib/bank-permissions";
 import { notFound } from "next/navigation";
+import { ClassroomNav } from "@/components/classroom/ClassroomNav";
 import { ClassroomPayTab } from "@/components/classroom/ClassroomPayTab";
 
 type Props = { params: Promise<{ id: string }> };
@@ -28,9 +29,13 @@ export default async function ClassroomPayPage({ params }: Props) {
   if (!canCharge) notFound();
 
   return (
-    <>
+    <main className="classroom-page classroom-page-detail">
+      <a href="/classroom" className="classroom-back-link">
+        &larr; 학급 목록
+      </a>
       <h1 className="classroom-page-title">{classroom.name} · 결제</h1>
+      <ClassroomNav classroomId={classroom.id} />
       <ClassroomPayTab classroomId={classroom.id} />
-    </>
+    </main>
   );
 }
