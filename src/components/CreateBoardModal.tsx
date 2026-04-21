@@ -16,6 +16,7 @@ const LAYOUTS = [
   { id: "assessment", emoji: "📝", label: "수행평가", desc: "MCQ 자동 채점 + 교사 확정·릴리스" },
   { id: "dj-queue", emoji: "🎧", label: "DJ 큐", desc: "학생이 YouTube 곡을 신청 · DJ가 재생 순서 관리" },
   { id: "vibe-arcade", emoji: "🎮", label: "학급 아케이드", desc: "Claude Sonnet과 바이브 코딩으로 만든 게임·퀴즈를 플레이·리뷰" },
+  { id: "vibe-gallery", emoji: "🖼️", label: "바이브 갤러리", desc: "승인된 바이브 프로젝트만 전시 — 관람용 큐레이션 보드" },
 ] as const;
 
 type ClassroomItem = {
@@ -74,7 +75,8 @@ export function CreateBoardModal({ classrooms, userTier = "pro", onClose }: Prop
       (layoutId === "columns" ||
         layoutId === "assessment" ||
         layoutId === "dj-queue" ||
-        layoutId === "vibe-arcade") &&
+        layoutId === "vibe-arcade" ||
+        layoutId === "vibe-gallery") &&
       classrooms.length > 0
     ) {
       setSelectedLayout(layoutId);

@@ -18,6 +18,7 @@ import { AssessmentBoard } from "@/components/assessment/AssessmentBoard";
 import { BreakoutBoard } from "@/components/BreakoutBoard";
 import { DJBoard } from "@/components/DJBoard";
 import { VibeArcadeBoard } from "@/components/VibeArcadeBoard";
+import { VibeGalleryBoard } from "@/components/VibeGalleryBoard";
 import { cloneStructure } from "@/lib/breakout";
 import { parseObservationPoints, STALL_THRESHOLD_DAYS } from "@/lib/plant-schemas";
 import type { PlantJournalResponse } from "@/types/plant";
@@ -745,6 +746,22 @@ export default async function BoardPage({
             classroomId={board!.classroomId ?? ""}
             viewerKind={viewerKind}
             studentId={studentViewer?.id ?? null}
+          />
+        );
+      }
+      case "vibe-gallery": {
+        // 2026-04-21: vibe-arcade studio에서 승인된 프로젝트를 전시하는 별도 보드.
+        // classroom 내부에서 큐레이션 가능 + 다른 학급이 옆 보드에서 감상.
+        const viewerKind: "teacher" | "student" | "none" = studentViewer
+          ? "student"
+          : effectiveRole === "owner" || effectiveRole === "editor"
+            ? "teacher"
+            : "none";
+        return (
+          <VibeGalleryBoard
+            boardId={board!.id}
+            classroomId={board!.classroomId ?? ""}
+            viewerKind={viewerKind}
           />
         );
       }

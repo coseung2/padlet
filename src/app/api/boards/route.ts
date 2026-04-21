@@ -32,6 +32,7 @@ const CreateBoardSchema = z.object({
     "assessment",
     "dj-queue",
     "vibe-arcade",
+    "vibe-gallery",
   ]),
   description: z.string().max(2000).default(""),
   classroomId: z.string().optional(),
