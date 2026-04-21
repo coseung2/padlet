@@ -97,10 +97,13 @@ export function Dashboard({ boards, classrooms }: Props) {
         </button>
 
         {boards.map((b) => (
-          <div key={b.id} className={`board-grid-card${menuOpen === b.id ? " board-grid-card--menu-open" : ""}`} style={{ position: "relative", padding: 0 }}>
+          <div
+            key={b.id}
+            className={`board-grid-card${menuOpen === b.id ? " board-grid-card--menu-open" : ""}`}
+          >
             <Link
               href={`/board/${b.slug}`}
-              style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "20px 12px 12px", textDecoration: "none", color: "inherit", flex: 1 }}
+              className="board-grid-card-link"
             >
               <div className="board-grid-emoji">{LAYOUT_EMOJI[b.layout] ?? "📋"}</div>
               <div className="board-grid-title">{b.title}</div>
@@ -111,79 +114,33 @@ export function Dashboard({ boards, classrooms }: Props) {
             {b.role === "owner" && (
               <button
                 type="button"
+                className="board-grid-kebab"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   setMenuOpen(menuOpen === b.id ? null : b.id);
                 }}
-                style={{
-                  position: "absolute",
-                  top: 6,
-                  right: 6,
-                  background: "none",
-                  border: "none",
-                  borderRadius: 4,
-                  width: 26,
-                  height: 26,
-                  cursor: "pointer",
-                  fontSize: 16,
-                  lineHeight: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "var(--color-muted, #94a3b8)",
-                  opacity: 0.6,
-                }}
                 title="보드 관리"
+                aria-label="보드 관리 메뉴 열기"
               >
                 ···
               </button>
             )}
             {menuOpen === b.id && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: 34,
-                  right: 6,
-                  background: "var(--color-surface, #fff)",
-                  border: "1px solid var(--color-border, #e2e8f0)",
-                  borderRadius: 8,
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
-                  minWidth: 110,
-                  overflow: "hidden",
-                  zIndex: 10,
-                }}
-              >
+              <div className="board-grid-kebab-menu" role="menu">
                 <button
                   type="button"
+                  className="board-grid-kebab-item"
+                  role="menuitem"
                   onClick={() => handleDuplicate(b.id)}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    padding: "10px 14px",
-                    border: "none",
-                    background: "none",
-                    textAlign: "left",
-                    cursor: "pointer",
-                    fontSize: 13,
-                  }}
                 >
                   복제
                 </button>
                 <button
                   type="button"
+                  className="board-grid-kebab-item board-grid-kebab-item--danger"
+                  role="menuitem"
                   onClick={() => handleDelete(b.id)}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    padding: "10px 14px",
-                    border: "none",
-                    background: "none",
-                    textAlign: "left",
-                    cursor: "pointer",
-                    fontSize: 13,
-                    color: "var(--color-danger, #e53e3e)",
-                  }}
                 >
                   삭제
                 </button>
