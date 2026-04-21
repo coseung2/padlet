@@ -4,20 +4,25 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CreateBreakoutBoardModal } from "./CreateBreakoutBoardModal";
 
+// `hidden: true`는 CreateBoardModal의 레이아웃 피커에서만 숨김 — 백엔드
+// enum, 기존 보드 렌더, 라우트는 그대로 유지. 나중에 쓸지 결정되면 플래그만
+// 지우면 다시 노출. (사용자 결정 2026-04-22)
 const LAYOUTS = [
-  { id: "freeform", emoji: "🎯", label: "자유 배치", desc: "캔버스 위에 자유롭게 카드 배치" },
-  { id: "grid", emoji: "🔲", label: "그리드", desc: "깔끔한 격자 형태로 카드 정렬" },
-  { id: "stream", emoji: "📜", label: "스트림", desc: "위에서 아래로 흐르는 피드형" },
+  { id: "freeform", emoji: "🎯", label: "자유 배치", desc: "캔버스 위에 자유롭게 카드 배치", hidden: true },
+  { id: "grid", emoji: "🔲", label: "그리드", desc: "깔끔한 격자 형태로 카드 정렬", hidden: true },
+  { id: "stream", emoji: "📜", label: "스트림", desc: "위에서 아래로 흐르는 피드형", hidden: true },
   { id: "columns", emoji: "📊", label: "칼럼", desc: "Kanban 스타일 섹션별 관리" },
   { id: "assignment", emoji: "📋", label: "과제 배부", desc: "학생별 과제 제출 및 확인" },
   { id: "quiz", emoji: "🎮", label: "퀴즈", desc: "카훗 스타일 실시간 퀴즈 게임" },
-  { id: "drawing", emoji: "🎨", label: "그림보드", desc: "Drawpile 기반 공동 그림판 + 라이브러리" },
-  { id: "breakout", emoji: "👥", label: "모둠 학습", desc: "템플릿 기반 모둠 협력 보드 (KWL · 브레인스토밍 등)" },
+  { id: "drawing", emoji: "🎨", label: "그림보드", desc: "Drawpile 기반 공동 그림판 + 라이브러리", hidden: true },
+  { id: "breakout", emoji: "👥", label: "모둠 학습", desc: "템플릿 기반 모둠 협력 보드 (KWL · 브레인스토밍 등)", hidden: true },
   { id: "assessment", emoji: "📝", label: "수행평가", desc: "MCQ 자동 채점 + 교사 확정·릴리스" },
   { id: "dj-queue", emoji: "🎧", label: "DJ 큐", desc: "학생이 YouTube 곡을 신청 · DJ가 재생 순서 관리" },
   { id: "vibe-arcade", emoji: "🎮", label: "학급 아케이드", desc: "Claude Sonnet과 바이브 코딩으로 만든 게임·퀴즈를 플레이·리뷰" },
   { id: "vibe-gallery", emoji: "🖼️", label: "바이브 갤러리", desc: "승인된 바이브 프로젝트만 전시 — 관람용 큐레이션 보드" },
 ] as const;
+
+const VISIBLE_LAYOUTS = LAYOUTS.filter((l) => !("hidden" in l && l.hidden));
 
 type ClassroomItem = {
   id: string;
@@ -116,7 +121,7 @@ export function CreateBoardModal({ classrooms, userTier = "pro", onClose }: Prop
             <>
               <p className="create-board-hint">보드 유형을 선택하세요</p>
               <div className="layout-grid-picker">
-                {LAYOUTS.map((l) => (
+                {VISIBLE_LAYOUTS.map((l) => (
                   <button
                     key={l.id}
                     type="button"
