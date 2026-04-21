@@ -191,7 +191,7 @@ T8(Vibe 재설계)이 전체 작업량의 절반 이상.
 - [x] **T5-1** ColumnsBoard 정렬 UX — `components/columns/ColumnMenu.tsx` 신규 (케밥 내 정렬 라디오 4종 + rename/delete actions), `.column-sort-select` dead CSS 제거 (2026-04-21)
 - [x] **T6-1** ClassroomListPage 카드 그리드 — `classroom.css .classroom-grid-card*` handoff 수치로 정렬 (좌측 정렬, min-height 140, code pill 모노폰트 + ls2 + uppercase, stat-num 22px/700, hover translateY(-2)) (2026-04-21)
 - [x] **T6-2** ClassroomDetailPage — header 재구성 (name + meta + invite card + border-bottom) / 학급 삭제 버튼을 action bar 말미로 이동 / dead `.classroom-detail-code*` CSS 제거. 탭 구조는 도입 X (main-grid 유지) (2026-04-21)
-- [ ] **T7-1** DJBoardPage 스타일 업그레이드
+- [~] **T7-1** DJBoardPage 스타일 업그레이드 — **deferred**. 현 `boards.css .dj-*` 블록이 이미 handoff `.ab-dj-*` 수준의 디자인 토큰/그라디언트/레이아웃을 사용 중(라이브 상태). 전면 재설계는 회귀 위험 대비 시각적 이득이 작아 T10(CSS 정리) 배치로 이관. 의사결정 근거는 orchestration_decisions.md 참고 (2026-04-21)
 - [x] **T9-1** StudentLoginForm 스타일 — `student.css` `.student-login-*` 블록을 handoff `.ab-login-*` 수치로 정렬 (padding 48/40, shadow 토큰화, mono 폰트 `--font-mono`, input 22px/ls6, error `--color-danger`) (2026-04-21)
 - [x] **T9-2** StudentDashboard 스타일 — greeting + badge + logout 한 줄 flex-row wrapper `.student-greeting-row` + `.student-sub` "오늘의 보드" 헤더 추가 (handoff `ab-student-*` 레이아웃) (2026-04-21)
 - [x] **T9-3** Student BoardView 제출 카드 — `assignment.css .assign-submit-card*` 수치 업그레이드 (padding 24, shadow 토큰, 15px 본문, focus ring), `.ds-pill` 제출됨 배지 + "선생님 검토 후 알림이 전송됩니다" 힌트 추가 (2026-04-21)

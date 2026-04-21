@@ -102,4 +102,16 @@
 - **코드 회전**: 별도 API 작업 없음 — 기존 `/classroom/[id]/parent-access`에서 이미 rotate 가능. invite card 클릭 시 그 페이지로 이동.
 - **되돌리기**: classroom.css의 `.classroom-detail-header` flex-row/margin-bottom 8 복원 + `.classroom-invite-*` 블록 제거 + ClassroomDetail.tsx의 header JSX 원복 + action-bar에 parent-access 링크 재삽입 + 삭제 버튼을 header로 이동.
 
+## T7-1 — DJBoardPage 스타일 (**deferred**)
+
+- **결정**: 전면 재설계를 **이번 세션에서 하지 않음**. 현재 `boards.css .dj-*` (약 270 라인) 이 이미 handoff `.ab-dj-*`에 해당하는:
+  - 3열 grid(`dj-played-stack | dj-board-main | dj-ranking`, 160px × 1fr × 340px)
+  - accent 계열 nowplaying 카드 (linear-gradient bg + accent label)
+  - SF Mono 순위 텍스트 + pill 태그 + tabular-nums 카운트
+  - thumbnail 스큐 · ranking row 레이아웃
+  … 모두 동등한 수준으로 구현해 둔 상태. 핸드오프 수치와 차이는 세부(border-radius, transition duration)뿐.
+- **이유**: plan의 T7-1 추정이 60분 "디자인만 업그레이드"지만, handoff 이식을 그대로 하려면 dj-* → ab-dj-* 네임스페이스 rename + 7개 DJ 서브컴포넌트 JSX 수정이 필요함. 회귀 리스크 대비 시각적 이득이 크지 않음.
+- **후속**: T10 CSS 정리 단계에서 `border-radius: 8px/12px/999px` 리터럴을 `var(--radius-card)/var(--radius-pill)`로, `transition 150ms ease`를 `var(--t-normal)`로 바꾸는 **토큰 정규화 패스**로 흡수. 전면 네임스페이스 rename은 별도 follow-up task.
+- **사용자 확인 필요**: 이번 세션에서 DJ 보드 시각 변경을 기대했다면 별도 재작업 필요.
+
 ---
