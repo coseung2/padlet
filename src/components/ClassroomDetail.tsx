@@ -364,15 +364,30 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
           login uses per-student textCode; parents use ClassInviteCode).
           The field stays in the DB schema for future use. */}
       <div className="classroom-detail-header">
-        <h1 className="classroom-detail-name">{classroom.name}</h1>
-        <button
-          type="button"
-          className="classroom-detail-delete"
-          onClick={() => setShowClassroomDelete(true)}
-          title="학급을 삭제하면 연결된 학부모 액세스도 해제됩니다."
+        <div className="classroom-detail-header-main">
+          <h1 className="classroom-detail-name">{classroom.name}</h1>
+          <p className="classroom-detail-meta">
+            학생 {students.length}명 · 보드 {classroom.boards.length}개
+          </p>
+        </div>
+        <a
+          href={`/classroom/${classroom.id}/parent-access`}
+          className="classroom-invite-card"
         >
-          🗑 학급 삭제
-        </button>
+          <div>
+            <div className="classroom-invite-label">학부모 초대 코드</div>
+            <div className="classroom-invite-cta">코드 · 승인 관리 →</div>
+          </div>
+          {pendingCount > 0 && (
+            <span
+              className="classroom-invite-badge"
+              aria-label={`승인 대기 ${pendingCount}건`}
+              title={`승인 대기 ${pendingCount}건`}
+            >
+              {pendingCount}
+            </span>
+          )}
+        </a>
       </div>
 
       {/* Action bar */}
@@ -389,9 +404,9 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
             type="button"
             className="classroom-action-btn"
             style={{
-              background: "var(--color-danger, #e53e3e)",
+              background: "var(--color-danger)",
               color: "#fff",
-              borderColor: "var(--color-danger, #e53e3e)",
+              borderColor: "var(--color-danger)",
             }}
             onClick={handleBatchDelete}
             disabled={deleting}
@@ -400,21 +415,14 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
           </button>
         )}
         <QRPrintSheet students={students} classroomName={classroom.name} />
-        <a
-          href={`/classroom/${classroom.id}/parent-access`}
-          className="classroom-action-btn"
+        <button
+          type="button"
+          className="classroom-detail-delete"
+          onClick={() => setShowClassroomDelete(true)}
+          title="학급을 삭제하면 연결된 학부모 액세스도 해제됩니다."
         >
-          🔗 초대 코드 · 승인 관리
-          {pendingCount > 0 && (
-            <span
-              className="classroom-action-badge"
-              title={`승인 대기 ${pendingCount}건`}
-              aria-label={`승인 대기 ${pendingCount}건`}
-            >
-              {pendingCount}
-            </span>
-          )}
-        </a>
+          🗑 학급 삭제
+        </button>
       </div>
 
       {/* Main grid — student table on the left, board column on the

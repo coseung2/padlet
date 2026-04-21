@@ -87,4 +87,19 @@
 - **T9-3 결정**: 제출 완료 상태(`isSubmitted && !isReturned`) 시 `.ds-pill "제출됨"` 배지 + 힌트 문구 표시. 기존엔 버튼 레이블("다시 제출하기")로만 암시했던 상태를 명시.
 - **되돌리기**: `.student-login-*` 원래 shadow/font-size, StudentDashboard greeting-row 래퍼 제거, `.assign-submit-card` padding/font-size 원복, AssignmentStudentView 제출됨 pill 블록 제거.
 
+## T6-1/T6-2 — Classroom list + detail (사용자 **강조** 영역)
+
+- **T6-1 결정**: `.classroom-grid-card`를 **좌측 정렬**로 전환 (handoff). text-align/align-items center 제거 + min-height 140 + hover translateY(-2).
+- **T6-1 결정**: `.classroom-grid-code`에 `var(--font-mono)` + ls 2px + uppercase + align-self:flex-start 적용 (pill 모노폰트화).
+- **T6-1 결정**: `.classroom-stat-num` 14px → 22px. `.classroom-grid-stats` margin-top:auto로 카드 하단 도킹.
+- **T6-1 결정**: `.classroom-grid-new`는 center 정렬 유지 (dashed CTA 카드 의도 그대로).
+- **T6-2 결정 1 (핵심)**: handoff의 **탭 구조(roster/parents/boards/settings) 도입 X**. 현 앱은 학생 테이블 + 학급 보드를 main-grid로 동시 노출하는 UX가 잡혀 있어, 탭 전환 리팩토링은 blast radius가 너무 큼. 
+- **T6-2 결정 2**: handoff header 디자인(이름 + meta + 초대 카드 + border-bottom) 이식. meta "학생 N명 · 보드 M개" 서브타이틀 추가.
+- **T6-2 결정 3**: **초대 코드 카드**는 "학부모 초대 코드 / 코드 · 승인 관리 →" Link로 단순화. handoff처럼 실제 6자리 코드를 detail에 노출하지 않음 (학생 로그인용 classroom.code는 dead 필드, 학부모 invite 코드는 `/classroom/[id]/parent-access` 페이지가 이미 완성돼 있어 그리로 유도).
+- **T6-2 결정 4**: 기존 action-bar의 "🔗 초대 코드 · 승인 관리" 링크 **제거** (새 invite card로 대체, 중복 방지).
+- **T6-2 결정 5**: "🗑 학급 삭제" 버튼을 header에서 action bar 말미로 이동. `margin-left: auto`로 우측 정렬.
+- **T6-2 결정 6**: `.classroom-detail-code` / `.classroom-detail-code-hint` dead CSS 제거.
+- **코드 회전**: 별도 API 작업 없음 — 기존 `/classroom/[id]/parent-access`에서 이미 rotate 가능. invite card 클릭 시 그 페이지로 이동.
+- **되돌리기**: classroom.css의 `.classroom-detail-header` flex-row/margin-bottom 8 복원 + `.classroom-invite-*` 블록 제거 + ClassroomDetail.tsx의 header JSX 원복 + action-bar에 parent-access 링크 재삽입 + 삭제 버튼을 header로 이동.
+
 ---

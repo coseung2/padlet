@@ -180,69 +180,104 @@
 
 .classroom-detail-header {
   display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 24px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
 }
 
-/* Destructive action — pushed to the far right of the header. Subtle
-   red text-button instead of a full-colour destructive button so it
-   doesn't compete visually with the classroom name. The confirm
-   modal (ClassroomDeleteModal) is the real gate. */
+.classroom-detail-header-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.classroom-detail-name {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin: 0 0 8px;
+  color: var(--color-text);
+}
+
+.classroom-detail-meta {
+  font-size: 15px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* Invite / code card — docks to the header right (handoff T6-2).
+   Links to the full parent-access page rather than showing the raw
+   6-char code, since the teacher already manages codes there. */
+.classroom-invite-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow var(--t-normal), border-color var(--t-normal);
+}
+
+.classroom-invite-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--color-border-hover);
+}
+
+.classroom-invite-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  color: var(--color-text-muted);
+}
+
+.classroom-invite-cta {
+  margin-top: 4px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  color: var(--color-text);
+}
+
+.classroom-invite-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-warning-tinted-bg);
+  color: var(--color-warning);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Destructive action in the action-bar (T6-2). Subtle text-button —
+   ClassroomDeleteModal remains the confirm gate. */
 .classroom-detail-delete {
   margin-left: auto;
   padding: 6px 10px;
   font-size: 13px;
   font-weight: 500;
-  color: var(--color-danger, #c62828);
+  color: var(--color-danger);
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-btn);
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
+  transition: background var(--t-fast), border-color var(--t-fast);
 }
 
 .classroom-detail-delete:hover {
   background: rgba(198, 40, 40, 0.08);
   border-color: rgba(198, 40, 40, 0.3);
-}
-
-.classroom-detail-name {
-  font-family: var(--font-display);
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  margin: 0;
-  color: var(--color-text);
-}
-
-.classroom-detail-code {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  background: var(--color-accent-tinted-bg);
-  color: var(--color-accent-tinted-text);
-  border: none;
-  border-radius: var(--radius-pill);
-  font-family: monospace;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 1px;
-  cursor: pointer;
-  transition: background 150ms ease;
-}
-
-.classroom-detail-code:hover {
-  background: #e0f0ff;
-}
-
-.classroom-detail-code-hint {
-  font-family: var(--font-body);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0;
-  color: var(--color-text-faint);
 }
 
 /* ---- Action bar ---- */
