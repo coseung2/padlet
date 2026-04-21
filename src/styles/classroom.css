@@ -48,34 +48,36 @@
 
 .classroom-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
 }
 
 .classroom-grid-card {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
   gap: 10px;
-  padding: 20px;
+  padding: 24px;
+  min-height: 140px;
   background: var(--color-surface);
   border: var(--border-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
   cursor: pointer;
-  text-align: center;
+  text-align: left;
+  color: inherit;
   font-family: var(--font-body);
-  transition: box-shadow 180ms ease, border-color 180ms ease;
+  transition: box-shadow var(--t-slow), border-color var(--t-slow),
+    transform var(--t-slow);
 }
 
 .classroom-grid-card:hover {
   box-shadow: var(--shadow-card-hover);
   border-color: var(--color-border-hover);
+  transform: translateY(-2px);
 }
 
 .classroom-grid-name {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.25px;
   color: var(--color-text);
@@ -83,45 +85,57 @@
 
 .classroom-grid-code {
   display: inline-block;
-  padding: 2px 8px;
+  align-self: flex-start;
+  padding: 3px 10px;
   background: var(--color-accent-tinted-bg);
   color: var(--color-accent-tinted-text);
   border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
 }
 
 .classroom-grid-stats {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 12px;
+  margin-top: auto;
+  font-size: 13px;
+  color: var(--color-text-muted);
 }
 
 .classroom-stat {
   display: flex;
   align-items: baseline;
-  gap: 2px;
+  gap: 4px;
 }
 
 .classroom-stat-num {
-  font-size: 14px;
+  font-size: 22px;
   font-weight: 700;
+  letter-spacing: -0.3px;
   color: var(--color-text);
 }
 
 .classroom-stat-label {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-text-muted);
 }
 
 .classroom-stat-sep {
   width: 1px;
-  height: 12px;
+  height: 14px;
   background: var(--color-border);
+  align-self: center;
 }
 
 /* New classroom card */
 .classroom-grid-new {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   border: 2px dashed var(--color-border);
   background: transparent;
   box-shadow: none;
@@ -131,6 +145,7 @@
   border-color: var(--color-accent);
   background: var(--color-accent-tinted-bg);
   box-shadow: none;
+  transform: none;
 }
 
 .classroom-grid-new-icon {

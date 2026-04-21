@@ -189,7 +189,7 @@ T8(Vibe 재설계)이 전체 작업량의 절반 이상.
 - [x] **T4-1** TeacherDashboard 카드 그리드 스타일 업그레이드 — `home.css` 수치 조정 + `.board-grid-kebab-*` 클래스화, Dashboard 인라인 스타일 제거 (2026-04-21)
 - [x] **T4-2** CreateBoardModal 레이아웃 피커 스타일 업그레이드 — `.layout-grid-picker/.layout-grid-option` 신규 (layout step 전용 3열 grid), classroom step 세로 리스트 유지, modal 720px (2026-04-21)
 - [x] **T5-1** ColumnsBoard 정렬 UX — `components/columns/ColumnMenu.tsx` 신규 (케밥 내 정렬 라디오 4종 + rename/delete actions), `.column-sort-select` dead CSS 제거 (2026-04-21)
-- [ ] **T6-1** ClassroomListPage 카드 그리드
+- [x] **T6-1** ClassroomListPage 카드 그리드 — `classroom.css .classroom-grid-card*` handoff 수치로 정렬 (좌측 정렬, min-height 140, code pill 모노폰트 + ls2 + uppercase, stat-num 22px/700, hover translateY(-2)) (2026-04-21)
 - [ ] **T6-2** ClassroomDetailPage (기존 nav와 조율)
 - [ ] **T7-1** DJBoardPage 스타일 업그레이드
 - [x] **T9-1** StudentLoginForm 스타일 — `student.css` `.student-login-*` 블록을 handoff `.ab-login-*` 수치로 정렬 (padding 48/40, shadow 토큰화, mono 폰트 `--font-mono`, input 22px/ls6, error `--color-danger`) (2026-04-21)
