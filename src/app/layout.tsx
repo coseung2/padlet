@@ -6,6 +6,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Aura-board",
   description: "나만의 Aura-board — Notion inspired MVP",
+  icons: {
+    icon: "/aura-app-icon-512.png",
+    apple: "/aura-app-icon-512.png",
+  },
 };
 
 export default function RootLayout({

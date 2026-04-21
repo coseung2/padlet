@@ -183,7 +183,7 @@ T8(Vibe 재설계)이 전체 작업량의 절반 이상.
 - [x] **T1-1** 누락 토큰 (bank/type vars/tap-min/transitions) — `src/styles/base.css` 반영 완료 (2026-04-21)
 - [x] **T1-2** `.ds-*` 전역 유틸 클래스 — `src/styles/ds-utils.css` 신규 + `globals.css` import (2026-04-21)
 - [x] **T1-3** focus-visible 글로벌 스타일 — `base.css` 159~163에 handoff와 동일 룰 이미 존재, skip 확정 (2026-04-21)
-- [ ] **T2-1** PNG 앱 아이콘 채택? (vs 현 CSS A마크)
+- [x] **T2-1** PNG 앱 아이콘 채택 — `public/aura-app-icon-512.png` + `layout.tsx` metadata.icons (2026-04-21)
 - [ ] **T2-2** Logo 컴포넌트 도입
 - [ ] **T3-1** TopNav 도입 (탭 구성은 실제 라우트에 맞춰 조정)
 - [ ] **T4-1** TeacherDashboard 카드 그리드 스타일 업그레이드
