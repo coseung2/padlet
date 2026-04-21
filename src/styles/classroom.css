@@ -430,7 +430,7 @@
 }
 
 .classroom-td-role {
-  text-align: center;
+  text-align: left;
 }
 
 .classroom-role-select {
@@ -2001,4 +2001,91 @@
   .classroom-tab-link::after {
     display: none;
   }
+}
+
+/* ═══ Classroom name + gear button (2026-04-21) ══════════════════════ */
+
+.classroom-detail-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.classroom-settings-gear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  transition: background var(--t-normal, 150ms ease), color var(--t-normal, 150ms ease), border-color var(--t-normal, 150ms ease);
+  padding: 0;
+  line-height: 1;
+}
+
+.classroom-settings-gear:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  border-color: var(--color-border-hover);
+}
+
+/* ═══ Classroom settings modal (학급명 옆 톱니바퀴) ═══════════════════ */
+
+.classroom-settings-modal {
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
+  max-width: 560px;
+  width: calc(100vw - 32px);
+  max-height: calc(100vh - 80px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-card);
+}
+
+.classroom-settings-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.classroom-settings-modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.classroom-settings-modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ═══ Student row: name + role stacked (2026-04-21) ══════════════════ */
+
+.classroom-name-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.classroom-name-text {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.classroom-role-select-inline {
+  font-size: 11px;
+  padding: 2px 6px;
+  min-width: 0;
+  max-width: 140px;
 }

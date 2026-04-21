@@ -43,7 +43,8 @@ type Props = {
   allBoards: Board[]; // teacher's all boards for picker
 };
 
-type ClassroomTab = "students" | "parents" | "boards" | "settings";
+// Tab navigation moved to the top <ClassroomNav />. 학부모 연결/공유된 보드
+// = 각자 페이지로 이동. 설정 = 학급명 옆 톱니바퀴 → 모달. (2026-04-21)
 
 /* Handoff roster avatar — hash name → COLOR_POOL, show initial. */
 const AVATAR_COLORS = ["#a69bff", "#ff9ebd", "#8ccfff", "#ffd28c", "#9ee5c1", "#ffb08c"];
@@ -67,7 +68,7 @@ type PendingApproval = {
 
 export function ClassroomDetail({ classroom, allBoards }: Props) {
   const router = useRouter();
-  const [tab, setTab] = useState<ClassroomTab>("students");
+  const [showSettings, setShowSettings] = useState(false);
   const [students, setStudents] = useState(classroom.students);
   const [linkedBoardIds, setLinkedBoardIds] = useState<Set<string>>(
     new Set(classroom.boards.map((b) => b.id))
@@ -492,7 +493,18 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
           The field stays in the DB schema for future use. */}
       <div className="classroom-detail-header">
         <div className="classroom-detail-header-main">
-          <h1 className="classroom-detail-name">{classroomName}</h1>
+          <div className="classroom-detail-name-row">
+            <h1 className="classroom-detail-name">{classroomName}</h1>
+            <button
+              type="button"
+              className="classroom-settings-gear"
+              onClick={() => setShowSettings(true)}
+              title="학급 설정"
+              aria-label="학급 설정"
+            >
+              ⚙
+            </button>
+          </div>
           <p className="classroom-detail-meta">
             학생 {students.length}명 · 보드 {linkedBoardIds.size}개
           </p>
@@ -517,76 +529,10 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
         </a>
       </div>
 
-      {/* Tab nav (T6-2 handoff, 2026-04-21). 탭별 컨텐츠는 아래 조건부 렌더. */}
-      <nav className="classroom-tabs" role="tablist" aria-label="학급 관리 탭">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "students"}
-          className={`classroom-tab${tab === "students" ? " is-active" : ""}`}
-          onClick={() => setTab("students")}
-        >
-          학생 명단 <span className="classroom-tab-count">{students.length}</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "parents"}
-          className={`classroom-tab${tab === "parents" ? " is-active" : ""}`}
-          onClick={() => setTab("parents")}
-        >
-          학부모 연결
-          {pendingCount > 0 && (
-            <span className="classroom-tab-badge" title={`승인 대기 ${pendingCount}건`}>
-              {pendingCount}
-            </span>
-          )}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "boards"}
-          className={`classroom-tab${tab === "boards" ? " is-active" : ""}`}
-          onClick={() => setTab("boards")}
-        >
-          공유된 보드 <span className="classroom-tab-count">{linkedBoardIds.size}</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "settings"}
-          className={`classroom-tab${tab === "settings" ? " is-active" : ""}`}
-          onClick={() => setTab("settings")}
-        >
-          설정
-        </button>
-
-        {/* External tabs (handoff 4-tab + 3 extra per user spec 2026-04-21).
-            Role/bank/store pages are feature-rich so they stay on their own
-            routes; here we just mirror the tab style and navigate. */}
-        <span className="classroom-tabs-sep" aria-hidden="true" />
-        <a
-          className="classroom-tab classroom-tab-link"
-          href={`/classroom/${classroom.id}/roles`}
-        >
-          학급 역할
-        </a>
-        <a
-          className="classroom-tab classroom-tab-link"
-          href={`/classroom/${classroom.id}/bank`}
-        >
-          은행
-        </a>
-        <a
-          className="classroom-tab classroom-tab-link"
-          href={`/classroom/${classroom.id}/store`}
-        >
-          매점
-        </a>
-      </nav>
-
-      {/* ────── TAB: 학생 명단 ────── */}
-      {tab === "students" && (
+      {/* Hidden nav — the top ClassroomNav owns all tab navigation; the
+          4 tabs that used to live here moved: 학생 명단 = this page, 학부모
+          연결 = /parent-access, 공유된 보드 = /boards, 설정 = 학급명 옆
+          톱니바퀴 → 설정 모달. 2026-04-21. */}
       <>
       {/* Action bar */}
       <div className="classroom-action-bar">
@@ -650,11 +596,10 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
                 </th>
                 <th className="classroom-th classroom-th-num">#</th>
                 <th className="classroom-th" style={{ width: 44 }} aria-label="아바타" />
-                <th className="classroom-th">이름</th>
+                <th className="classroom-th">이름 / 역할</th>
                 <th className="classroom-th">QR</th>
                 <th className="classroom-th">코드</th>
                 <th className="classroom-th">학부모</th>
-                <th className="classroom-th">역할</th>
                 <th className="classroom-th classroom-th-actions">관리</th>
               </tr>
             </thead>
@@ -679,10 +624,10 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
         )}
       </div>
       </>
-      )}
 
-      {/* ────── TAB: 학부모 연결 (inline 승인 리스트, handoff 스타일) ────── */}
-      {tab === "parents" && (
+      {/* 학부모 연결 / 공유된 보드 탭은 상단 ClassroomNav로 이동.
+          아래 dead-code 제거 마커 — 블록은 남지만 절대 렌더되지 않음. */}
+      {false && (
         <section className="classroom-parents-panel">
           <div className="classroom-parents-summary">
             <div>
@@ -762,8 +707,8 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
         </section>
       )}
 
-      {/* ────── TAB: 공유된 보드 ────── */}
-      {tab === "boards" && (
+      {/* 공유된 보드 → /boards 라우트 (ClassroomNav) */}
+      {false && (
       <div className="classroom-boards-section">
         <div className="classroom-boards-header">
           <h2 className="classroom-boards-heading">학급 보드</h2>
@@ -844,59 +789,85 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
       </div>
       )}
 
-      {/* ────── TAB: 설정 ────── */}
-      {tab === "settings" && (
-        <section className="classroom-settings-panel">
-          <h2 className="classroom-panel-heading">학급 설정</h2>
+      {/* Settings moved to a modal opened by the ⚙ gear button next to the
+          classroom name. Content kept 1:1 with the old 설정 탭. */}
+      {showSettings && (
+        <div
+          className="modal-backdrop"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowSettings(false);
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="학급 설정"
+        >
+          <div className="classroom-settings-modal">
+            <header className="classroom-settings-modal-header">
+              <h3>학급 설정</h3>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setShowSettings(false)}
+                aria-label="닫기"
+              >
+                ×
+              </button>
+            </header>
 
-          <div className="classroom-setting-row">
-            <label className="classroom-setting-label" htmlFor="classroom-name-input">
-              학급 이름
-            </label>
-            <div className="classroom-setting-name-row">
-              <input
-                id="classroom-name-input"
-                className="classroom-setting-input"
-                type="text"
-                defaultValue={classroomName}
-                maxLength={100}
-                onBlur={(e) => {
-                  if (e.target.value.trim() !== classroomName) {
-                    void handleRenameClassroom(e.target.value);
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    (e.target as HTMLInputElement).blur();
-                  }
-                }}
-                disabled={renaming}
-              />
-              {renaming && <span className="classroom-setting-saving">저장 중…</span>}
-            </div>
-            {renameErr && (
-              <p className="classroom-setting-err">이름 저장 실패: {renameErr}</p>
-            )}
-          </div>
+            <div className="classroom-settings-modal-body">
+              <div className="classroom-setting-row">
+                <label className="classroom-setting-label" htmlFor="classroom-name-input">
+                  학급 이름
+                </label>
+                <div className="classroom-setting-name-row">
+                  <input
+                    id="classroom-name-input"
+                    className="classroom-setting-input"
+                    type="text"
+                    defaultValue={classroomName}
+                    maxLength={100}
+                    onBlur={(e) => {
+                      if (e.target.value.trim() !== classroomName) {
+                        void handleRenameClassroom(e.target.value);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        (e.target as HTMLInputElement).blur();
+                      }
+                    }}
+                    disabled={renaming}
+                  />
+                  {renaming && <span className="classroom-setting-saving">저장 중…</span>}
+                </div>
+                {renameErr && (
+                  <p className="classroom-setting-err">이름 저장 실패: {renameErr}</p>
+                )}
+              </div>
 
-          <div className="classroom-setting-row classroom-setting-danger">
-            <div>
-              <p className="classroom-setting-label">학급 삭제</p>
-              <p className="classroom-setting-hint">
-                삭제하면 연결된 학부모 액세스가 전부 해제되고 학생 계정은 비활성됩니다.
-                되돌릴 수 없어요.
-              </p>
+              <div className="classroom-setting-row classroom-setting-danger">
+                <div>
+                  <p className="classroom-setting-label">학급 삭제</p>
+                  <p className="classroom-setting-hint">
+                    삭제하면 연결된 학부모 액세스가 전부 해제되고 학생 계정은 비활성됩니다.
+                    되돌릴 수 없어요.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="classroom-detail-delete"
+                  onClick={() => {
+                    setShowSettings(false);
+                    setShowClassroomDelete(true);
+                  }}
+                >
+                  🗑 학급 삭제
+                </button>
+              </div>
             </div>
-            <button
-              type="button"
-              className="classroom-detail-delete"
-              onClick={() => setShowClassroomDelete(true)}
-            >
-              🗑 학급 삭제
-            </button>
           </div>
-        </section>
+        </div>
       )}
 
       {/* Add students modal */}
@@ -989,7 +960,24 @@ function StudentRow({
           {avatarInitial(student.name)}
         </span>
       </td>
-      <td className="classroom-td classroom-td-name">{student.name}</td>
+      <td className="classroom-td classroom-td-name">
+        <div className="classroom-name-stack">
+          <span className="classroom-name-text">{student.name}</span>
+          <select
+            className="classroom-role-select classroom-role-select-inline"
+            value={roleKey}
+            onChange={(e) => onRoleChange(e.target.value)}
+            aria-label={`${student.name} 역할`}
+          >
+            <option value="">역할 없음</option>
+            {roleDefs.map((d) => (
+              <option key={d.key} value={d.key}>
+                {d.emoji ? `${d.emoji} ` : ""}{d.labelKo}
+              </option>
+            ))}
+          </select>
+        </div>
+      </td>
       <td className="classroom-td classroom-td-qr">
         {qrSrc ? (
           // QR is a data: URL generated client-side — next/image can't optimize it
@@ -1011,21 +999,6 @@ function StudentRow({
         >
           {parentCount === 0 ? "–" : `${parentCount}명`}
         </a>
-      </td>
-      <td className="classroom-td classroom-td-role">
-        <select
-          className="classroom-role-select"
-          value={roleKey}
-          onChange={(e) => onRoleChange(e.target.value)}
-          aria-label={`${student.name} 역할`}
-        >
-          <option value="">없음</option>
-          {roleDefs.map((d) => (
-            <option key={d.key} value={d.key}>
-              {d.emoji ? `${d.emoji} ` : ""}{d.labelKo}
-            </option>
-          ))}
-        </select>
       </td>
       <td className="classroom-td classroom-td-actions">
         <div className="classroom-row-actions">
