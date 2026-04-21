@@ -8,12 +8,28 @@
   margin: 0 auto;
 }
 
+.student-greeting-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
 .student-greeting {
   font-family: var(--font-display);
   font-size: 26px;
   font-weight: 600;
   letter-spacing: -0.5px;
-  margin: 0 0 4px;
+  margin: 0;
+  color: var(--color-text);
+}
+
+.student-sub {
+  margin: 20px 0 12px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.15px;
   color: var(--color-text);
 }
 
@@ -35,9 +51,8 @@
   font-size: 13px;
   color: var(--color-text-muted);
   cursor: pointer;
-  margin-left: 8px;
   font-family: var(--font-body);
-  transition: color 150ms ease, border-color 150ms ease;
+  transition: color var(--t-normal), border-color var(--t-normal);
 }
 
 .student-logout-btn:hover {

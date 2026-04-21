@@ -53,15 +53,17 @@ export function StudentDashboard({ studentName, classroomName, boards, duties }:
 
   return (
     <>
-      <h1 className="student-greeting">{studentName}님, 안녕하세요!</h1>
-      <span className="student-classroom-badge">{classroomName}</span>
-      <button
-        className="student-logout-btn"
-        onClick={handleLogout}
-        disabled={loggingOut}
-      >
-        {loggingOut ? "로그아웃 중..." : "로그아웃"}
-      </button>
+      <div className="student-greeting-row">
+        <h1 className="student-greeting">{studentName}님, 안녕하세요!</h1>
+        <span className="student-classroom-badge">{classroomName}</span>
+        <button
+          className="student-logout-btn"
+          onClick={handleLogout}
+          disabled={loggingOut}
+        >
+          {loggingOut ? "로그아웃 중..." : "로그아웃"}
+        </button>
+      </div>
 
       {duties.length > 0 && (
         <section className="student-duty-section">
@@ -89,25 +91,28 @@ export function StudentDashboard({ studentName, classroomName, boards, duties }:
           <p>아직 보드가 없습니다</p>
         </div>
       ) : (
-        <div className="student-board-grid">
-          {boards.map((b) => {
-            const quizCode = b.layout === "quiz" && b.quizzes?.[0]?.roomCode;
-            const href = quizCode ? `/quiz/${quizCode}` : `/board/${b.slug}`;
-            return (
-              <Link
-                key={b.id}
-                href={href}
-                className="student-board-card"
-              >
-                <span className="student-board-card-title">{b.title}</span>
-                <span className="student-board-card-meta">
-                  {LAYOUT_LABEL[b.layout] ?? b.layout}
-                  {quizCode && " — 참여하기"}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
+        <>
+          <p className="student-sub">오늘의 보드</p>
+          <div className="student-board-grid">
+            {boards.map((b) => {
+              const quizCode = b.layout === "quiz" && b.quizzes?.[0]?.roomCode;
+              const href = quizCode ? `/quiz/${quizCode}` : `/board/${b.slug}`;
+              return (
+                <Link
+                  key={b.id}
+                  href={href}
+                  className="student-board-card"
+                >
+                  <span className="student-board-card-title">{b.title}</span>
+                  <span className="student-board-card-meta">
+                    {LAYOUT_LABEL[b.layout] ?? b.layout}
+                    {quizCode && " — 참여하기"}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </>
       )}
     </>
   );
