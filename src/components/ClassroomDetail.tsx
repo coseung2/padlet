@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { AddStudentsModal, type CreatedStudent } from "./AddStudentsModal";
 import { QRPrintSheet } from "./QRPrintSheet";
 import { ClassroomDeleteModal } from "./classroom/ClassroomDeleteModal";
@@ -65,9 +65,33 @@ type PendingApproval = {
   requestedAt: string;
 };
 
+const VALID_TABS: readonly ClassroomTab[] = ["students", "parents", "boards", "settings"] as const;
+function parseTab(v: string | null): ClassroomTab {
+  return (VALID_TABS as readonly string[]).includes(v ?? "") ? (v as ClassroomTab) : "students";
+}
+
 export function ClassroomDetail({ classroom, allBoards }: Props) {
   const router = useRouter();
-  const [tab, setTab] = useState<ClassroomTab>("students");
+  const pathname = usePathname();
+  const search = useSearchParams();
+  // URL query `?tab=parents|settings|boards` syncs with internal tab state.
+  // The shared classroom-tabs nav in layout.tsx always links here with the
+  // right query, so /students page + query = single source of truth.
+  const initialTab = parseTab(search?.get("tab") ?? null);
+  const [tab, setTabState] = useState<ClassroomTab>(initialTab);
+
+  // Keep state in sync when the URL query changes (e.g. clicking a nav tab).
+  useEffect(() => {
+    const t = parseTab(search?.get("tab") ?? null);
+    setTabState(t);
+  }, [search]);
+
+  const setTab = (next: ClassroomTab) => {
+    setTabState(next);
+    // Push the new tab into the URL without scrolling so back/forward works.
+    const qs = next === "students" ? "" : `?tab=${next}`;
+    router.replace(`${pathname}${qs}`, { scroll: false });
+  };
   const [students, setStudents] = useState(classroom.students);
   const [linkedBoardIds, setLinkedBoardIds] = useState<Set<string>>(
     new Set(classroom.boards.map((b) => b.id))
@@ -223,26 +247,26 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
     }
   }
 
-  // CSV export — 학생 명단 다운로드. 출석번호·이름·textCode·연결 학부모 수.
-  function handleExportCsv() {
+  // 코드 내보내기 — 학생 로그인 코드 3열(번호·이름·로그인코드)만. 학부모 배포·
+  // 종이 인쇄용. Excel 호환 위해 UTF-8 BOM 유지.
+  function handleExportCodes() {
     const rows = [
-      ["번호", "이름", "개별코드", "연결된_학부모_수"],
+      ["번호", "이름", "로그인코드"],
       ...students.map((s) => [
         String(s.number ?? ""),
         s.name,
         s.textCode,
-        String(parentCounts[s.id] ?? 0),
       ]),
     ];
-    // UTF-8 BOM 추가 — Excel이 한글 CJK 정상 인식.
     const bom = "\uFEFF";
-    const csv = bom + rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\r\n");
+    const csv =
+      bom + rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\r\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     const safeName = classroomName.replace(/[^\p{L}\p{N}_-]+/gu, "_");
-    a.download = `${safeName}_학생명단.csv`;
+    a.download = `${safeName}_학생코드.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -517,73 +541,9 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
         </a>
       </div>
 
-      {/* Tab nav (T6-2 handoff, 2026-04-21). 탭별 컨텐츠는 아래 조건부 렌더. */}
-      <nav className="classroom-tabs" role="tablist" aria-label="학급 관리 탭">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "students"}
-          className={`classroom-tab${tab === "students" ? " is-active" : ""}`}
-          onClick={() => setTab("students")}
-        >
-          학생 명단 <span className="classroom-tab-count">{students.length}</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "parents"}
-          className={`classroom-tab${tab === "parents" ? " is-active" : ""}`}
-          onClick={() => setTab("parents")}
-        >
-          학부모 연결
-          {pendingCount > 0 && (
-            <span className="classroom-tab-badge" title={`승인 대기 ${pendingCount}건`}>
-              {pendingCount}
-            </span>
-          )}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "boards"}
-          className={`classroom-tab${tab === "boards" ? " is-active" : ""}`}
-          onClick={() => setTab("boards")}
-        >
-          공유된 보드 <span className="classroom-tab-count">{linkedBoardIds.size}</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "settings"}
-          className={`classroom-tab${tab === "settings" ? " is-active" : ""}`}
-          onClick={() => setTab("settings")}
-        >
-          설정
-        </button>
-
-        {/* External tabs (handoff 4-tab + 3 extra per user spec 2026-04-21).
-            Role/bank/store pages are feature-rich so they stay on their own
-            routes; here we just mirror the tab style and navigate. */}
-        <span className="classroom-tabs-sep" aria-hidden="true" />
-        <a
-          className="classroom-tab classroom-tab-link"
-          href={`/classroom/${classroom.id}/roles`}
-        >
-          학급 역할
-        </a>
-        <a
-          className="classroom-tab classroom-tab-link"
-          href={`/classroom/${classroom.id}/bank`}
-        >
-          은행
-        </a>
-        <a
-          className="classroom-tab classroom-tab-link"
-          href={`/classroom/${classroom.id}/store`}
-        >
-          매점
-        </a>
-      </nav>
+      {/* Tab nav moved to layout.tsx (ClassroomPageNav). The state tab still
+          drives which panel below renders; the nav links back here with
+          `?tab=parents|settings|boards`. */}
 
       {/* ────── TAB: 학생 명단 ────── */}
       {tab === "students" && (
@@ -616,11 +576,11 @@ export function ClassroomDetail({ classroom, allBoards }: Props) {
         <button
           type="button"
           className="classroom-action-btn"
-          onClick={handleExportCsv}
+          onClick={handleExportCodes}
           disabled={students.length === 0}
-          title="학생 명단 CSV 다운로드"
+          title="학생 로그인 코드 CSV 다운로드 (번호·이름·코드)"
         >
-          📄 CSV 내보내기
+          📋 코드 내보내기
         </button>
       </div>
 

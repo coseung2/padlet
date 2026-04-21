@@ -3,7 +3,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { getCurrentStudent } from "@/lib/student-auth";
 import { hasPermission } from "@/lib/bank-permissions";
 import { notFound } from "next/navigation";
-import { ClassroomNav } from "@/components/classroom/ClassroomNav";
 import { ClassroomStoreTab } from "@/components/classroom/ClassroomStoreTab";
 
 type Props = { params: Promise<{ id: string }> };
@@ -28,13 +27,9 @@ export default async function ClassroomStorePage({ params }: Props) {
   if (!isTeacher && !isClerk) notFound();
 
   return (
-    <main className="classroom-page classroom-page-detail">
-      <a href="/classroom" className="classroom-back-link">
-        &larr; 학급 목록
-      </a>
+    <>
       <h1 className="classroom-page-title">{classroom.name}</h1>
-      <ClassroomNav classroomId={classroom.id} />
       <ClassroomStoreTab classroomId={classroom.id} canManage={true} />
-    </main>
+    </>
   );
 }
