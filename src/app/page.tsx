@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { Dashboard } from "@/components/Dashboard";
-import { AuthHeader } from "@/components/AuthHeader";
+import { TopNav } from "@/components/TopNav";
 import { UserSwitcher } from "@/components/UserSwitcher";
 import { redirect } from "next/navigation";
 
@@ -54,20 +54,24 @@ export default async function HomePage() {
   }));
 
   return (
-    <main className="home-page">
-      <header className="home-header">
-        <div className="home-header-top">
-          <div>
-            <h1 className="home-title">내 보드</h1>
-            <p className="home-subtitle">{user.name}님의 보드</p>
+    <>
+      <TopNav />
+      <main className="home-page">
+        <header className="home-header">
+          <div className="home-header-top">
+            <div>
+              <h1 className="home-title">내 보드</h1>
+              <p className="home-subtitle">{user.name}님의 보드</p>
+            </div>
+            {user.mockRole && (
+              <div className="home-header-actions">
+                <UserSwitcher currentRole={user.mockRole} />
+              </div>
+            )}
           </div>
-          <div className="home-header-actions">
-            <AuthHeader />
-            {user.mockRole && <UserSwitcher currentRole={user.mockRole} />}
-          </div>
-        </div>
-      </header>
-      <Dashboard boards={boardItems} classrooms={classroomItems} />
-    </main>
+        </header>
+        <Dashboard boards={boardItems} classrooms={classroomItems} />
+      </main>
+    </>
   );
 }

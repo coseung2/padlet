@@ -51,4 +51,19 @@
 - **결정 3**: 540px 이하에선 2열로 자동 전환(@media).
 - **되돌리기**: home.css의 `.layout-grid-*` 블록 + `.create-board-modal width` 복원(520px) + CreateBoardModal.tsx의 step=="layout" 섹션 className을 `.layout-picker/.layout-option/.layout-option-*`로 되돌리기.
 
+## T3-1 — Global TopNav
+
+- **결정 1 (중요)**: 탭을 **"보드 / 학급" 2개로 축소**. 사용자 컨펌이 "보드/학급/칼럼/DJ큐 + 은행/매점/역할"이었지만:
+  - "칼럼" / "DJ 큐"는 **단일 보드의 레이아웃** 데모용 handoff 문구 → 실제 앱에서 전역 탭으로 의미 없음 (어느 보드?)
+  - "은행" / "매점" / "역할"은 **학급 단위** 기능 → 전역 상단에 두면 "어느 학급?" 맥락 없음. ClassroomDetail 내부 네비(T6-2)로 남김.
+  - 전역 탭은 맥락-독립적인 2개만.
+- **사용자 확인 필요 여부**: 이 축소가 사용자 원래 의도와 다를 수 있음. 최종 보고 시 핵심 검토 포인트.
+- **결정 2**: 전역 `.ab-topnav*` CSS는 `layout.css` 말미에 추가 (home.css가 아닌 이유: home만의 것이 아닌 전역 크롬).
+- **결정 3**: "+ 새 보드" CTA는 TopNav 우측에 **넣지 않음**. Dashboard 내 `CreateBoardModal` 트리거 state를 전역으로 올리면 복잡도 급증. 우측에는 AuthHeader만.
+- **결정 4**: TopNav 적용 범위 = HomePage + `/classroom` 리스트 2곳만. 보드 상세·학급 상세·학생/학부모 영역은 제외. T6에서 Classroom Detail 업그레이드 시 확장.
+- **결정 5**: 로고 클릭 = `/`로 이동. Wordmark는 768px 이하 숨김 (미디어 쿼리).
+- **결정 6**: `classroom/page.tsx`의 `← 대시보드` back-link 제거. TopNav "보드" 탭이 대체.
+- **결정 7**: `HomePage`의 `AuthHeader`를 TopNav 내부로 이동. `UserSwitcher`(mock 전환용)는 home header 내부에 유지.
+- **되돌리기**: TopNav.tsx 삭제 + layout.css `.ab-topnav*` 블록 제거 + home/classroom page에 기존 AuthHeader/back-link 복원.
+
 ---

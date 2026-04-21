@@ -185,7 +185,7 @@ T8(Vibe 재설계)이 전체 작업량의 절반 이상.
 - [x] **T1-3** focus-visible 글로벌 스타일 — `base.css` 159~163에 handoff와 동일 룰 이미 존재, skip 확정 (2026-04-21)
 - [x] **T2-1** PNG 앱 아이콘 채택 — `public/aura-app-icon-512.png` + `layout.tsx` metadata.icons (2026-04-21)
 - [x] **T2-2** Logo 컴포넌트 도입 — `src/components/Logo.tsx` 신규 + `ds-utils.css` `.ab-logo-*` + login 페이지 교체 + `.login-logo` 레이아웃만 유지 (2026-04-21)
-- [ ] **T3-1** TopNav 도입 (탭 구성은 실제 라우트에 맞춰 조정)
+- [x] **T3-1** TopNav 도입 — `components/TopNav.tsx` 신규 + `layout.css .ab-topnav*` 블록 + home/classroom 페이지 적용. 탭은 "보드/학급" 2개로 축소 (맥락-의존 탭은 학급 내부 네비로 이관) (2026-04-21)
 - [x] **T4-1** TeacherDashboard 카드 그리드 스타일 업그레이드 — `home.css` 수치 조정 + `.board-grid-kebab-*` 클래스화, Dashboard 인라인 스타일 제거 (2026-04-21)
 - [x] **T4-2** CreateBoardModal 레이아웃 피커 스타일 업그레이드 — `.layout-grid-picker/.layout-grid-option` 신규 (layout step 전용 3열 grid), classroom step 세로 리스트 유지, modal 720px (2026-04-21)
 - [ ] **T5-1** ColumnsBoard 정렬 UX (케밥 메뉴 내 라디오 + ✓ 체크)

@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { ClassroomListPage } from "@/components/ClassroomListPage";
+import { TopNav } from "@/components/TopNav";
 import { redirect } from "next/navigation";
 
 export default async function ClassroomPage() {
@@ -20,14 +21,14 @@ export default async function ClassroomPage() {
   });
 
   return (
-    <main className="classroom-page">
-      <a href="/" className="classroom-back-link">
-        &larr; 대시보드
-      </a>
-      <div className="classroom-header">
-        <h1>학급 관리</h1>
-      </div>
-      <ClassroomListPage initialClassrooms={classrooms} />
-    </main>
+    <>
+      <TopNav />
+      <main className="classroom-page">
+        <div className="classroom-header">
+          <h1>학급 관리</h1>
+        </div>
+        <ClassroomListPage initialClassrooms={classrooms} />
+      </main>
+    </>
   );
 }
