@@ -192,7 +192,7 @@ T8(Vibe 재설계)이 전체 작업량의 절반 이상.
 - [ ] **T6-1** ClassroomListPage 카드 그리드
 - [ ] **T6-2** ClassroomDetailPage (기존 nav와 조율)
 - [ ] **T7-1** DJBoardPage 스타일 업그레이드
-- [ ] **T9-1** StudentLoginForm 스타일
+- [x] **T9-1** StudentLoginForm 스타일 — `student.css` `.student-login-*` 블록을 handoff `.ab-login-*` 수치로 정렬 (padding 48/40, shadow 토큰화, mono 폰트 `--font-mono`, input 22px/ls6, error `--color-danger`) (2026-04-21)
 - [ ] **T9-2** StudentDashboard 스타일
 - [ ] **T9-3** Student BoardView 제출 카드
 - [ ] **T10-1** shared.css 최종 정돈
