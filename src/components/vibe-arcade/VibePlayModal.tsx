@@ -42,7 +42,21 @@ export function VibePlayModal({ projectId, title, onClose }: Props) {
   }, [projectId]);
 
   useEffect(() => {
+    // SEC-3 postMessage origin 검증:
+    // sandbox iframe은 현재 같은 origin(/sandbox/vibe/:id)이지만, 향후
+    // sandbox.aura-board.app 서브도메인으로 분리될 예정. 그 시점에는 env로
+    // 허용 origin을 확장한다. 지금은 자기 자신(self origin) + null(Workers
+    // 샌드박스 예외) + NEXT_PUBLIC_VIBE_SANDBOX_ORIGIN(옵션) 만 신뢰.
+    const allowedOrigins = new Set<string>(
+      [
+        typeof window !== "undefined" ? window.location.origin : "",
+        process.env.NEXT_PUBLIC_VIBE_SANDBOX_ORIGIN ?? "",
+      ].filter(Boolean),
+    );
+
     function onMessage(e: MessageEvent) {
+      // e.origin 이 허용 목록 밖이면 조용히 drop — 다른 탭·iframe의 스푸핑 차단.
+      if (!allowedOrigins.has(e.origin)) return;
       if (!e.data || typeof e.data !== "object") return;
       const type = (e.data as { type?: string }).type;
       if (type === "completed" || type === "report") {

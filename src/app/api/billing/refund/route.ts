@@ -11,6 +11,8 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { cancelPayment, TossConfigMissingError } from "@/lib/billing/toss";
+import { limitBillingRefund } from "@/lib/rate-limit-routes";
+import { logAudit } from "@/lib/audit";
 
 const Schema = z.object({
   orderId: z.string().optional(),
@@ -22,6 +24,14 @@ export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) {
     return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
+  }
+
+  const rl = await limitBillingRefund(user.id);
+  if (!rl.ok) {
+    return new Response(
+      JSON.stringify({ error: "rate_limited", retryAfter: rl.retryAfter }),
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
   }
 
   const body = await req.json().catch(() => null);
@@ -98,6 +108,24 @@ export async function POST(req: Request) {
       },
     });
   }
+
+  await logAudit({
+    actorType: "teacher",
+    actorId: user.id,
+    action: "billing.refund",
+    resourceType: "subscription",
+    resourceId: user.id,
+    metadata: {
+      orderId: target.pgOrderId,
+      paymentKey: target.pgPaymentKey,
+      cancelStatus: result.status,
+      canceledAmount: result.canceledAmount,
+      balanceAmount: result.balanceAmount,
+      fullRefund: isFullRefund,
+      reason: cancelReason,
+    },
+    req,
+  });
 
   return new Response(
     JSON.stringify({

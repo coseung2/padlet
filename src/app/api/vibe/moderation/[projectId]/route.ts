@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getBoardRole } from "@/lib/rbac";
 import { publish } from "@/lib/realtime";
 import { VibeModerationActionSchema } from "@/lib/vibe-arcade/types";
+import { logAudit } from "@/lib/audit";
 
 export async function POST(
   req: Request,
@@ -61,6 +62,21 @@ export async function POST(
     channel: `board:${project.boardId}:vibe-arcade`,
     type: action === "approve" ? "project.approved" : "project.rejected",
     payload: { projectId: updated.id, boardId: project.boardId, note: updated.moderationNote },
+  });
+
+  await logAudit({
+    actorType: "teacher",
+    actorId: user.id,
+    action: `vibe.moderation.${action}`,
+    resourceType: "vibe_project",
+    resourceId: projectId,
+    metadata: {
+      boardId: project.boardId,
+      note: updated.moderationNote,
+      previousStatus: project.moderationStatus,
+      newStatus: updated.moderationStatus,
+    },
+    req,
   });
 
   return NextResponse.json({ id: updated.id, moderationStatus: updated.moderationStatus });

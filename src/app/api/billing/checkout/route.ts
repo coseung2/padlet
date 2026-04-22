@@ -10,6 +10,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { PLAN_CATALOG, getPublicClientKey } from "@/lib/billing/toss";
+import { limitBillingCheckout } from "@/lib/rate-limit-routes";
 
 const Schema = z.object({
   planKey: z.enum(["pro_monthly", "pro_yearly"]),
@@ -28,6 +29,14 @@ export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) {
     return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
+  }
+
+  const rl = await limitBillingCheckout(user.id);
+  if (!rl.ok) {
+    return new Response(
+      JSON.stringify({ error: "rate_limited", retryAfter: rl.retryAfter }),
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
   }
 
   const tossClientKey = getPublicClientKey();

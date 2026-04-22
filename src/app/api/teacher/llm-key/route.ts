@@ -11,6 +11,7 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { encryptApiKey, last4 } from "@/lib/llm/encryption";
 import { verifyApiKey, type LlmProvider } from "@/lib/llm/stream";
+import { limitLlmKeyMutation } from "@/lib/rate-limit-routes";
 
 const PROVIDERS = ["claude", "openai", "gemini", "ollama"] as const;
 
@@ -63,6 +64,14 @@ export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) {
     return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
+  }
+
+  const rl = await limitLlmKeyMutation(user.id);
+  if (!rl.ok) {
+    return new Response(
+      JSON.stringify({ error: "rate_limited", retryAfter: rl.retryAfter }),
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
   }
 
   const body = await req.json().catch(() => null);
@@ -150,6 +159,13 @@ export async function DELETE() {
   const user = await getCurrentUser();
   if (!user) {
     return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
+  }
+  const rl = await limitLlmKeyMutation(user.id);
+  if (!rl.ok) {
+    return new Response(
+      JSON.stringify({ error: "rate_limited", retryAfter: rl.retryAfter }),
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
   }
   await db.teacherLlmKey.deleteMany({ where: { userId: user.id } });
   return new Response(JSON.stringify({ present: false }), {

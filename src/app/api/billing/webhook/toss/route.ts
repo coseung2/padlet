@@ -13,6 +13,7 @@
 
 import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "@/lib/db";
+import { notifySlack } from "@/lib/ops/slack";
 
 function timingSafeEqualStrings(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -109,8 +110,15 @@ export async function POST(req: Request) {
     }
   }
 
-  // 매칭 실패 — 미지 이벤트. FK required로 추가 로그 저장은 못 함.
-  // SEC-2 Slack 알림 연결 후 여기서 notify 호출 예정.
+  // 매칭 실패 — 미지 이벤트. FK required로 추가 로그 저장은 못 하지만,
+  // 운영자에게 알려서 수동 리콘실리에이션 trigger.
+  await notifySlack({
+    severity: "warn",
+    title: "Toss webhook: unmatched event",
+    detail: `orderId=${orderId ?? "null"} eventType=${payload.eventType ?? "unknown"}`,
+    context: payload.data as Record<string, unknown> | undefined,
+  });
+
   return new Response(
     JSON.stringify({ ok: true, matched: false, orderId }),
     { status: 200, headers: { "Content-Type": "application/json" } },

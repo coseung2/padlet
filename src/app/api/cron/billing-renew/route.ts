@@ -15,6 +15,7 @@ import {
   type PlanKey,
 } from "@/lib/billing/toss";
 import { decryptBillingKey } from "@/lib/billing/billing-key-crypto";
+import { notifySlack } from "@/lib/ops/slack";
 
 function authorized(req: Request): boolean {
   const secret = process.env.CRON_SECRET;
@@ -172,6 +173,21 @@ export async function POST(req: Request) {
       });
       results.push({ userId: sub.userId, action: "past_due", detail: msg });
     }
+  }
+
+  // 실패·과거결제(past_due) 건 수 요약 알림.
+  const failures = results.filter((r) => r.action === "past_due");
+  if (failures.length > 0) {
+    await notifySlack({
+      severity: "warn",
+      title: "billing-renew: past_due 발생",
+      detail: `${failures.length}건의 구독이 갱신 실패로 past_due 상태가 되었습니다.`,
+      context: {
+        scanned: due.length,
+        past_due: failures.length,
+        user_ids: failures.map((f) => f.userId).slice(0, 10),
+      },
+    });
   }
 
   return new Response(

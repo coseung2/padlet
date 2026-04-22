@@ -47,6 +47,27 @@ model User {
   paymentEvents          PaymentEvent[]
 }
 
+// ──── Audit Log (Seed 14 security, 2026-04-22) ────
+// 권한 있는 행동(역할 부여, 보드 삭제, 환불, 웹훅 처리, 토큰 회전 등)의
+// 감사 추적. `actorType` + `actorId` 로 교사/학생/시스템/관리자 구분.
+// `metadata` JSON 에 이전 상태·결과 등 상세 컨텍스트. `resourceType/Id` 로
+// 대상 식별. 사고 발생 시 createdAt 범위로 타임라인 재구성.
+model AuditEvent {
+  id           String   @id @default(cuid())
+  actorType    String // "teacher" | "student" | "system" | "admin"
+  actorId      String? // nullable (system actions)
+  action       String // "board.delete" | "role.grant" | "billing.refund" | "admin.rotate_tokens" | ...
+  resourceType String? // "board" | "classroom" | "student" | "subscription" | ...
+  resourceId   String?
+  metadata     Json?
+  ip           String? // extractIp + hashIp 결과 (16자 sha256 prefix)
+  createdAt    DateTime @default(now())
+
+  @@index([actorType, actorId, createdAt])
+  @@index([action, createdAt])
+  @@index([resourceType, resourceId])
+}
+
 // ──── Teacher LLM API Key (Seed 13 follow-up, 2026-04-22) ────
 // 교사가 /docs/ai-setup 페이지에서 입력한 Claude/OpenAI/Gemini API Key.
 // 서버 AES-256-GCM 암호화 후 DB 저장. 학생 클라이언트에는 절대 내려가지 않고

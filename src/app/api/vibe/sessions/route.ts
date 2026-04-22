@@ -11,6 +11,7 @@ import { getCurrentStudent } from "@/lib/student-auth";
 import { checkQuotaOrReject } from "@/lib/vibe-arcade/quota-ledger";
 import { streamLlm, DEFAULT_SYSTEM_PROMPT } from "@/lib/llm/stream";
 import { getTeacherKeyForBoard } from "@/lib/llm/teacher-key";
+import { limitVibeSession } from "@/lib/rate-limit-routes";
 
 const StartSchema = z.object({
   boardId: z.string().min(1),
@@ -25,6 +26,21 @@ export async function POST(req: Request) {
       status: 401,
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  // 학생 1인 프롬프트 호출 레이트리밋 (AI quota와 별개 — 서버 부하·악용 방지).
+  const rl = await limitVibeSession(student.id);
+  if (!rl.ok) {
+    return new Response(
+      JSON.stringify({ error: "rate_limited", retryAfter: rl.retryAfter }),
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": String(rl.retryAfter),
+        },
+      },
+    );
   }
 
   const body = await req.json().catch(() => null);
