@@ -3,26 +3,44 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CreateBreakoutBoardModal } from "./CreateBreakoutBoardModal";
+import { LAYOUT_META, type LayoutKey } from "@/lib/layout-meta";
 
 // `hidden: true`는 CreateBoardModal의 레이아웃 피커에서만 숨김 — 백엔드
 // enum, 기존 보드 렌더, 라우트는 그대로 유지. 나중에 쓸지 결정되면 플래그만
 // 지우면 다시 노출. (사용자 결정 2026-04-22)
-const LAYOUTS = [
-  { id: "freeform", emoji: "🎯", label: "자유 배치", desc: "캔버스 위에 자유롭게 카드 배치", hidden: true },
-  { id: "grid", emoji: "🔲", label: "그리드", desc: "깔끔한 격자 형태로 카드 정렬", hidden: true },
-  { id: "stream", emoji: "📜", label: "스트림", desc: "위에서 아래로 흐르는 피드형", hidden: true },
-  { id: "columns", emoji: "📊", label: "주제별 보드", desc: "주제별로 게시물을 올릴 수 있습니다" },
-  { id: "assignment", emoji: "📋", label: "과제 배부", desc: "학생별 과제 제출 및 확인" },
-  { id: "quiz", emoji: "🎮", label: "퀴즈", desc: "카훗 스타일 실시간 퀴즈 게임" },
-  { id: "drawing", emoji: "🎨", label: "그림보드", desc: "Drawpile 기반 공동 그림판 + 라이브러리", hidden: true },
-  { id: "breakout", emoji: "👥", label: "모둠 학습", desc: "템플릿 기반 모둠 협력 보드 (KWL · 브레인스토밍 등)", hidden: true },
-  { id: "assessment", emoji: "📝", label: "수행평가", desc: "교사가 입력해둔 답안 기반 OMR 채점 기능" },
-  { id: "dj-queue", emoji: "🎧", label: "DJ 큐", desc: "학생이 YouTube 곡을 신청 · DJ가 재생 순서 관리" },
-  { id: "vibe-arcade", emoji: "💻", label: "코딩 교실", desc: "생성형 AI를 활용한 바이브 코딩 교실" },
-  { id: "vibe-gallery", emoji: "🖼️", label: "코딩 갤러리", desc: "승인된 코딩 결과물을 전시 · 체험" },
-] as const;
+//
+// emoji/label은 LAYOUT_META(single source)에서 가져오고, 설명문·hidden 여부만
+// 여기서 관리한다.
+type PickerRow = {
+  id: LayoutKey;
+  desc: string;
+  hidden?: true;
+};
 
-const VISIBLE_LAYOUTS = LAYOUTS.filter((l) => !("hidden" in l && l.hidden));
+const PICKER_ROWS: PickerRow[] = [
+  { id: "freeform", desc: "캔버스 위에 자유롭게 카드 배치", hidden: true },
+  { id: "grid", desc: "깔끔한 격자 형태로 카드 정렬", hidden: true },
+  { id: "stream", desc: "위에서 아래로 흐르는 피드형", hidden: true },
+  { id: "columns", desc: "주제별로 게시물을 올릴 수 있습니다" },
+  { id: "assignment", desc: "학생별 과제 제출 및 확인" },
+  { id: "quiz", desc: "카훗 스타일 실시간 퀴즈 게임" },
+  { id: "drawing", desc: "Drawpile 기반 공동 그림판 + 라이브러리", hidden: true },
+  { id: "breakout", desc: "템플릿 기반 모둠 협력 보드 (KWL · 브레인스토밍 등)", hidden: true },
+  { id: "assessment", desc: "교사가 입력해둔 답안 기반 OMR 채점 기능" },
+  { id: "dj-queue", desc: "학생이 YouTube 곡을 신청 · DJ가 재생 순서 관리" },
+  { id: "vibe-arcade", desc: "생성형 AI를 활용한 바이브 코딩 교실" },
+  { id: "vibe-gallery", desc: "승인된 코딩 결과물을 전시 · 체험" },
+];
+
+const LAYOUTS = PICKER_ROWS.map((r) => ({
+  id: r.id,
+  emoji: LAYOUT_META[r.id].emoji,
+  label: LAYOUT_META[r.id].label,
+  desc: r.desc,
+  hidden: r.hidden,
+}));
+
+const VISIBLE_LAYOUTS = LAYOUTS.filter((l) => !l.hidden);
 
 type ClassroomItem = {
   id: string;

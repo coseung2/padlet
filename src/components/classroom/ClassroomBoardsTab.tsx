@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { layoutEmoji, layoutLabel } from "@/lib/layout-meta";
 
 type Board = {
   id: string;
@@ -18,40 +19,6 @@ type Props = {
   classroomId: string;
   linkedBoards: Board[];
   allBoards: Board[]; // 교사가 소유한 전체 보드 (picker용)
-};
-
-const LAYOUT_EMOJI: Record<string, string> = {
-  freeform: "🎯",
-  grid: "🔲",
-  stream: "📜",
-  columns: "📊",
-  assignment: "📋",
-  quiz: "🎮",
-  drawing: "🎨",
-  breakout: "👥",
-  assessment: "📝",
-  "dj-queue": "🎧",
-  "vibe-arcade": "💻",
-  "vibe-gallery": "🖼️",
-  "plant-roadmap": "🌱",
-  "event-signup": "🎪",
-};
-
-const LAYOUT_LABEL: Record<string, string> = {
-  freeform: "자유 배치",
-  grid: "그리드",
-  stream: "스트림",
-  columns: "주제별 보드",
-  assignment: "과제 배부",
-  quiz: "퀴즈",
-  drawing: "그림보드",
-  breakout: "모둠 학습",
-  assessment: "수행평가",
-  "dj-queue": "DJ 큐",
-  "vibe-arcade": "코딩 교실",
-  "vibe-gallery": "코딩 갤러리",
-  "plant-roadmap": "식물 관찰",
-  "event-signup": "행사 신청",
 };
 
 export function ClassroomBoardsTab({ classroomId, linkedBoards, allBoards }: Props) {
@@ -145,10 +112,10 @@ export function ClassroomBoardsTab({ classroomId, linkedBoards, allBoards }: Pro
                 disabled={busy === b.id}
               >
                 <span className="classroom-board-title">
-                  {LAYOUT_EMOJI[b.layout] ?? "📋"} {b.title || "제목 없음"}
+                  {layoutEmoji(b.layout)} {b.title || "제목 없음"}
                 </span>
                 <span className="classroom-board-layout">
-                  {LAYOUT_LABEL[b.layout] ?? b.layout}
+                  {layoutLabel(b.layout)}
                 </span>
                 <span className="classroom-board-link-action">+ 연결</span>
               </button>
@@ -178,10 +145,10 @@ export function ClassroomBoardsTab({ classroomId, linkedBoards, allBoards }: Pro
                   onClick={() => router.push(`/board/${b.slug}`)}
                 >
                   <span className="classroom-board-title">
-                    {LAYOUT_EMOJI[b.layout] ?? "📋"} {b.title || "제목 없음"}
+                    {layoutEmoji(b.layout)} {b.title || "제목 없음"}
                   </span>
                   <span className="classroom-board-layout">
-                    {LAYOUT_LABEL[b.layout] ?? b.layout}
+                    {layoutLabel(b.layout)}
                   </span>
                   {isNew && (
                     <span className="classroom-board-new" title="마지막 방문 이후 새 활동">

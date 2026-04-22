@@ -28,26 +28,10 @@ import { EditableTitle } from "@/components/EditableTitle";
 import { BoardSettingsLauncher } from "@/components/BoardSettingsLauncher";
 import type { BoardSection } from "@/components/BoardSettingsPanel";
 import { BoardVisitTracker } from "@/components/BoardVisitTracker";
+import { layoutLabel } from "@/lib/layout-meta";
 
 // Auth + cookie reads already flag this route as dynamic.
 // Dropping the explicit flag keeps the Router Cache warm for navigations.
-
-const LAYOUT_LABEL: Record<string, string> = {
-  freeform: "자유 배치",
-  grid: "그리드",
-  stream: "스트림",
-  columns: "주제별 보드",
-  assignment: "과제 배부",
-  quiz: "퀴즈",
-  "plant-roadmap": "식물 관찰",
-  "event-signup": "행사 신청",
-  drawing: "그림보드",
-  breakout: "모둠 학습",
-  "dj-queue": "DJ 큐",
-  assessment: "수행평가",
-  "vibe-arcade": "코딩 교실",
-  "vibe-gallery": "코딩 갤러리",
-};
 
 export default async function BoardPage({
   params,
@@ -829,7 +813,7 @@ function BoardHeader({
             sections={settingsSections ?? []}
           />
         )}
-        <span className="board-layout-badge">{LAYOUT_LABEL[layout] ?? layout}</span>
+        <span className="board-layout-badge">{layoutLabel(layout)}</span>
         {userName && userRole && (
           <span className="board-badge">
             {userName} · {userRole}
