@@ -5,6 +5,7 @@ import { randomBytes } from "crypto";
 import { put } from "@vercel/blob";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { getCurrentUser } from "@/lib/auth";
+import { getCurrentStudent } from "@/lib/student-auth";
 import { ALLOWED_FILE_MIMES, isAllowedFileUpload, normalizeUploadMime } from "@/lib/file-attachment";
 import { ALLOWED_IMAGE, ALLOWED_VIDEO, MAX_SIZE, UploadPolicyError, buildUploadPolicy } from "./upload-policy";
 
@@ -46,7 +47,15 @@ function verifyFileMagic(mime: string, filename: string, head: Buffer): boolean 
 
 export async function POST(req: Request) {
   try {
-    await getCurrentUser(); // auth check
+    // 교사(NextAuth) 또는 학생(HMAC bearer/cookie) 중 하나만 있으면 허용.
+    // 모바일 학생 앱이 카드/과제 첨부를 직접 업로드할 수 있게 하기 위함.
+    const teacher = await getCurrentUser().catch(() => null);
+    if (!teacher) {
+      const student = await getCurrentStudent();
+      if (!student) {
+        return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+      }
+    }
 
     // upload-payload-too-large — 클라이언트는 @vercel/blob/client `upload()`로
     // JSON 본문(generate-client-token 프로토콜)을 보낸다. handleUpload가

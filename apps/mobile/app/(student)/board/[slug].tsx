@@ -1,4 +1,6 @@
+import { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
@@ -9,149 +11,149 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
   colors,
   radii,
+  shadows,
   spacing,
   typography,
 } from "../../../theme/tokens";
-import { layoutEmoji, layoutLabel } from "../../../theme/layout-meta";
-import { VibeArcadeMock } from "../../../components/VibeArcadeMock";
-import { QuizMock } from "../../../components/QuizMock";
-import { AssignmentMock } from "../../../components/AssignmentMock";
-import { ColumnsMock } from "../../../components/ColumnsMock";
+import { BoardHeader } from "../../../components/BoardShell";
+import { apiFetch, ApiError } from "../../../lib/api";
+import { clearSessionToken } from "../../../lib/session";
+import type { BoardDetailResponse } from "../../../lib/types";
+import { CardsBoard } from "../../../components/layouts/CardsBoard";
+import { ColumnsBoard } from "../../../components/layouts/ColumnsBoard";
+import { VibeArcadeBoard } from "../../../components/layouts/VibeArcadeBoard";
+import { QuizBoard } from "../../../components/layouts/QuizBoard";
+import { AssignmentBoard } from "../../../components/layouts/AssignmentBoard";
+import { PlantRoadmapBoard } from "../../../components/layouts/PlantRoadmapBoard";
+import { ReadOnlyCardsBoard } from "../../../components/layouts/ReadOnlyCardsBoard";
 
-// 보드 상세. layout query 파라미터에 따라 렌더 분기.
-// 구현된 레이아웃: vibe-arcade / quiz / assignment / columns. 나머지는 placeholder.
+// 학생 앱 보드 상세 dispatcher. /api/student/board/:slug 한 번 fetch 후
+// board.layout 에 따라 맞는 레이아웃 컴포넌트 렌더.
 
 export default function BoardDetail() {
-  const { slug, layout } = useLocalSearchParams<{ slug: string; layout?: string }>();
+  const { slug } = useLocalSearchParams<{ slug: string }>();
   const router = useRouter();
-  const layoutKey = layout ?? "columns";
+  const [data, setData] = useState<BoardDetailResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await apiFetch<BoardDetailResponse>(
+        `/api/student/board/${encodeURIComponent(slug!)}`,
+      );
+      setData(res);
+      setError(null);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        await clearSessionToken();
+        router.replace("/(student)/login");
+        return;
+      }
+      if (e instanceof ApiError && e.status === 404) {
+        setError("이 보드에 접근할 수 없어요.");
+      } else {
+        setError(e instanceof Error ? e.message : "불러올 수 없어요");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [slug, router]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={colors.accent} />
+          <Text style={styles.loadingText}>보드 열기…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+        <View style={styles.center}>
+          <Text style={styles.errorEmoji}>🚫</Text>
+          <Text style={styles.errorTitle}>{error ?? "알 수 없는 오류"}</Text>
+          <Pressable
+            style={({ pressed }) => [styles.retryBtn, pressed && styles.retryBtnPressed]}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.retryText}>돌아가기</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const { board } = data;
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-      <View style={styles.header}>
-        <Pressable
-          style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.backArrow}>←</Text>
-        </Pressable>
-        <Text style={styles.title} numberOfLines={1}>
-          {slug}
-        </Text>
-        <View style={styles.badge}>
-          <Text style={styles.badgeEmoji}>{layoutEmoji(layoutKey)}</Text>
-          <Text style={styles.badgeText}>{layoutLabel(layoutKey)}</Text>
-        </View>
-      </View>
-
-      <View style={styles.body}>
-        {renderLayout(layoutKey)}
-      </View>
+      <BoardHeader title={board.title} layout={board.layout} />
+      <View style={styles.body}>{renderLayout(data, load)}</View>
     </SafeAreaView>
   );
 }
 
-function renderLayout(layoutKey: string) {
-  switch (layoutKey) {
-    case "vibe-arcade":
-      return <VibeArcadeMock />;
-    case "quiz":
-      return <QuizMock />;
-    case "assignment":
-      return <AssignmentMock />;
+function renderLayout(
+  data: BoardDetailResponse,
+  reload: () => void,
+) {
+  switch (data.board.layout) {
     case "columns":
-      return <ColumnsMock />;
+      return <ColumnsBoard data={data} onMutate={reload} />;
+    case "vibe-arcade":
+      return <VibeArcadeBoard data={data} onMutate={reload} />;
+    case "quiz":
+      return <QuizBoard data={data} onMutate={reload} />;
+    case "assignment":
+      return <AssignmentBoard data={data} onMutate={reload} />;
+    case "plant-roadmap":
+      return <PlantRoadmapBoard data={data} onMutate={reload} />;
+    case "freeform":
+    case "grid":
+    case "stream":
+      return <CardsBoard data={data} onMutate={reload} />;
+    // 카드 기반 read-heavy 레이아웃들 — 작성은 제한하고 읽기 + 본인 카드 추가만.
+    case "vibe-gallery":
+    case "dj-queue":
+    case "event-signup":
+    case "breakout":
+    case "assessment":
+    case "drawing":
     default:
-      return <Placeholder layout={layoutKey} />;
+      return <ReadOnlyCardsBoard data={data} onMutate={reload} />;
   }
 }
 
-function Placeholder({ layout }: { layout: string }) {
-  return (
-    <View style={styles.placeholder}>
-      <Text style={styles.placeholderEmoji}>{layoutEmoji(layout)}</Text>
-      <Text style={styles.placeholderTitle}>
-        {layoutLabel(layout)} 화면은 다음 시안에서 제공됩니다
-      </Text>
-      <Text style={styles.placeholderSub}>
-        현재 mockup 제공: 코딩 교실 · 퀴즈 · 과제 배부 · 주제별 보드
-      </Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.lg,
-    paddingHorizontal: spacing.xxl,
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surfaceAlt,
-  },
-  backBtnPressed: {
-    backgroundColor: colors.border,
-  },
-  backArrow: {
-    fontSize: 24,
-    color: colors.text,
-  },
-  title: {
-    ...typography.title,
-    color: colors.text,
-    flex: 1,
-  },
-  badge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.pill,
-    backgroundColor: colors.accentTintedBg,
-  },
-  badgeEmoji: {
-    fontSize: 18,
-  },
-  badgeText: {
-    ...typography.label,
-    color: colors.accentTintedText,
-  },
-  body: {
-    flex: 1,
-  },
-  placeholder: {
+  container: { flex: 1, backgroundColor: colors.bg },
+  body: { flex: 1 },
+  center: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: spacing.xxxl,
-    gap: spacing.lg,
+    gap: spacing.md,
+    padding: spacing.xxl,
   },
-  placeholderEmoji: {
-    fontSize: 80,
+  loadingText: { ...typography.body, color: colors.textMuted },
+  errorEmoji: { fontSize: 64 },
+  errorTitle: { ...typography.title, color: colors.text, textAlign: "center" },
+  retryBtn: {
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.accent,
+    borderRadius: radii.card,
+    ...shadows.accent,
   },
-  placeholderTitle: {
-    ...typography.title,
-    color: colors.text,
-    textAlign: "center",
-  },
-  placeholderSub: {
-    ...typography.body,
-    color: colors.textMuted,
-    textAlign: "center",
-  },
+  retryBtnPressed: { backgroundColor: colors.accentActive },
+  retryText: { ...typography.subtitle, color: "#fff" },
 });

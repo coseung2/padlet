@@ -1,5 +1,5 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "./db";
 import { getCurrentUser } from "./auth";
@@ -38,7 +38,15 @@ function verify(token: string): StudentPayload | null {
   }
 }
 
-export async function createStudentSession(studentId: string, classroomId: string) {
+/**
+ * 세션 쿠키를 심고 HMAC 토큰 문자열을 반환.
+ * 웹은 쿠키만 사용하고 반환값을 무시해도 됨. 모바일은 이 토큰을 저장해
+ * 이후 요청에 `Authorization: Bearer <token>` 헤더로 재사용.
+ */
+export async function createStudentSession(
+  studentId: string,
+  classroomId: string,
+): Promise<string> {
   const student = await db.student.findUniqueOrThrow({ where: { id: studentId } });
   const payload: StudentPayload = {
     studentId,
@@ -48,10 +56,9 @@ export async function createStudentSession(studentId: string, classroomId: strin
   };
   const token = sign(payload);
   const cookieStore = await cookies();
-  // SameSite=None + Secure is required so the Canva Content Publisher app
-  // (hosted on canva-apps.com) can include this cookie on cross-site fetches
-  // to /api/external/*. Combined with per-route CORS + credentials the
-  // backend can identify which student is publishing from Canva.
+  // SameSite=None + Secure: Canva Content Publisher 앱(canva-apps.com) 교차 사이트
+  // fetch 가 /api/external/* 에 쿠키를 포함할 수 있게 하기 위함. 모바일은 쿠키가
+  // 아니라 Bearer 로 인증하므로 SameSite 무관.
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
     secure: true,
@@ -59,24 +66,34 @@ export async function createStudentSession(studentId: string, classroomId: strin
     path: "/",
     maxAge: MAX_AGE,
   });
+  return token;
 }
 
 export async function getCurrentStudent() {
   // Teacher session wins: if a NextAuth user is authenticated, ignore any
   // stale student cookie. Same browser commonly carries both (teacher tests
   // a student login) and mis-attribution of actions to the student is the
-  // class of bug that motivated this gate. If a workflow genuinely needs the
-  // raw student cookie regardless of user session, call
-  // `getCurrentStudentRaw()` instead.
+  // class of bug that motivated this gate.
   const user = await getCurrentUser().catch(() => null);
   if (user) return null;
   return getCurrentStudentRaw();
 }
 
 export async function getCurrentStudentRaw() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
+  // 1순위: Authorization: Bearer <token> (모바일 앱)
+  // 2순위: student_session 쿠키 (웹)
+  const headerList = await headers();
+  const authHeader = headerList.get("authorization") ?? headerList.get("Authorization");
+  let token: string | null = null;
+  if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
+    token = authHeader.slice(7).trim();
+  }
+  if (!token) {
+    const cookieStore = await cookies();
+    token = cookieStore.get(COOKIE_NAME)?.value ?? null;
+  }
   if (!token) return null;
+
   const payload = verify(token);
   if (!payload) return null;
   const student = await db.student.findUnique({

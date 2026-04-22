@@ -22,12 +22,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "invalid_token" }, { status: 404 });
     }
 
-    await createStudentSession(student.id, student.classroomId);
+    // Cookie는 웹 세션용, sessionToken은 모바일 앱이 SecureStore에 보관해
+    // 이후 요청에 `Authorization: Bearer <token>` 으로 재사용.
+    const sessionToken = await createStudentSession(student.id, student.classroomId);
 
     return NextResponse.json({
       success: true,
       redirect: "/student",
-      student: { id: student.id, name: student.name },
+      sessionToken,
+      student: {
+        id: student.id,
+        name: student.name,
+        classroomId: student.classroomId,
+      },
     });
   } catch (e) {
     if (e instanceof z.ZodError) {

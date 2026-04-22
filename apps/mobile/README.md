@@ -1,16 +1,49 @@
 # Aura-board Mobile (Expo)
 
-학생 태블릿(Galaxy Tab S6 Lite 가로 2000×1200) 우선 타겟.
+학생 태블릿(Galaxy Tab S6 Lite 가로 2000×1200) 우선 타겟. **실제 프로덕션 API 연동됨.**
 
-## 📦 APK 받기 (테스트용)
+## 📦 APK 받기 (실기기 테스트)
 
 GitHub Actions 가 자동으로 APK 를 빌드한다. 최초 1회 셋업은 [SETUP.md](./SETUP.md) 참조.
 
 - 설정 완료 후: main 에 `apps/mobile/` 커밋이 들어가면 자동 빌드
 - 또는 GitHub > Actions > **Mobile APK Build (EAS Preview)** > Run workflow
-- 10-20분 뒤 expo.dev 에서 APK 다운로드
+- 10-20분 뒤 expo.dev 에서 APK 다운로드 → 태블릿에 설치 → 교사가 발급한 6자리 코드로 로그인
 
-## 빠른 실행 (Android 에뮬레이터)
+## 기본 동작
+
+- 로그인: `POST /api/student/auth { token }` → `sessionToken` 을 SecureStore 에 AES 로 저장.
+- 모든 후속 요청: `Authorization: Bearer <token>` 헤더. 쿠키 X.
+- 대시보드: `GET /api/student/me` → 학급 + 보드 목록.
+- 보드 상세: `GET /api/student/board/[slug]` → layout 에 맞는 네이티브 화면 분기.
+
+## API Base URL 설정
+
+`EXPO_PUBLIC_API_BASE` 환경변수로 서버를 지정. `eas.json` 의 각 profile `env` 에 박혀있고,
+로컬 개발 시에만 `.env` 로 override:
+
+```bash
+# apps/mobile/.env (gitignored)
+EXPO_PUBLIC_API_BASE=https://aura-board-app.vercel.app
+# 또는 로컬 next dev tunnel:
+# EXPO_PUBLIC_API_BASE=https://<your-ngrok>.ngrok-free.dev
+```
+
+기본값은 `https://aura-board-app.vercel.app` (프로덕션).
+
+## 지원 레이아웃 (14개)
+
+| Layout | 네이티브 구현 | 상세 |
+|---|---|---|
+| `freeform` / `grid` / `stream` | ✅ CardsBoard | 카드 작성(이미지·파일 업로드) + 그리드 뷰 |
+| `columns` | ✅ ColumnsBoard | 주제별 세로 칼럼 + 카드 추가 |
+| `vibe-arcade` | ✅ VibeArcadeBoard | AI 채팅(SSE 스트리밍) + WebView 샌드박스 재생 |
+| `quiz` | ✅ QuizBoard | 방 코드 참가 → 문제 풀기 → 리더보드 |
+| `assignment` | ✅ AssignmentBoard | 내 슬롯 + 텍스트·이미지·파일 제출 + 반 전체 현황 |
+| `plant-roadmap` | ✅ PlantRoadmapBoard | 성장 단계 + 관찰 일지 타임라인 (읽기) |
+| `vibe-gallery` / `dj-queue` / `event-signup` / `breakout` / `assessment` / `drawing` | 🟡 ReadOnlyCardsBoard | 네이티브 카드 뷰 (쓰기는 후속) |
+
+## 빠른 실행 (Android 에뮬레이터, 로컬 dev)
 
 ```
 cd apps/mobile
@@ -18,24 +51,20 @@ npm run android
 ```
 
 - Expo Go (SDK 54) 가 설치된 에뮬레이터/실기기가 자동 감지됨
-- Metro 번들러가 기동되면 에뮬레이터에 JS 번들 push → 앱 자동 실행
 - 코드 수정 시 Fast Refresh 로 즉시 반영
+- `expo-secure-store` / `expo-camera` 같은 native 모듈이 붙은 뒤로는 Expo Go 만으로는 부족 →
+  Dev Client 빌드가 필요할 수 있음 (아래 참조)
 
 ### 에뮬레이터 권장 AVD
 
 - Device: **Galaxy Tab S6 Lite** (또는 Pixel Tablet / 10.4" 커스텀)
 - Resolution: 2000 × 1200
-- Orientation: **Landscape** (앱 자체가 가로 고정이므로 portrait 로 켜도 앱이 가로로 강제함)
+- Orientation: **Landscape**
 - Android 13+ 권장
 
-### Expo Go 연결
+## Dev 빌드
 
-1. Android Studio 에뮬레이터에서 Play Store 로그인 → Expo Go 설치
-2. `npm run android` 가 자동으로 Expo Go 에 빌드 주입
-
-## Dev 빌드(권장, 지속 프리뷰)
-
-네이티브 모듈(expo-camera 등)이 늘어나면 Expo Go 만으로 부족 — Dev Client 빌드 한 번:
+네이티브 모듈이 추가되어 Expo Go 에서 안 돌 때:
 
 ```
 npx eas login             # 최초 1회
@@ -43,53 +72,56 @@ npx eas build:configure   # EAS 프로필 생성
 npx eas build --profile development --platform android
 ```
 
-- 빌드 완료 후 APK 를 에뮬레이터에 drag-drop 설치
-- 이후부터는 `npm start` → 에뮬레이터의 Aura-board Dev 앱 실행 → JS 변경 즉시 반영
+- 빌드된 APK 를 에뮬레이터에 drag-drop 설치
+- 이후 `npm start` → 에뮬레이터의 Aura-board Dev 앱 실행 → JS 변경 즉시 반영
 - 네이티브 모듈 추가 시에만 재빌드 필요
-
-## 현재 구현된 화면 (mockup, 실 API 미연동)
-
-| Route | 설명 |
-|---|---|
-| `/` | `/(student)/login` 으로 redirect |
-| `/(student)/login` | QR + 6자리 코드 입력 로그인 |
-| `/(student)/` | 오늘의 보드 4-col 그리드 |
-| `/(student)/board/[slug]?layout=vibe-arcade` | 코딩 교실 — 슬롯 그리드 / 카탈로그 탭 + FAB |
-| `/(student)/board/[slug]?layout=other` | placeholder |
 
 ## 디자인 토큰
 
 `theme/tokens.ts` 에 웹 `src/styles/base.css` 의 CSS 변수 1:1 포팅.
-`--color-accent #0075de`, `--radius-card 12`, `--font-display Inter` 등
-시각적 동일성 유지. 양쪽 동기화는 추후 `packages/shared/` 추출 대상.
+`colors.accent = #0075de`, `radii.card = 12` 등 시각적 동일성 유지.
+양쪽 동기화는 추후 `packages/shared/` 추출 대상.
 
 ## 폴더 구조
 
 ```
 apps/mobile/
 ├── app.json               # orientation: landscape, tablet 지원
+├── eas.json               # profile 별 EXPO_PUBLIC_API_BASE 주입
 ├── app/                   # expo-router file-based
-│   ├── _layout.tsx        # Stack + SafeAreaProvider
+│   ├── _layout.tsx
 │   ├── index.tsx          # → /(student)/login
 │   └── (student)/
-│       ├── _layout.tsx
-│       ├── login.tsx      # 로그인
-│       ├── index.tsx      # 학생 대시보드
-│       └── board/
-│           └── [slug].tsx # 보드 상세 (layout query)
+│       ├── login.tsx      # 6자리 코드 로그인 + 기존 세션 자동 복구
+│       ├── index.tsx      # 학생 대시보드 (/api/student/me)
+│       └── board/[slug].tsx  # layout dispatcher
 ├── components/
-│   └── VibeArcadeMock.tsx # 코딩 교실 UI
+│   ├── BoardShell.tsx     # 공통 헤더
+│   ├── CardView.tsx       # 카드 하나 렌더
+│   ├── CardComposer.tsx   # 카드 작성 모달 + 이미지/파일 업로드
+│   └── layouts/
+│       ├── CardsBoard.tsx        # freeform/grid/stream
+│       ├── ColumnsBoard.tsx      # columns
+│       ├── VibeArcadeBoard.tsx   # vibe-arcade (SSE + WebView)
+│       ├── QuizBoard.tsx         # quiz (polling)
+│       ├── AssignmentBoard.tsx   # assignment (file upload)
+│       ├── PlantRoadmapBoard.tsx # plant-roadmap
+│       └── ReadOnlyCardsBoard.tsx
+├── lib/
+│   ├── api.ts             # fetch 래퍼 + SSE parser
+│   ├── session.ts         # SecureStore wrapper
+│   └── types.ts           # 서버 DTO 사본
 ├── theme/
-│   ├── tokens.ts          # 컬러·radius·shadow·타이포
-│   └── layout-meta.ts     # 14개 레이아웃 emoji/label
-└── assets/                # 아이콘·스플래시 (생성된 기본값)
+│   ├── tokens.ts
+│   └── layout-meta.ts
+└── assets/
 ```
 
-## 후속 작업 (시안 다음 단계)
+## 후속 작업
 
-- [ ] 실 API 연동: `/api/student/login`, `/api/student`, `/api/vibe/*`
-- [ ] expo-camera 추가 → QR 스캐너 실동작 (Dev Client 필요)
+- [ ] expo-camera → QR 스캐너 실동작 (Dev Client 필요)
+- [ ] vibe-gallery / dj-queue / event-signup / breakout / assessment / drawing 네이티브 쓰기 모드
+- [ ] 드로잉(Canvas) — `react-native-skia` 또는 SVG
 - [ ] 웹과 shared 토큰 모듈 추출 (`packages/shared-tokens`)
-- [ ] 퀴즈 / 과제 배부 / 주제별 보드 mockup
-- [ ] Deep link: `auraboard://board/xxx` 지원 (expo-linking 이미 설치됨)
-- [ ] Push notification (교사 승인 알림 등) — expo-notifications
+- [ ] Deep link: `auraboard://board/xxx`
+- [ ] Push notification (교사 승인/퀴즈 알림) — expo-notifications

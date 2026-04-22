@@ -62,7 +62,9 @@ jobs:
           fi
 
       - name: Install dependencies
-        run: npm ci
+        # --legacy-peer-deps — monorepo root에 expo-router / react-dom peer 충돌이 있어
+        # 없으면 ERESOLVE 로 install 실패. apps/mobile 자체 node_modules 는 독립적.
+        run: npm ci --legacy-peer-deps
 
       - name: Install EAS CLI
         run: npm install -g eas-cli@latest
