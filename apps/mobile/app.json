@@ -37,16 +37,18 @@
     "experiments": {
       "typedRoutes": true
     },
-    "extra": {
-      "eas": {
-        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
-      }
-    },
     "runtimeVersion": {
       "policy": "appVersion"
     },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "fd9f26c1-ef04-4f19-8663-ed7c481af3ea"
+      }
+    },
     "updates": {
-      "url": "https://u.expo.dev/REPLACE_WITH_EAS_PROJECT_ID"
-    }
+      "url": "https://u.expo.dev/fd9f26c1-ef04-4f19-8663-ed7c481af3ea"
+    },
+    "owner": "coseung2"
   }
 }
