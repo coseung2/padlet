@@ -1,0 +1,114 @@
+name: Mobile APK Build (EAS Preview)
+
+# main 브랜치에서 apps/mobile/ 변경 시 자동 APK 빌드. 수동 실행도 지원.
+#
+# 사전 조건 (1회성, 사용자 수행):
+#   1. https://expo.dev 계정 생성 + `aura-board-mobile` 프로젝트 등록
+#      → `eas init` 또는 대시보드에서 projectId 발급
+#   2. apps/mobile/app.json 의 REPLACE_WITH_EAS_PROJECT_ID 두 곳을 실제 값으로 교체
+#   3. https://expo.dev/accounts/<name>/settings/access-tokens 에서 Personal
+#      Access Token 생성
+#   4. GitHub repo > Settings > Secrets and variables > Actions > New secret:
+#      Name: EXPO_TOKEN
+#      Value: 위에서 복사한 token
+#
+# 이후부터는 main 에 mobile 변경 커밋 시 자동 APK 생성. Actions 탭에서 빌드 URL
+# 확인하거나, expo.dev 대시보드에서 diretly 다운로드.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mobile/**'
+      - '.github/workflows/mobile-apk.yml'
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "EAS build profile"
+        required: true
+        default: "preview"
+        type: choice
+        options:
+          - preview
+          - development
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Validate EXPO_TOKEN presence
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::EXPO_TOKEN secret이 설정되지 않았습니다."
+            echo "::error::Settings → Secrets and variables → Actions 에서 EXPO_TOKEN 을 추가하세요."
+            echo "::error::Personal Access Token 발급: https://expo.dev/accounts/<name>/settings/access-tokens"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest
+
+      - name: Validate app.json has EAS projectId
+        run: |
+          if grep -q "REPLACE_WITH_EAS_PROJECT_ID" app.json; then
+            echo "::error::apps/mobile/app.json 에 REPLACE_WITH_EAS_PROJECT_ID 가 남아있습니다."
+            echo "::error::1) expo.dev 에서 프로젝트를 생성 후 projectId 를 발급받거나,"
+            echo "::error::2) 로컬에서 'cd apps/mobile && npx eas init' 실행해 자동 채움."
+            exit 1
+          fi
+
+      - name: Start EAS build (non-blocking)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        id: build
+        run: |
+          PROFILE="${{ github.event.inputs.profile || 'preview' }}"
+          echo "Profile: $PROFILE"
+
+          # --no-wait: CI 는 build queue 에 올리기만 하고 바로 종료.
+          # expo.dev 대시보드 또는 push notification 으로 완료 확인.
+          OUTPUT=$(eas build \
+            --platform android \
+            --profile "$PROFILE" \
+            --non-interactive \
+            --no-wait \
+            --json 2>&1)
+          echo "$OUTPUT"
+
+          # Build URL 추출 → workflow summary 에 게시.
+          BUILD_URL=$(echo "$OUTPUT" | grep -oE 'https://expo.dev/[^"[:space:]]+/builds/[a-f0-9-]+' | head -1 || true)
+          if [ -n "$BUILD_URL" ]; then
+            echo "build_url=$BUILD_URL" >> "$GITHUB_OUTPUT"
+            {
+              echo "## 📦 APK 빌드 시작"
+              echo ""
+              echo "**빌드 페이지**: $BUILD_URL"
+              echo ""
+              echo "완료까지 보통 10-20분 소요. 완료되면 위 링크에서 APK 다운로드."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "## ⚠️ Build URL 추출 실패"
+              echo ""
+              echo "expo.dev 대시보드에서 최신 빌드를 직접 확인하세요."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi

@@ -14,9 +14,12 @@ import {
 } from "../../../theme/tokens";
 import { layoutEmoji, layoutLabel } from "../../../theme/layout-meta";
 import { VibeArcadeMock } from "../../../components/VibeArcadeMock";
+import { QuizMock } from "../../../components/QuizMock";
+import { AssignmentMock } from "../../../components/AssignmentMock";
+import { ColumnsMock } from "../../../components/ColumnsMock";
 
 // 보드 상세. layout query 파라미터에 따라 렌더 분기.
-// 현재는 vibe-arcade(코딩 교실) 만 구현. 나머지 레이아웃은 placeholder.
+// 구현된 레이아웃: vibe-arcade / quiz / assignment / columns. 나머지는 placeholder.
 
 export default function BoardDetail() {
   const { slug, layout } = useLocalSearchParams<{ slug: string; layout?: string }>();
@@ -42,14 +45,25 @@ export default function BoardDetail() {
       </View>
 
       <View style={styles.body}>
-        {layoutKey === "vibe-arcade" ? (
-          <VibeArcadeMock />
-        ) : (
-          <Placeholder layout={layoutKey} />
-        )}
+        {renderLayout(layoutKey)}
       </View>
     </SafeAreaView>
   );
+}
+
+function renderLayout(layoutKey: string) {
+  switch (layoutKey) {
+    case "vibe-arcade":
+      return <VibeArcadeMock />;
+    case "quiz":
+      return <QuizMock />;
+    case "assignment":
+      return <AssignmentMock />;
+    case "columns":
+      return <ColumnsMock />;
+    default:
+      return <Placeholder layout={layoutKey} />;
+  }
 }
 
 function Placeholder({ layout }: { layout: string }) {
@@ -60,7 +74,7 @@ function Placeholder({ layout }: { layout: string }) {
         {layoutLabel(layout)} 화면은 다음 시안에서 제공됩니다
       </Text>
       <Text style={styles.placeholderSub}>
-        지금은 학생 로그인 + 대시보드 + 코딩 교실 이 세 화면만 mockup.
+        현재 mockup 제공: 코딩 교실 · 퀴즈 · 과제 배부 · 주제별 보드
       </Text>
     </View>
   );

@@ -2,6 +2,14 @@
 
 학생 태블릿(Galaxy Tab S6 Lite 가로 2000×1200) 우선 타겟.
 
+## 📦 APK 받기 (테스트용)
+
+GitHub Actions 가 자동으로 APK 를 빌드한다. 최초 1회 셋업은 [SETUP.md](./SETUP.md) 참조.
+
+- 설정 완료 후: main 에 `apps/mobile/` 커밋이 들어가면 자동 빌드
+- 또는 GitHub > Actions > **Mobile APK Build (EAS Preview)** > Run workflow
+- 10-20분 뒤 expo.dev 에서 APK 다운로드
+
 ## 빠른 실행 (Android 에뮬레이터)
 
 ```

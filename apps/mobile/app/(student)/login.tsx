@@ -27,7 +27,7 @@ export default function StudentLogin() {
     const trimmed = code.trim().toUpperCase();
     if (trimmed.length !== 6) return;
     // TODO: POST /api/student/login { code } — 지금은 mockup 이므로 바로 대시보드 이동.
-    router.replace("/(student)/");
+    router.replace("/(student)");
   }
 
   return (
