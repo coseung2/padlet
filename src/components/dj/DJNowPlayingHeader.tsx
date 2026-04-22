@@ -6,6 +6,7 @@ import { useDJPlayer } from "./DJPlayerProvider";
 
 type Props = {
   card: CardData;
+  boardId: string;
   canControl: boolean;
   onNext: () => void | Promise<void>;
 };
@@ -29,7 +30,7 @@ function extractVideoId(url: string | null | undefined): string | null {
  * - 썸네일 `<img>` 는 iframe 이 덮는 영역과 동일 — iframe 이 불투명해서
  *   시각적으로 숨겨지고, 재생 중이 아닐 땐 썸네일이 자연스럽게 보임.
  */
-export function DJNowPlayingHeader({ card, canControl, onNext }: Props) {
+export function DJNowPlayingHeader({ card, boardId, canControl, onNext }: Props) {
   const {
     activeCard,
     playing,
@@ -37,9 +38,8 @@ export function DJNowPlayingHeader({ card, canControl, onNext }: Props) {
     toggle,
     registerHost,
     setAdvanceHandler,
-    openExternalPip,
-    pipExternalOpen,
-    pipExternalSupported,
+    manualPip,
+    setManualPip,
   } = useDJPlayer();
   const hostRef = useRef<HTMLDivElement | null>(null);
 
@@ -77,8 +77,9 @@ export function DJNowPlayingHeader({ card, canControl, onNext }: Props) {
       title: card.title,
       linkImage: card.linkImage ?? null,
       videoId,
+      boardId,
     });
-  }, [card.id, card.title, card.linkImage, videoId, activeCard, play]);
+  }, [card.id, card.title, card.linkImage, videoId, activeCard, play, boardId]);
 
   function handlePlayToggle() {
     if (!videoId) return;
@@ -90,6 +91,7 @@ export function DJNowPlayingHeader({ card, canControl, onNext }: Props) {
         title: card.title,
         linkImage: card.linkImage ?? null,
         videoId,
+        boardId,
       });
     }
   }
@@ -149,17 +151,15 @@ export function DJNowPlayingHeader({ card, canControl, onNext }: Props) {
                 ⏭ 다음
               </button>
             )}
-            {isActive && playing && pipExternalSupported && !pipExternalOpen && (
+            {isActive && !manualPip && (
               <button
                 type="button"
                 className="dj-next-btn"
-                onClick={() => {
-                  void openExternalPip();
-                }}
-                aria-label="외부 창으로 빼기"
-                title="브라우저를 최소화해도 계속 재생됩니다"
+                onClick={() => setManualPip(true)}
+                aria-label="PiP 모드로 전환"
+                title="우하단 플로팅 창으로 전환 — 드래그·리사이즈 가능"
               >
-                📺 외부 창
+                📺 PiP
               </button>
             )}
           </div>

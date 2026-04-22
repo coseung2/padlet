@@ -289,6 +289,7 @@ export function DJBoard({
         {nowPlaying && (
           <DJNowPlayingHeader
             card={nowPlaying}
+            boardId={boardId}
             canControl={canControl}
             onNext={handleNextTrack}
           />

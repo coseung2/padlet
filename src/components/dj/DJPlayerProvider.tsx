@@ -30,6 +30,10 @@ export type PlayerCard = {
   title: string;
   linkImage: string | null;
   videoId: string;
+  /** Auto-advance 를 provider 레벨에서 수행할 수 있게 DJ 보드 id 를 동봉.
+   *  DJ 보드를 벗어나 PiP 로 내려앉은 상태에서 곡 끝났을 때도 다음 곡
+   *  자동 진행. */
+  boardId: string;
 };
 
 type Ctx = {
@@ -45,10 +49,14 @@ type Ctx = {
    */
   registerHost: (el: HTMLElement | null) => void;
   setAdvanceHandler: (fn: (() => Promise<void> | void) | null) => void;
-  /** 외부 창 PiP (Document Picture-in-Picture) 토글. user-gesture 필요. */
-  openExternalPip: () => Promise<void>;
-  pipExternalOpen: boolean;
-  pipExternalSupported: boolean;
+  /**
+   * PiP 수동 토글. host 가 있어도 true 면 floating 으로 강제.
+   * 기본은 false → host 있으면 docked, 없으면 auto PiP.
+   */
+  manualPip: boolean;
+  setManualPip: (on: boolean) => void;
+  /** host 여부를 소비자가 알아야 "도킹 복귀" 버튼을 보일지 판단 가능. */
+  hasHost: boolean;
 };
 
 const DJPlayerContext = createContext<Ctx | null>(null);
@@ -65,20 +73,7 @@ type YTPlayer = {
   destroy: () => void;
   playVideo: () => void;
   pauseVideo: () => void;
-  getCurrentTime?: () => number;
 };
-
-// Document Picture-in-Picture API (Chrome 116+ / Edge / Safari 16.4+).
-// Firefox 미지원 → openExternalPip 시 alert.
-type DocumentPipOpts = { width?: number; height?: number };
-type DocumentPipManager = {
-  requestWindow: (opts?: DocumentPipOpts) => Promise<Window>;
-};
-declare global {
-  interface Window {
-    documentPictureInPicture?: DocumentPipManager;
-  }
-}
 type YTState = { data: number };
 declare global {
   interface Window {
@@ -125,14 +120,18 @@ const DEFAULT_PIP = { x: -1, y: -1, w: 360, h: 260 }; // -1 = "anchor to right/b
 const MIN_W = 240;
 const MIN_H = 180;
 
-function buildEmbedUrl(videoId: string, startSec: number): string {
-  const params = new URLSearchParams({
-    autoplay: "1",
-    rel: "0",
-    playsinline: "1",
-  });
-  if (startSec > 0) params.set("start", String(startSec));
-  return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
+/** YouTube URL → 11자 videoId. 같은 함수가 NowPlayingHeader 에도 있지만
+ *  provider 의 auto-advance 경로에서 재사용하려 여기도 복사 (cross-import
+ *  순환을 피하기 위함). */
+function extractVideoId(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const m = url.match(/[?&]v=([A-Za-z0-9_-]{11})/);
+  if (m) return m[1];
+  const m2 = url.match(/youtu\.be\/([A-Za-z0-9_-]{11})/);
+  if (m2) return m2[1];
+  const m3 = url.match(/\/shorts\/([A-Za-z0-9_-]{11})/);
+  if (m3) return m3[1];
+  return null;
 }
 
 type PipPos = { x: number; y: number; w: number; h: number };
@@ -169,14 +168,18 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
   const [hostEl, setHostEl] = useState<HTMLElement | null>(null);
   const [hostRect, setHostRect] = useState<DOMRect | null>(null);
   const [pipPos, setPipPos] = useState<PipPos>(DEFAULT_PIP);
-  const [pipExternalOpen, setPipExternalOpen] = useState(false);
+  const [manualPip, setManualPip] = useState(false);
   const advanceRef = useRef<(() => Promise<void> | void) | null>(null);
   const playerRef = useRef<YTPlayer | null>(null);
-  const pipWindowRef = useRef<Window | null>(null);
-  const pipIframeRef = useRef<HTMLIFrameElement | null>(null);
+  /** activeCard 를 ref 로 미러 — YT.Player onStateChange 클로저가 최신 값
+   *  접근 가능하게. */
+  const activeCardRef = useRef<PlayerCard | null>(null);
+  /** autoAdvance 를 ref 로 미러 — 동일 이유. */
+  const autoAdvanceRef = useRef<() => void>(() => {});
 
-  const pipExternalSupported =
-    typeof window !== "undefined" && "documentPictureInPicture" in window;
+  useEffect(() => {
+    activeCardRef.current = activeCard;
+  }, [activeCard]);
 
   // PiP 위치 — mount 시 localStorage 로드 (SSR 안전).
   useEffect(() => {
@@ -231,6 +234,78 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  /**
+   * PiP (DJ 보드 언마운트 상태) 에서 곡이 끝났을 때 provider 자체에서 다음
+   * 곡 찾아 재생.
+   *   1) PATCH /api/boards/:id/queue/:cardId status=played
+   *   2) GET   /api/boards/:id/queue/next → { card }
+   *   3) 있으면 play(), 없으면 stop().
+   * DJ 보드가 마운트된 상태면 advanceRef 가 채워져 있어 이쪽 경로는 안 탄다.
+   */
+  const autoAdvanceFromProvider = useCallback(async () => {
+    const current = activeCardRef.current;
+    if (!current?.boardId) {
+      stop();
+      return;
+    }
+    try {
+      await fetch(
+        `/api/boards/${encodeURIComponent(current.boardId)}/queue/${encodeURIComponent(current.id)}`,
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ status: "played" }),
+        },
+      );
+    } catch (e) {
+      console.warn("[dj] auto-advance PATCH failed", e);
+      // played 기록 실패해도 다음 곡 시도는 해볼 가치 있음
+    }
+    try {
+      const res = await fetch(
+        `/api/boards/${encodeURIComponent(current.boardId)}/queue/next`,
+      );
+      if (!res.ok) {
+        stop();
+        return;
+      }
+      const body = (await res.json()) as {
+        card: {
+          id: string;
+          title: string;
+          linkImage: string | null;
+          videoUrl: string | null;
+          linkUrl: string | null;
+        } | null;
+      };
+      if (!body.card) {
+        stop();
+        return;
+      }
+      const vid = extractVideoId(body.card.videoUrl ?? body.card.linkUrl);
+      if (!vid) {
+        stop();
+        return;
+      }
+      play({
+        id: body.card.id,
+        title: body.card.title,
+        linkImage: body.card.linkImage,
+        videoId: vid,
+        boardId: current.boardId,
+      });
+    } catch (e) {
+      console.warn("[dj] auto-advance next fetch failed", e);
+      stop();
+    }
+  }, [play, stop]);
+
+  useEffect(() => {
+    autoAdvanceRef.current = () => {
+      Promise.resolve(autoAdvanceFromProvider()).catch(() => {});
+    };
+  }, [autoAdvanceFromProvider]);
+
   // Host rect 추적 — ResizeObserver + window resize + scroll. 모든 이벤트에
   // 대해 최신 getBoundingClientRect 를 state 로 push.
   useEffect(() => {
@@ -255,16 +330,8 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
   }, [hostEl]);
 
   // YT.Player 생성 — activeCard.videoId 변경 시 재부착.
-  // 외부 창 PiP 가 열려 있으면 main 에서는 생성하지 않음 (재생은 PiP 쪽에서).
   useEffect(() => {
     if (!activeCard) return;
-    if (pipExternalOpen) {
-      // PiP 창이 열려있으면 PiP iframe 의 src 를 갱신 (다음 곡 자동 진행 등).
-      if (pipIframeRef.current) {
-        pipIframeRef.current.src = buildEmbedUrl(activeCard.videoId, 0);
-      }
-      return;
-    }
     let cancelled = false;
     loadYouTubeAPI().then(() => {
       if (cancelled) return;
@@ -290,7 +357,8 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
               if (advance) {
                 Promise.resolve(advance()).catch(() => {});
               } else {
-                stop();
+                // DJ 보드가 언마운트된 PiP 상황 — provider 가 직접 다음 곡.
+                autoAdvanceRef.current();
               }
             } else if (e.data === 1) {
               setPlaying(true);
@@ -304,80 +372,7 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [activeCard, stop, pipExternalOpen]);
-
-  // 외부 창 PiP 열기 — Document Picture-in-Picture API.
-  const openExternalPip = useCallback(async () => {
-    if (!activeCard) return;
-    if (!pipExternalSupported) {
-      alert(
-        "이 브라우저는 외부 창 PiP 를 지원하지 않습니다.\nChrome/Edge 116+ 또는 Safari 16.4+ 가 필요해요.",
-      );
-      return;
-    }
-    // 이미 열려 있으면 foreground 로 끌어올리기만.
-    if (pipWindowRef.current) {
-      try {
-        pipWindowRef.current.focus();
-      } catch {}
-      return;
-    }
-
-    // 현재 재생 위치 캡처 후 main 플레이어 파괴.
-    let startTime = 0;
-    if (playerRef.current) {
-      try {
-        const t = playerRef.current.getCurrentTime?.();
-        if (typeof t === "number" && Number.isFinite(t)) startTime = Math.floor(t);
-      } catch {}
-      try {
-        playerRef.current.destroy();
-      } catch {}
-      playerRef.current = null;
-    }
-    setPlaying(false);
-
-    const dims = resolvePipPos(pipPos);
-    let pipWin: Window;
-    try {
-      pipWin = await window.documentPictureInPicture!.requestWindow({
-        width: Math.max(MIN_W, Math.floor(dims.w)),
-        height: Math.max(MIN_H, Math.floor(dims.h)),
-      });
-    } catch (e) {
-      console.warn("[dj-pip] external window denied", e);
-      return;
-    }
-    pipWindowRef.current = pipWin;
-
-    // 최소 style — iframe 을 창 전체로.
-    pipWin.document.title = `🎧 ${activeCard.title}`;
-    const style = pipWin.document.createElement("style");
-    style.textContent = `
-      html, body { margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden; }
-      iframe { width: 100%; height: 100%; border: 0; display: block; }
-    `;
-    pipWin.document.head.append(style);
-
-    const iframe = pipWin.document.createElement("iframe");
-    iframe.src = buildEmbedUrl(activeCard.videoId, startTime);
-    iframe.allow = "autoplay; picture-in-picture; encrypted-media; fullscreen";
-    iframe.allowFullscreen = true;
-    pipWin.document.body.append(iframe);
-    pipIframeRef.current = iframe;
-
-    // 창이 닫히거나 사용자가 메인 창으로 복귀하며 PiP 를 닫을 때.
-    // pagehide 가 모든 브라우저에서 가장 신뢰할 수 있는 close signal.
-    pipWin.addEventListener("pagehide", () => {
-      pipWindowRef.current = null;
-      pipIframeRef.current = null;
-      setPipExternalOpen(false);
-      setPlaying(true);
-      // main YT.Player 재생성은 pipExternalOpen 의존성 덕분에 useEffect 가 자동 트리거.
-    });
-
-    setPipExternalOpen(true);
-  }, [activeCard, pipExternalSupported, pipPos]);
+  }, [activeCard, stop]);
 
   // Media Session — lock-screen/OS 컨트롤.
   useEffect(() => {
@@ -523,13 +518,14 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
     toggle,
     registerHost,
     setAdvanceHandler,
-    openExternalPip,
-    pipExternalOpen,
-    pipExternalSupported,
+    manualPip,
+    setManualPip,
+    hasHost: !!hostEl,
   };
 
   const visible = !!activeCard;
-  const isDocked = !!hostEl && !!hostRect;
+  // manualPip 가 켜져 있으면 host 가 있어도 floating PiP 로 렌더.
+  const isDocked = !manualPip && !!hostEl && !!hostRect;
 
   // Container style — docked 모드는 hostRect, PiP 모드는 pipPos.
   let containerStyle: React.CSSProperties = { display: "none" };
@@ -563,11 +559,6 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
     isDocked ? "is-docked" : "is-pip",
   ].join(" ");
 
-  // 외부 창 PiP 가 열린 동안에는 main 컨테이너가 텅 빈 상태 — 사용자에게
-  // 혼란 없게 "외부 창에서 재생 중" 플레이스홀더 표시. 메인 창을 다시
-  // 브라우저 앞으로 끌어온 상태에서 재생 장소를 복원하려면 외부 창을 닫으면 됨.
-  const showExternalPlaceholder = visible && pipExternalOpen;
-
   return (
     <DJPlayerContext.Provider value={value}>
       {children}
@@ -575,21 +566,7 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
         {visible && (
           <>
             <div className="dj-mini-body">
-              {showExternalPlaceholder ? (
-                <div className="dj-mini-external-placeholder">
-                  <div className="dj-mini-external-emoji">📺</div>
-                  <div className="dj-mini-external-title">외부 창에서 재생 중</div>
-                  <button
-                    type="button"
-                    className="dj-mini-btn"
-                    onClick={() => pipWindowRef.current?.focus()}
-                  >
-                    외부 창 보기
-                  </button>
-                </div>
-              ) : (
-                <div id={MOUNT_ID} className="dj-mini-iframe" />
-              )}
+              <div id={MOUNT_ID} className="dj-mini-iframe" />
             </div>
             {!isDocked && (
               <>
@@ -601,42 +578,38 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
                     {activeCard?.title}
                   </div>
                   <div className="dj-mini-actions">
-                    {!pipExternalOpen && (
+                    <button
+                      type="button"
+                      className="dj-mini-btn"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={toggle}
+                      aria-label={playing ? "일시정지" : "재생"}
+                    >
+                      {playing ? "❚❚" : "▶"}
+                    </button>
+                    <button
+                      type="button"
+                      className="dj-mini-btn"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={() => advanceRef.current?.()}
+                      aria-label="다음 곡"
+                      disabled={!advanceRef.current}
+                      style={{ opacity: advanceRef.current ? 1 : 0.4 }}
+                    >
+                      ⏭
+                    </button>
+                    {/* host 가 있을 때만 "도킹 복귀" 버튼 노출. host 가 없는 일반
+                       페이지에선 이미 PiP 가 기본이라 이 버튼이 무의미. */}
+                    {hostEl && manualPip && (
                       <button
                         type="button"
                         className="dj-mini-btn"
                         onPointerDown={(e) => e.stopPropagation()}
-                        onClick={toggle}
-                        aria-label={playing ? "일시정지" : "재생"}
+                        onClick={() => setManualPip(false)}
+                        aria-label="도킹으로 돌리기"
+                        title="NOW PLAYING 카드로 되돌리기"
                       >
-                        {playing ? "❚❚" : "▶"}
-                      </button>
-                    )}
-                    {!pipExternalOpen && (
-                      <button
-                        type="button"
-                        className="dj-mini-btn"
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={() => advanceRef.current?.()}
-                        aria-label="다음 곡"
-                        disabled={!advanceRef.current}
-                        style={{ opacity: advanceRef.current ? 1 : 0.4 }}
-                      >
-                        ⏭
-                      </button>
-                    )}
-                    {pipExternalSupported && !pipExternalOpen && (
-                      <button
-                        type="button"
-                        className="dj-mini-btn"
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={() => {
-                          void openExternalPip();
-                        }}
-                        aria-label="외부 창으로 빼기"
-                        title="브라우저 최소화해도 계속 재생"
-                      >
-                        📺
+                        🪝
                       </button>
                     )}
                     <button
