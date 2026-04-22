@@ -10,6 +10,7 @@ import { canStudentSubmit, computeStudentSubmit } from "@/lib/assignment-state";
 import { slotRowToDTO, SLOT_INCLUDE_DEFAULT } from "@/lib/assignment-api";
 import { assignmentChannelKey, publish } from "@/lib/realtime";
 import { resizeToWebPThumbUrl } from "@/lib/blob";
+import { touchBoardUpdatedAt } from "@/lib/board-touch";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -144,6 +145,9 @@ export async function POST(
   console.log(
     `[AssignmentSlot] transition slotId=${slot.id} from=${slot.submissionStatus} to=${updated.submissionStatus} actor=student actorId=${student.id}`
   );
+
+  // classroom-boards-tab "🟢 새 활동" 배지 — 과제 제출로 slot card 내용 변경.
+  await touchBoardUpdatedAt(slot.boardId);
 
   await publish({
     channel: assignmentChannelKey(slot.boardId),

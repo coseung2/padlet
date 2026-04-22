@@ -25,9 +25,10 @@ type ClassroomItem = {
 type Props = {
   boards: BoardItem[];
   classrooms: ClassroomItem[];
+  userTier?: "free" | "pro";
 };
 
-export function Dashboard({ boards, classrooms }: Props) {
+export function Dashboard({ boards, classrooms, userTier = "pro" }: Props) {
   const router = useRouter();
   const [showCreate, setShowCreate] = useState(false);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
@@ -144,6 +145,7 @@ export function Dashboard({ boards, classrooms }: Props) {
       {showCreate && (
         <CreateBoardModal
           classrooms={classrooms}
+          userTier={userTier}
           onClose={() => setShowCreate(false)}
         />
       )}

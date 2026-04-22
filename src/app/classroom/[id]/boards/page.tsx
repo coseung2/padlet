@@ -16,7 +16,7 @@ export default async function ClassroomBoardsPage({ params }: Props) {
       name: true,
       teacherId: true,
       boards: {
-        select: { id: true, slug: true, title: true, layout: true, createdAt: true },
+        select: { id: true, slug: true, title: true, layout: true, createdAt: true, updatedAt: true },
         orderBy: { createdAt: "desc" },
       },
     },
@@ -31,7 +31,7 @@ export default async function ClassroomBoardsPage({ params }: Props) {
         { classroomId: id },
       ],
     },
-    select: { id: true, slug: true, title: true, layout: true, createdAt: true },
+    select: { id: true, slug: true, title: true, layout: true, createdAt: true, updatedAt: true },
     orderBy: { createdAt: "desc" },
   });
 
@@ -40,14 +40,14 @@ export default async function ClassroomBoardsPage({ params }: Props) {
     slug: b.slug,
     title: b.title,
     layout: b.layout,
-    updatedAt: b.createdAt.toISOString(),
+    updatedAt: b.updatedAt.toISOString(),
   }));
   const allBoards = allBoardRows.map((b) => ({
     id: b.id,
     slug: b.slug,
     title: b.title,
     layout: b.layout,
-    updatedAt: b.createdAt.toISOString(),
+    updatedAt: b.updatedAt.toISOString(),
   }));
 
   return (

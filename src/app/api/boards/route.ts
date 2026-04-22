@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { getCurrentTier, canUseTemplate } from "@/lib/tier";
+import { getCurrentTierAsync, canUseTemplate } from "@/lib/tier";
 import {
   BreakoutConfigSchema,
   cloneStructure,
@@ -71,8 +71,8 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "template_not_found" }, { status: 404 });
       }
 
-      // Tier gating — foundation stub.
-      const tier = getCurrentTier(user.id);
+      // Tier gating — DB subscription + env override (Seed 14 async).
+      const tier = await getCurrentTierAsync(user.id);
       if (!canUseTemplate(tier, template.requiresPro)) {
         return NextResponse.json(
           { error: "pro_required", templateKey: template.key },

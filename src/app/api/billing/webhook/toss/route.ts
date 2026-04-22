@@ -1,73 +1,118 @@
-// POST /api/billing/webhook/toss — Toss Payments 웹훅 수신 엔드포인트.
+// POST /api/billing/webhook/toss — Toss Payments 웹훅 수신.
 //
-// Toss는 결제 상태 변경 / 가상계좌 입금 등을 여기로 POST한다.
-// 인증은 "쿼리 파라미터 secret" 또는 본문 서명 중 선택. 본 scaffold는
-// `TOSS_WEBHOOK_SECRET` 환경변수 값을 쿼리 `?secret=...` 로 받는 단순 방식을 사용.
-// 실 운영 전에 토스 콘솔에서 동일 값을 등록하고 HTTPS 필수.
+// 2단계 인증:
+//   1) 쿼리 파라미터 `?secret=<TOSS_WEBHOOK_SECRET>` (타이밍-안전 비교)
+//   2) (선택) Toss가 HMAC 서명 헤더를 보내주면 본문 검증 — Toss 콘솔에서
+//      "웹훅 서명 검증" 활성화했을 때만 사용. `TOSS_WEBHOOK_SIGNING_SECRET`
+//      환경변수가 있으면 검증, 없으면 쿼리 secret만.
+//
+// 매칭 로직:
+//   - payload.data.orderId로 기존 PaymentEvent 조회 → 상태/paymentKey 동기화
+//   - 미매칭 이벤트는 userId="" 로 감사 로그만 남기려 했으나 FK required라
+//     실제로는 스킵. Slack/Sentry에 경고만 노출(SEC-2 구현 시 연결).
 
+import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "@/lib/db";
 
-export async function POST(req: Request) {
-  const url = new URL(req.url);
+function timingSafeEqualStrings(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  } catch {
+    return false;
+  }
+}
+
+function verifyQuerySecret(req: Request): boolean {
   const expected = process.env.TOSS_WEBHOOK_SECRET;
-  if (!expected) {
-    // 미설정 → 403으로 명시적으로 거절해서 오작동 방지.
+  if (!expected) return false;
+  const given = new URL(req.url).searchParams.get("secret") ?? "";
+  return timingSafeEqualStrings(given, expected);
+}
+
+/**
+ * HMAC-SHA256 기반 선택적 서명 검증.
+ * Toss 콘솔에서 webhook 서명 활성 시 req 헤더 `TossPayments-Signature` 에
+ * base64 HMAC(body, signingSecret) 이 담겨 온다. 콘솔 미활성 / secret 미설정
+ * 이면 true(skip).
+ */
+function verifyHmacSignature(req: Request, rawBody: string): boolean {
+  const signingSecret = process.env.TOSS_WEBHOOK_SIGNING_SECRET;
+  if (!signingSecret) return true; // 검증 미설정 — 스킵
+  const header = req.headers.get("tosspayments-signature") ?? "";
+  if (!header) return false; // 검증 활성인데 헤더 없음 → 거절
+  const expected = createHmac("sha256", signingSecret).update(rawBody).digest("base64");
+  return timingSafeEqualStrings(header, expected);
+}
+
+export async function POST(req: Request) {
+  if (!process.env.TOSS_WEBHOOK_SECRET) {
     return new Response(JSON.stringify({ error: "webhook_not_configured" }), {
       status: 503,
+      headers: { "Content-Type": "application/json" },
     });
   }
-  if (url.searchParams.get("secret") !== expected) {
-    return new Response(JSON.stringify({ error: "forbidden" }), { status: 403 });
+  if (!verifyQuerySecret(req)) {
+    return new Response(JSON.stringify({ error: "forbidden" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
-  const payload = (await req.json().catch(() => null)) as
-    | {
-        eventType?: string;
-        data?: { orderId?: string; paymentKey?: string; status?: string };
-      }
-    | null;
+  const rawBody = await req.text();
+  if (!verifyHmacSignature(req, rawBody)) {
+    return new Response(JSON.stringify({ error: "signature_invalid" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  let payload: {
+    eventType?: string;
+    data?: { orderId?: string; paymentKey?: string; status?: string };
+  } | null = null;
+  try {
+    payload = JSON.parse(rawBody);
+  } catch {
+    return new Response(JSON.stringify({ error: "bad_request" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
   if (!payload) {
     return new Response(JSON.stringify({ error: "bad_request" }), { status: 400 });
   }
 
   const orderId = payload.data?.orderId ?? null;
-  const eventType = payload.eventType ?? "unknown";
 
-  // 기존 PaymentEvent 찾기 (checkout 단계에서 pending 으로 만들었을 가능성).
   if (orderId) {
     const existing = await db.paymentEvent.findUnique({ where: { pgOrderId: orderId } });
     if (existing) {
+      const nextStatus =
+        payload.data?.status === "DONE"
+          ? "succeeded"
+          : payload.data?.status === "CANCELED" || payload.data?.status === "FAILED"
+            ? "failed"
+            : existing.status;
       await db.paymentEvent.update({
         where: { id: existing.id },
         data: {
-          status:
-            payload.data?.status === "DONE"
-              ? "succeeded"
-              : payload.data?.status === "CANCELED"
-                ? "failed"
-                : existing.status,
+          status: nextStatus,
           pgPaymentKey: payload.data?.paymentKey ?? existing.pgPaymentKey,
           rawPayload: payload as never,
         },
       });
-      return new Response(JSON.stringify({ ok: true, matched: true }), { status: 200 });
+      return new Response(JSON.stringify({ ok: true, matched: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
     }
   }
 
-  // 매칭 실패 → 미지 이벤트로 감사 로그만 남긴다 (재발행 방지용 파이프).
-  await db.paymentEvent.create({
-    data: {
-      userId: "", // 미매칭 — FK가 required이므로 실제론 스킵 가능하게 스펙 변경 필요.
-      type: `webhook:${eventType}`,
-      amount: 0,
-      currency: "KRW",
-      status: "succeeded",
-      pgOrderId: orderId,
-      rawPayload: payload as never,
-    },
-  }).catch(() => {
-    // userId FK 위반 시 무음 — 이후 리콘실리에이션 큐에서 처리 예정
-  });
-
-  return new Response(JSON.stringify({ ok: true, matched: false }), { status: 200 });
+  // 매칭 실패 — 미지 이벤트. FK required로 추가 로그 저장은 못 함.
+  // SEC-2 Slack 알림 연결 후 여기서 notify 호출 예정.
+  return new Response(
+    JSON.stringify({ ok: true, matched: false, orderId }),
+    { status: 200, headers: { "Content-Type": "application/json" } },
+  );
 }

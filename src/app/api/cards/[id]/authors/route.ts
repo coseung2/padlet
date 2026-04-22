@@ -9,6 +9,7 @@ import {
   MAX_DISPLAY_NAME_LEN,
   CardAuthorError,
 } from "@/lib/card-authors-service";
+import { touchBoardUpdatedAt } from "@/lib/board-touch";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -100,6 +101,9 @@ export async function PUT(
       orderBy: { order: "asc" },
       select: { id: true, studentId: true, displayName: true, order: true },
     });
+
+    // classroom-boards-tab "🟢 새 활동" 배지 — 작성자 재지정도 카드 mutation.
+    await touchBoardUpdatedAt(card.boardId);
 
     return NextResponse.json({
       authors,

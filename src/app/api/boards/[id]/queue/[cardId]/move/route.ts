@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getCurrentStudent } from "@/lib/student-auth";
 import { getEffectiveBoardRole } from "@/lib/rbac";
+import { touchBoardUpdatedAt } from "@/lib/board-touch";
 
 const MoveBody = z.object({
   order: z.number().int().min(0),
@@ -59,5 +60,9 @@ export async function PATCH(
     where: { id: cardId },
     data: { order: parsed.data.order },
   });
+
+  // classroom-boards-tab "🟢 새 활동" 배지 — 큐 순서 변경도 활동 신호.
+  await touchBoardUpdatedAt(board.id);
+
   return NextResponse.json({ card: updated });
 }

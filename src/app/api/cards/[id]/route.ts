@@ -6,6 +6,7 @@ import { resolveIdentities } from "@/lib/identity";
 import { canEditCard, canDeleteCard, type BoardLike, type CardLike } from "@/lib/card-permissions";
 import { isCanvaDesignUrl, resolveCanvaEmbedUrl, expandCanvaShortLink } from "@/lib/canva";
 import { isAllowedFileUrl, isAllowedStoredMime } from "@/lib/file-attachment";
+import { touchBoardUpdatedAt } from "@/lib/board-touch";
 
 const PatchCardSchema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -136,6 +137,9 @@ export async function PATCH(
 
     const updated = await db.card.update({ where: { id }, data: patch });
 
+    // classroom-boards-tab "🟢 새 활동" 배지 — 카드 수정으로 부모 board touch.
+    await touchBoardUpdatedAt(card.boardId);
+
     return NextResponse.json({ card: updated });
   } catch (e) {
     if (e instanceof ForbiddenError) {
@@ -190,6 +194,11 @@ export async function DELETE(
     }
 
     await db.card.delete({ where: { id } });
+
+    // classroom-boards-tab "🟢 새 활동" 배지 — 카드 삭제도 활동으로 간주.
+    // Board row 자체는 카드 cascade의 부모라 여전히 존재하므로 정상 touch.
+    await touchBoardUpdatedAt(card.boardId);
+
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (e instanceof ForbiddenError) {

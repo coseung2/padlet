@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getCurrentStudent } from "@/lib/student-auth";
 import { getCurrentUser } from "@/lib/auth";
 import { getBoardRole } from "@/lib/rbac";
+import { touchBoardUpdatedAt } from "@/lib/board-touch";
 
 // Attach a StudentAsset to a Card (and optionally a PlantObservation).
 // Caller must be the asset owner (student session) OR an owner of the target
@@ -66,6 +67,12 @@ export async function POST(
           where: { id: card.id },
           data: { imageUrl: asset.thumbnailUrl ?? asset.fileUrl },
         });
+      }
+      // classroom-boards-tab "🟢 새 활동" 배지 — 자산 첨부로 카드 변경. imageUrl
+      // 가 이미 있어 위 업데이트를 skip한 경우에도 AssetAttachment 행 자체가
+      // 새로 생겼으므로 board 활동으로 취급.
+      if (card) {
+        await touchBoardUpdatedAt(card.boardId);
       }
     }
 

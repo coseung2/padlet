@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getCurrentStudent } from "@/lib/student-auth";
 import { getEffectiveBoardRole } from "@/lib/rbac";
+import { touchBoardUpdatedAt } from "@/lib/board-touch";
 
 const PatchBody = z.object({
   status: z.enum(["approved", "rejected", "played"]),
@@ -75,6 +76,9 @@ export async function PATCH(
     data: { queueStatus: parsed.data.status },
   });
 
+  // classroom-boards-tab "🟢 새 활동" 배지 — 큐 상태 변경도 활동 신호.
+  await touchBoardUpdatedAt(board.id);
+
   return NextResponse.json({ card: updated });
 }
 
@@ -115,5 +119,9 @@ export async function DELETE(
   }
 
   await db.card.delete({ where: { id: cardId } });
+
+  // classroom-boards-tab "🟢 새 활동" 배지 — 큐 카드 삭제도 활동 신호.
+  await touchBoardUpdatedAt(board.id);
+
   return NextResponse.json({ ok: true });
 }

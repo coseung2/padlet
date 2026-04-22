@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { getCurrentTierAsync } from "@/lib/tier";
 import { Dashboard } from "@/components/Dashboard";
 import { TopNav } from "@/components/TopNav";
 import { UserSwitcher } from "@/components/UserSwitcher";
@@ -18,7 +19,7 @@ export default async function HomePage() {
   }
 
   // Independent queries → run in parallel.
-  const [memberships, classrooms] = await Promise.all([
+  const [memberships, classrooms, tier] = await Promise.all([
     // Only show boards where the current user is a member
     db.boardMember.findMany({
       where: { userId: user.id },
@@ -35,6 +36,8 @@ export default async function HomePage() {
       include: { _count: { select: { students: true } } },
       orderBy: { createdAt: "desc" },
     }),
+    // DB subscription + env override → CreateBoardModal Pro gating 입력
+    getCurrentTierAsync(user.id),
   ]);
 
   const classroomItems = classrooms.map((c) => ({
@@ -70,7 +73,11 @@ export default async function HomePage() {
             )}
           </div>
         </header>
-        <Dashboard boards={boardItems} classrooms={classroomItems} />
+        <Dashboard
+          boards={boardItems}
+          classrooms={classroomItems}
+          userTier={tier}
+        />
       </main>
     </>
   );

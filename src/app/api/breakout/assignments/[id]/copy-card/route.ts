@@ -15,6 +15,7 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { requirePermission, ForbiddenError } from "@/lib/rbac";
 import { cloneStructure, TemplateStructure } from "@/lib/breakout";
+import { touchBoardUpdatedAt } from "@/lib/board-touch";
 
 const Body = z.object({
   sourceCardId: z.string().min(1),
@@ -152,6 +153,9 @@ export async function POST(
       }
       return cards;
     });
+
+    // classroom-boards-tab "🟢 새 활동" 배지 — 벌크 복사로 카드 다수 생성 → touch.
+    await touchBoardUpdatedAt(assignment.boardId);
 
     return NextResponse.json({
       copiedTo: createdCards.length,

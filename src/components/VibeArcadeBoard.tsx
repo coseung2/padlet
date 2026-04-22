@@ -17,6 +17,8 @@ import { StarRating } from "./vibe-arcade/StarRating";
 import { StudentSlotCard } from "./vibe-arcade/StudentSlotCard";
 import { VibeStudio } from "./vibe-arcade/VibeStudio";
 import { VibePlayModal } from "./vibe-arcade/VibePlayModal";
+import { TeacherModerationPanel } from "./vibe-arcade/TeacherModerationPanel";
+import { VibeSettingsPanel } from "./vibe-arcade/SettingsPanel";
 import type { VibeSlotDTO } from "@/app/api/vibe/slots/route";
 
 type ViewerKind = "teacher" | "student" | "none";
@@ -71,6 +73,8 @@ export function VibeArcadeBoard(props: VibeArcadeBoardProps) {
   const [error, setError] = useState<string | null>(null);
   const [studioSlot, setStudioSlot] = useState<VibeSlotDTO | null>(null);
   const [playing, setPlaying] = useState<{ id: string; title: string } | null>(null);
+  const [showModeration, setShowModeration] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const canPlay = props.viewerKind === "student";
 
   useEffect(() => {
@@ -180,6 +184,27 @@ export function VibeArcadeBoard(props: VibeArcadeBoardProps) {
               : "나와 반 친구들이 만든 작품을 한자리에서 볼 수 있어요."}
           </p>
         </div>
+        {isTeacher && (
+          <div className="va-header-actions">
+            <button
+              type="button"
+              className="va-header-btn"
+              onClick={() => setShowModeration(true)}
+              title="승인 대기 검토"
+            >
+              📝 모더레이션
+            </button>
+            <button
+              type="button"
+              className="va-header-btn"
+              onClick={() => setShowSettings(true)}
+              title="코딩 교실 설정"
+              aria-label="코딩 교실 설정"
+            >
+              ⚙
+            </button>
+          </div>
+        )}
       </header>
 
       <nav className="va-tabs" role="tablist" aria-label="카탈로그 탭">
@@ -298,6 +323,27 @@ export function VibeArcadeBoard(props: VibeArcadeBoardProps) {
           projectId={playing.id}
           title={playing.title}
           onClose={() => setPlaying(null)}
+        />
+      )}
+
+      {showModeration && (
+        <TeacherModerationPanel
+          boardId={props.boardId}
+          onClose={() => setShowModeration(false)}
+          onChange={() => {
+            // 모더레이션 상태 바뀌면 카탈로그 refetch.
+            if (tab !== "slots") void loadCatalog();
+          }}
+        />
+      )}
+
+      {showSettings && (
+        <VibeSettingsPanel
+          boardId={props.boardId}
+          onClose={() => setShowSettings(false)}
+          onSaved={(next) => {
+            setConfig(next);
+          }}
         />
       )}
     </section>

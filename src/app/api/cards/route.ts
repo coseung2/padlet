@@ -8,6 +8,7 @@ import { isCanvaDesignUrl, resolveCanvaEmbedUrl, expandCanvaShortLink } from "@/
 import { extractVideoId, fetchYouTubeMeta, canonicalUrl } from "@/lib/youtube";
 import { setCardAuthors } from "@/lib/card-authors-service";
 import { isAllowedFileUrl, isAllowedStoredMime, MAX_ATTACHMENTS_PER_CARD } from "@/lib/file-attachment";
+import { touchBoardUpdatedAt } from "@/lib/board-touch";
 
 const CreateCardSchema = z.object({
   boardId: z.string().min(1),
@@ -264,6 +265,10 @@ export async function POST(req: Request) {
       }
       return c;
     });
+
+    // classroom-boards-tab "🟢 새 활동" 배지 — 카드 생성으로 부모 board touch.
+    // 본 트랜잭션 바깥에서 best-effort로 실행해 실패해도 create는 성공 유지.
+    await touchBoardUpdatedAt(input.boardId);
 
     // 응답에 저장된 attachments 포함 (클라이언트 상태 즉시 반영).
     const attachments = await db.cardAttachment.findMany({

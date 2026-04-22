@@ -1629,42 +1629,6 @@
   font-weight: 700;
 }
 
-/* ---- Parents panel ---- */
-.classroom-parents-panel {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  padding: 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.classroom-parents-summary {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-}
-
-.classroom-panel-heading {
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.2px;
-  margin: 0 0 6px;
-  color: var(--color-text);
-}
-
-.classroom-panel-hint {
-  margin: 0;
-  font-size: 13px;
-  color: var(--color-text-muted);
-  line-height: 1.5;
-  max-width: 420px;
-}
-
 .classroom-parents-stat {
   display: flex;
   flex-direction: column;
@@ -1792,10 +1756,6 @@
 }
 
 @media (max-width: 540px) {
-  .classroom-parents-summary {
-    flex-direction: column;
-    align-items: flex-start;
-  }
   .classroom-setting-danger {
     flex-direction: column;
   }
@@ -1852,149 +1812,7 @@
   opacity: 0.6;
 }
 
-/* ═══ Inline parent approval inbox (학부모 연결 탭) ════════════════════ */
-
-.classroom-parents-subcta {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-accent-tinted-text);
-  text-decoration: none;
-  flex-shrink: 0;
-}
-
-.classroom-parents-subcta:hover {
-  color: var(--color-accent-active);
-}
-
-.classroom-parent-empty {
-  padding: 32px 20px;
-  text-align: center;
-  color: var(--color-text-muted);
-  background: var(--color-surface);
-  border: var(--border-card);
-  border-radius: var(--radius-card);
-  font-size: 14px;
-}
-
-.classroom-parent-inbox {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  background: var(--color-surface);
-  border: var(--border-card);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  overflow: hidden;
-}
-
-.classroom-parent-inbox-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 20px;
-  border-top: 1px solid var(--color-border);
-}
-
-.classroom-parent-inbox-row:first-child {
-  border-top: 0;
-}
-
-.classroom-parent-inbox-meta {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.classroom-parent-inbox-who {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text);
-  flex-wrap: wrap;
-}
-
-.classroom-parent-inbox-email {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--color-text);
-}
-
-.classroom-parent-inbox-arrow {
-  color: var(--color-text-faint);
-  font-weight: 400;
-}
-
-.classroom-parent-inbox-student {
-  color: var(--color-text-muted);
-  font-weight: 500;
-}
-
-.classroom-parent-inbox-sub {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  margin-top: 2px;
-}
-
-.classroom-parent-inbox-dleft {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: var(--radius-pill);
-  background: var(--color-warning-tinted-bg);
-  color: #92610a;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.125px;
-  flex-shrink: 0;
-}
-
-.classroom-parent-inbox-dleft.is-urgent {
-  background: var(--color-status-returned-bg);
-  color: var(--color-status-returned-text);
-}
-
-.classroom-parent-inbox-btn {
-  padding: 7px 14px;
-  border-radius: var(--radius-btn);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-text);
-  transition: background var(--t-normal, 150ms ease), border-color var(--t-normal, 150ms ease);
-  flex-shrink: 0;
-}
-
-.classroom-parent-inbox-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.classroom-parent-inbox-btn.is-reject:hover:not(:disabled) {
-  border-color: var(--color-danger);
-  color: var(--color-danger);
-}
-
-.classroom-parent-inbox-btn.is-approve {
-  background: var(--color-accent);
-  color: #fff;
-  border-color: var(--color-accent);
-}
-
-.classroom-parent-inbox-btn.is-approve:hover:not(:disabled) {
-  background: var(--color-accent-active);
-  border-color: var(--color-accent-active);
-}
-
 @media (max-width: 640px) {
-  .classroom-parent-inbox-row {
-    flex-wrap: wrap;
-    padding: 12px 16px;
-  }
-  .classroom-parent-inbox-meta {
-    min-width: 140px;
-  }
   .classroom-tabs-sep {
     display: none;
   }

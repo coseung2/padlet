@@ -22,13 +22,14 @@ import { requirePermission, ForbiddenError } from "@/lib/rbac";
 import { verifyBearer } from "@/lib/external-auth";
 import { checkAll as rateLimitCheck } from "@/lib/rate-limit";
 import { uploadPngFromDataUrl, BlobUploadError } from "@/lib/blob";
-import { requireProTier, TierRequiredError } from "@/lib/tier";
+import { requireProTierAsync, TierRequiredError } from "@/lib/tier";
 import { externalErrorResponse } from "@/lib/external-errors";
 import {
   extractCanvaDesignId,
   isCanvaDesignUrl,
   resolveCanvaEmbedUrl,
 } from "@/lib/canva";
+import { touchBoardUpdatedAt } from "@/lib/board-touch";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -89,9 +90,9 @@ export async function POST(req: Request) {
     return externalErrorResponse("forbidden_scope");
   }
 
-  // [4] Tier dual-defense (R7).
+  // [4] Tier dual-defense (R7). DB-aware async variant — 구독 반영.
   try {
-    requireProTier(user.id);
+    await requireProTierAsync(user.id);
   } catch (e) {
     if (e instanceof TierRequiredError) {
       return externalErrorResponse("tier_required", undefined, {
@@ -358,6 +359,10 @@ export async function POST(req: Request) {
 
   // Audit: we already touched lastUsedAt in verifyPat; nothing else to do.
   void tokenPrefix; // silence unused-var
+
+  // classroom-boards-tab "🟢 새 활동" 배지 — Canva 게시를 통한 카드 생성도
+  // board 활동으로 기록. 실패해도 publish 자체는 성공으로 응답.
+  await touchBoardUpdatedAt(board.id);
 
   // [12] Minimal response.
   return NextResponse.json(

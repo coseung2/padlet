@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getCurrentStudent } from "@/lib/student-auth";
 import { getEffectiveBoardRole } from "@/lib/rbac";
 import { extractVideoId, fetchYouTubeMeta, canonicalUrl } from "@/lib/youtube";
+import { touchBoardUpdatedAt } from "@/lib/board-touch";
 
 const SubmitBody = z.object({
   youtubeUrl: z.string().min(1),
@@ -124,6 +125,9 @@ export async function POST(
       queueStatus: "pending",
     },
   });
+
+  // classroom-boards-tab "🟢 새 활동" 배지 — DJ 큐 신청도 카드 생성 → board touch.
+  await touchBoardUpdatedAt(board.id);
 
   return NextResponse.json({ card });
 }

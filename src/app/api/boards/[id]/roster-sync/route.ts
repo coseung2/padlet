@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { ASSIGNMENT_MAX_SLOTS } from "@/lib/assignment-schemas";
+import { touchBoardUpdatedAt } from "@/lib/board-touch";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -165,6 +166,13 @@ export async function POST(
       });
     }
   });
+
+  // classroom-boards-tab "🟢 새 활동" 배지 — 새 슬롯(=카드) 추가가 있으면 touch.
+  // 첫 attach 경로는 트랜잭션 안에서 board.update({classroomId})로 이미
+  // @updatedAt bump됐지만, 중복 호출되어도 best-effort라 무해.
+  if (added.length > 0) {
+    await touchBoardUpdatedAt(boardId);
+  }
 
   return NextResponse.json({
     addedSlots: added,

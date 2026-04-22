@@ -19,7 +19,7 @@ import { db } from "@/lib/db";
 import { requirePermission, ForbiddenError } from "@/lib/rbac";
 import { verifyBearer } from "@/lib/external-auth";
 import { checkAll as rateLimitCheck } from "@/lib/rate-limit";
-import { requireProTier, TierRequiredError } from "@/lib/tier";
+import { requireProTierAsync, TierRequiredError } from "@/lib/tier";
 import { externalErrorResponse } from "@/lib/external-errors";
 
 export const runtime = "nodejs";
@@ -42,9 +42,9 @@ export async function GET(
     return externalErrorResponse("forbidden_scope");
   }
 
-  // [3] Tier dual-defense.
+  // [3] Tier dual-defense — DB subscription aware.
   try {
-    requireProTier(user.id);
+    await requireProTierAsync(user.id);
   } catch (e) {
     if (e instanceof TierRequiredError) {
       return externalErrorResponse("tier_required", undefined, {

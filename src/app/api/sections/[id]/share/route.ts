@@ -3,6 +3,7 @@ import { randomBytes } from "crypto";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getBoardRole, ForbiddenError } from "@/lib/rbac";
+import { touchBoardUpdatedAt } from "@/lib/board-touch";
 
 /**
  * POST /api/sections/:id/share
@@ -44,6 +45,9 @@ export async function POST(
     });
 
     const shareUrl = `/board/${updated.boardId}/s/${updated.id}?token=${encodeURIComponent(token)}`;
+
+    // classroom-boards-tab "🟢 새 활동" 배지 — section 행 변경 → parent board touch.
+    await touchBoardUpdatedAt(updated.boardId);
 
     return NextResponse.json({
       section: {

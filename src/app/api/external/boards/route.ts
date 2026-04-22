@@ -21,7 +21,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifyBearer } from "@/lib/external-auth";
 import { checkAll as rateLimitCheck } from "@/lib/rate-limit";
-import { requireProTier, TierRequiredError } from "@/lib/tier";
+import { requireProTierAsync, TierRequiredError } from "@/lib/tier";
 import { externalErrorResponse } from "@/lib/external-errors";
 
 export const runtime = "nodejs";
@@ -37,7 +37,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    requireProTier(user.id);
+    await requireProTierAsync(user.id);
   } catch (e) {
     if (e instanceof TierRequiredError) {
       return externalErrorResponse("tier_required", undefined, {

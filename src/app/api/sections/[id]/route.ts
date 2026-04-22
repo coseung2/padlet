@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { requirePermission, ForbiddenError } from "@/lib/rbac";
+import { touchBoardUpdatedAt } from "@/lib/board-touch";
 
 const PatchSectionSchema = z.object({
   title: z.string().min(1).max(100).optional(),
@@ -29,6 +30,9 @@ export async function PATCH(
     const body = await req.json();
     const input = PatchSectionSchema.parse(body);
     const updated = await db.section.update({ where: { id }, data: input });
+
+    // classroom-boards-tab "🟢 새 활동" 배지 — 섹션 수정 → parent board touch.
+    await touchBoardUpdatedAt(section.boardId);
 
     return NextResponse.json({ section: updated });
   } catch (e) {
@@ -65,6 +69,10 @@ export async function DELETE(
     });
 
     await db.section.delete({ where: { id } });
+
+    // classroom-boards-tab "🟢 새 활동" 배지 — 섹션 삭제도 구조적 활동.
+    await touchBoardUpdatedAt(section.boardId);
+
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (e instanceof ForbiddenError) {

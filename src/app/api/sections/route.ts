@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { requirePermission, ForbiddenError } from "@/lib/rbac";
+import { touchBoardUpdatedAt } from "@/lib/board-touch";
 
 const CreateSectionSchema = z.object({
   boardId: z.string().min(1),
@@ -28,6 +29,9 @@ export async function POST(req: Request) {
         order: (maxOrder._max.order ?? -1) + 1,
       },
     });
+
+    // classroom-boards-tab "🟢 새 활동" 배지 — 섹션 생성도 구조적 활동 → touch.
+    await touchBoardUpdatedAt(input.boardId);
 
     return NextResponse.json({ section });
   } catch (e) {

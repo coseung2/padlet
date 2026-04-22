@@ -145,6 +145,60 @@ export async function chargeBillingKey(input: ChargeInput): Promise<ChargeResult
   };
 }
 
+/**
+ * 결제 취소(환불). 전액 또는 부분. Toss /v1/payments/{paymentKey}/cancel.
+ */
+export type CancelInput = {
+  paymentKey: string;
+  cancelReason: string;
+  cancelAmount?: number; // null = 전액
+};
+
+export type CancelResult = {
+  paymentKey: string;
+  status: string; // "CANCELED" | "PARTIAL_CANCELED"
+  totalAmount: number;
+  balanceAmount: number;
+  canceledAmount: number;
+  raw: unknown;
+};
+
+export async function cancelPayment(input: CancelInput): Promise<CancelResult> {
+  const res = await fetch(
+    `${API_BASE}/v1/payments/${encodeURIComponent(input.paymentKey)}/cancel`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: secretHeader(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        cancelReason: input.cancelReason,
+        cancelAmount: input.cancelAmount,
+      }),
+    },
+  );
+
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) {
+    const msg = (data.message as string) ?? `HTTP ${res.status}`;
+    throw new Error(`toss cancelPayment: ${msg}`);
+  }
+  const cancels = (data.cancels as Array<Record<string, unknown>>) ?? [];
+  const canceled = cancels.reduce(
+    (sum, c) => sum + Number(c.cancelAmount ?? 0),
+    0,
+  );
+  return {
+    paymentKey: data.paymentKey as string,
+    status: data.status as string,
+    totalAmount: Number(data.totalAmount ?? 0),
+    balanceAmount: Number(data.balanceAmount ?? 0),
+    canceledAmount: canceled,
+    raw: data,
+  };
+}
+
 /** 플랜별 가격 (KRW, 세금 포함 가정). 차후 DB로 이전 가능. */
 export const PLAN_CATALOG = {
   pro_monthly: {
