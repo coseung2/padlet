@@ -172,21 +172,6 @@
   background: var(--color-border);
 }
 
-.login-mock-hint {
-  font-size: 13px;
-  color: var(--color-text-faint);
-  line-height: 1.6;
-  margin: 0;
-}
-
-.login-mock-hint code {
-  background: var(--color-surface-alt);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-family: "SF Mono", "Fira Code", monospace;
-}
-
 /* -------- Auth Header (logged-in user bar) -------- */
 
 .auth-header {

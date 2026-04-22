@@ -22,7 +22,6 @@ import { VibeGalleryBoard } from "@/components/VibeGalleryBoard";
 import { cloneStructure } from "@/lib/breakout";
 import { parseObservationPoints, STALL_THRESHOLD_DAYS } from "@/lib/plant-schemas";
 import type { PlantJournalResponse } from "@/types/plant";
-import { UserSwitcher } from "@/components/UserSwitcher";
 import { AuthHeader } from "@/components/AuthHeader";
 import { EditableTitle } from "@/components/EditableTitle";
 import { BoardSettingsLauncher } from "@/components/BoardSettingsLauncher";
@@ -220,7 +219,6 @@ export default async function BoardPage({
   // Determine the effective user id and display name
   const effectiveUserId = studentViewer?.id ?? user?.id ?? "";
   const effectiveUserName = studentViewer?.name ?? user?.name ?? "";
-  const mockRole = user?.mockRole ?? null;
 
   const cardProps = cards.map((c) => ({
     id: c.id,
@@ -448,7 +446,7 @@ export default async function BoardPage({
   if (!effectiveRole) {
     return (
       <main className="board-page">
-        <BoardHeader title={board.title} layout={board.layout} mockRole={mockRole} canEdit={false} />
+        <BoardHeader title={board.title} layout={board.layout} canEdit={false} />
         <div className="forbidden-card">
           <h2>접근 불가</h2>
           <p>이 보드에 접근할 권한이 없습니다.</p>
@@ -769,7 +767,6 @@ export default async function BoardPage({
         userRole={effectiveRole}
         isStudent={!!studentViewer}
         backHref={studentViewer ? "/student" : "/"}
-        mockRole={mockRole}
         canEdit={effectiveRole === "owner" || effectiveRole === "editor"}
         settingsSections={settingsSections}
       />
@@ -786,7 +783,6 @@ function BoardHeader({
   userRole,
   isStudent,
   backHref,
-  mockRole,
   canEdit,
   settingsSections,
 }: {
@@ -799,7 +795,6 @@ function BoardHeader({
   isStudent?: boolean;
   /** ← 버튼 이동 경로. 기본 "/"(교사 대시보드). 학생은 "/student" 로 전달. */
   backHref?: string;
-  mockRole: string | null;
   canEdit: boolean;
   settingsSections?: BoardSection[];
 }) {
@@ -837,7 +832,6 @@ function BoardHeader({
       </div>
       <div className="board-header-right">
         <AuthHeader />
-        {mockRole && <UserSwitcher currentRole={mockRole} />}
       </div>
     </header>
   );

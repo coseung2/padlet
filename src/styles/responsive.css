@@ -43,13 +43,6 @@
   .board-title {
     font-size: 20px;
   }
-  .user-switcher-btn {
-    padding: 5px 10px;
-    font-size: 12px;
-  }
-  .user-switcher-btn span:last-child {
-    display: none;
-  }
   .padlet-card {
     padding: 14px 16px 16px;
   }

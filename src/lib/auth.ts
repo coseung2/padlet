@@ -1,58 +1,29 @@
 /**
  * Unified auth helper.
  *
- * Priority:
- *   1. Real NextAuth session (Google OAuth) — takes precedence
- *   2. Mock auth via "as" cookie (dev-only, same as before)
- *
- * Both paths return the same shape so downstream code is unchanged.
+ * NextAuth(Google OAuth) session 만 유일한 교사 식별 경로.
+ * 2026-04-22 mock-auth 전면 제거 — `?as=owner|editor|viewer` 쿼리/쿠키로
+ * 임의 유저로 로그인하던 개발 fallback은 프로덕션에서 보안 리스크였고, 실제
+ * 교사 Google OAuth 로 개발 테스트가 가능해진 이후로 의미가 없어졌다.
  */
 import "server-only";
-import { cookies } from "next/headers";
 import { db } from "./db";
 import { auth } from "./auth-config";
-import { isMockRoleKey, type MockRoleKey } from "./roles";
-
-const MOCK_USERS: Record<MockRoleKey, string> = {
-  owner: "u_owner",
-  editor: "u_editor",
-  viewer: "u_viewer",
-};
 
 export async function getCurrentUser() {
-  // 1) Try real NextAuth session first
   const session = await auth();
-  if (session?.user?.id) {
-    const user = await db.user.findUnique({ where: { id: session.user.id } });
-    if (user) {
-      return { ...user, mockRole: null as string | null };
-    }
-  }
-
-  // 2) Fall back to mock auth via "as" cookie (dev only)
-  const cookieStore = await cookies();
-  const asRole = cookieStore.get("as")?.value;
-  // Production must never silently grant the mock owner identity to an
-  // unauthenticated visitor. Without this guard a student-only session
-  // (separate cookie) or a logged-out tab would be served as `u_owner`,
-  // exposing teacher boards. Dev keeps the default-owner fallback so the
-  // local workflow that hot-switches via UserSwitcher still works.
-  if (process.env.NODE_ENV === "production" && !isMockRoleKey(asRole)) {
+  if (!session?.user?.id) {
     throw new Error("Unauthenticated");
   }
-  const roleKey: MockRoleKey = isMockRoleKey(asRole) ? asRole : "owner";
-  const userId = MOCK_USERS[roleKey];
-  const user = await db.user.findUnique({ where: { id: userId } });
+  const user = await db.user.findUnique({ where: { id: session.user.id } });
   if (!user) {
-    throw new Error(
-      `Mock user "${userId}" not found. Did you run \`npm run seed\`?`
-    );
+    throw new Error("Unauthenticated");
   }
-  return { ...user, mockRole: roleKey as string | null };
+  return user;
 }
 
 /**
- * Check if the current request has a real (non-mock) authenticated session.
+ * Check if the current request has an authenticated session.
  */
 export async function isAuthenticated(): Promise<boolean> {
   const session = await auth();

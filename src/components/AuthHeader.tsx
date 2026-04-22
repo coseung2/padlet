@@ -5,7 +5,7 @@ import Link from "next/link";
 
 /**
  * Shows user info + logout button when authenticated via Google OAuth.
- * When using mock auth (no real session), shows nothing — the UserSwitcher handles that.
+ * Mock-auth 경로는 2026-04-22 제거됨.
  */
 export function AuthHeader() {
   const { data: session, status } = useSession();

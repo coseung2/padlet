@@ -67,11 +67,6 @@ export default function LoginPage() {
             </button>
           ))}
         </div>
-
-        <p className="login-mock-hint">
-          개발 모드: URL에 <code>?as=owner</code>, <code>?as=editor</code>,{" "}
-          <code>?as=viewer</code>를 추가하면 목 유저로 접속할 수 있습니다.
-        </p>
       </div>
     </main>
   );

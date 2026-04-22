@@ -3,7 +3,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { getCurrentTierAsync } from "@/lib/tier";
 import { Dashboard } from "@/components/Dashboard";
 import { TopNav } from "@/components/TopNav";
-import { UserSwitcher } from "@/components/UserSwitcher";
 import { redirect } from "next/navigation";
 
 // Auth-backed page — implicitly dynamic via cookies/session reads.
@@ -66,11 +65,6 @@ export default async function HomePage() {
               <h1 className="home-title">내 보드</h1>
               <p className="home-subtitle">{user.name}님의 보드</p>
             </div>
-            {user.mockRole && (
-              <div className="home-header-actions">
-                <UserSwitcher currentRole={user.mockRole} />
-              </div>
-            )}
           </div>
         </header>
         <Dashboard
