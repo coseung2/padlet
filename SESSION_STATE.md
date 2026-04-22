@@ -1,107 +1,126 @@
-# Session State — 2026-04-22 18:10 KST (update 2)
+# Session State — 2026-04-22 (evening, 4-commit pipeline)
 
 > 원격 세션에서 이어갈 때 **가장 먼저** 이 파일을 읽어 현재 상태를 파악한다.
 
-## 현재 HEAD: `3b7051b` — Vercel prod READY ✅
+## 현재 HEAD: `96a5d65` — Vercel prod 배포 중 (3/3 commit)
 
 배포 URL: `https://aura-board-app.vercel.app` (리전 icn1)
 
-## 오늘 세션 커밋 타임라인
+## 4-커밋 파이프라인 (2026-04-22 저녁)
 
-```
-3b7051b feat(vibe-arcade): 잠긴 게이트에서 교사 원클릭 "학급 아케이드 열기" 버튼
-7c20096 feat(llm): Ollama 로컬 테스트 provider 추가 (개발자 전용)
-21fb169 fix(billing-callback): useSearchParams Suspense boundary — build 실패 복구
-a1054a8 feat(teacher-settings): /teacher/settings 허브 페이지
-199f83b feat(billing): 빌링키 AES-256-GCM 암호화 저장
-ae5ecc4 docs(session): 이전 세션 상태 스냅샷 (본 파일 이전 버전)
-c574404 feat(llm+billing): 교사 LLM Key 저장 + Toss 정기결제 scaffold
-```
+| # | Hash | Phase | 내용 |
+|---|---|---|---|
+| 1 | `00c7515` | Phase 0 정리·기반 | LAYOUT_META single source + 4 소비처 import 전환 |
+| 2 | `92f53dd` | Phase 1+2 배치 | Board.updatedAt, vibe 모더레이션/설정, billing cron/refund/webhook, Pro async, ClassroomDetail dead code |
+| 3 | `96a5d65` | Phase 3 보안 | Upstash rate limit, postMessage origin, Slack 알림, 토큰 회전 admin, audit log, sandbox DNS 지시서 |
+| 4 | (다음) | Phase 4 문서 | SESSION_STATE 갱신 (이 파일) |
 
-c574404 ~ a1054a8 (4건)이 `useSearchParams` Suspense boundary 누락으로 prod build 실패. 21fb169에서 복구.
+## 동작하는 것 (배포 완료 시점 기준)
 
-## 현재 동작하는 것
+### 🎓 코딩 교실 (Vibe Arcade)
+- 교사가 보드 생성 후 "💻 코딩 교실 열기" 버튼으로 즉시 활성화
+- 📝 모더레이션 패널: 승인 대기/승인됨/거부됨/신고됨/숨김 탭별 관리 + 탭별 count
+- ⚙ 설정 패널: 쿼터·모더레이션 정책·리뷰 표시 옵션 교사가 직접 조정
+- 학생 프롬프트: 서버 프록시로 교사 저장 Claude/OpenAI/Gemini/Ollama 키 호출
+- 학생당 분당 30회 레이트리밋 (Upstash / in-memory fallback)
 
-### 1. 교사 LLM API Key 저장 (실동작)
-- **진입점 바뀜**: `/docs/ai-setup`에서 `/teacher/settings#llm`으로 이동
-  - `/docs/ai-setup` 하단은 "교사 설정에서 Key 저장" CTA 버튼만 남음
-- 지원 provider 4종: **Claude / ChatGPT / Gemini / Ollama**
-  - Ollama는 드롭다운 레이블 "🧪 Ollama (로컬 테스트 — 개발자 전용)"로만 노출 (공개 안내 문서엔 미포함)
-  - Ollama 선택 시 `baseUrl` + `modelId` 입력 필드 추가 노출
-- AES-256-GCM 암호화 저장, 저장 시 각 사 API에 테스트 호출로 검증
-- 학생이 vibe-arcade 보드 사용 시 서버 프록시로 해당 Key 호출
+### 💳 결제 (Toss Payments 빌링키)
+- `/billing` 페이지: 구독 상태 + Pro 월/연 결제 + 취소
+- `/billing/callback` → `/api/billing/confirm` → 빌링키 발급 + 첫 결제
+- 빌링키 AES-256-GCM 암호화 저장 (LLM_KEY_SECRET 파생)
+- **신규**: `/api/cron/billing-renew` (매일 UTC 18:00 자동 갱신)
+- **신규**: `/api/billing/refund` (전액/부분 환불 + 전액 시 즉시 free 다운그레이드)
+- **강화**: `/api/billing/webhook/toss` HMAC 서명 선택 검증 + timingSafeEqual
 
-### 2. 교사 설정 허브
-- `/teacher/settings` 신규 — 🤖 생성형 AI · 🎨 Canva · 💳 결제·구독 세 섹션
-- AuthHeader ⚙ 메뉴: "교사 설정" 헤더 + 세 sub-item 앵커 (#llm/#canva/#billing)
-- 보드 개설 시 별도 연결 없이 이 페이지에서 한 번만 저장
+### 🏫 교사 UI
+- `/teacher/settings` 허브 (🤖 AI / 🎨 Canva / 💳 결제 세 섹션)
+- `/classroom/[id]/boards` 독립 페이지 (연결된 보드 그리드 + picker + 🟢 새 활동 뱃지)
+- ClassroomNav 5탭 (학생/보드/역할/은행/매점)
+- 🟢 새 활동 뱃지가 이제 실제 `Board.updatedAt` 반영
 
-### 3. 결제 scaffold
-- `/billing` UI + `/billing/callback` + `/docs/billing-setup` (관리자용)
-- Toss Payments 빌링키 flow: checkout → confirm → cancel → webhook
-- **빌링키 AES-GCM 암호화 저장** (`src/lib/billing/billing-key-crypto.ts`, LLM_KEY_SECRET 파생키 공유)
-- `tier.ts`에 DB 구독 반영 `isProTierAsync` 추가 (sync variant는 기존 호환 유지)
-- 실결제 활성: `TOSS_CLIENT_KEY` + `TOSS_SECRET_KEY` + `TOSS_WEBHOOK_SECRET` 환경변수 설정 필요
+### 🔐 보안 하드닝
+- `AuditEvent` 테이블 + `logAudit()` 헬퍼 — billing refund, moderation, admin rotate 자동 기록
+- Slack 알림 (`SLACK_WEBHOOK_URL` 설정 시): webhook orphan, billing renew 실패, token rotation
+- `/api/admin/rotate-tokens` 4-scope: classroom 학생 세션 / OAuth refresh / Canva Connect
+- VibePlayModal postMessage origin 검증 (self + `NEXT_PUBLIC_VIBE_SANDBOX_ORIGIN` 만)
+- sandbox DNS 분리 수동 작업 지시서 (`tasks/2026-04-22-sandbox-dns/steps.md`)
 
-### 4. vibe-arcade 교사 게이트 열기
-- 보드 생성 직후 `VibeArcadeConfig.enabled = false` 잠금 상태
-- 교사 시점에 잠금 화면에 **"학급 아케이드 열기"** 버튼 노출
-- 클릭 → `PATCH /api/vibe/config { enabled: true }` → 즉시 게이트 해제
-- 사용자 실제 Gemini Key로 저장·검증 완료. 잠금 해제하고 테스트하면 됨
+## 필요한 Vercel 환경 변수
 
-## 배포 전 해야 할 환경 변수 (Vercel Production + Preview)
-
-| 키 | 용도 | 비고 |
+| 키 | 필요도 | 용도 |
 |---|---|---|
-| `LLM_KEY_SECRET` | 교사 API Key + 빌링키 암호화 마스터 | 32+자 랜덤. 없으면 AUTH_SECRET fallback |
-| `TOSS_CLIENT_KEY` | Toss 클라이언트 키 (ck_...) | 없으면 `/billing` 버튼 disable |
-| `TOSS_SECRET_KEY` | Toss 시크릿 키 (sk_...) | 서버 전용 |
-| `TOSS_WEBHOOK_SECRET` | 웹훅 쿼리 `?secret=` 값과 대조 | `/api/billing/webhook/toss` |
-| (선택) `CLAUDE_MODEL_ID` | 기본 `claude-sonnet-4-5` | |
-| (선택) `OPENAI_MODEL_ID` | 기본 `gpt-4o-mini` | |
-| (선택) `GEMINI_MODEL_ID` | 기본 `gemini-2.5-flash` | |
+| `AUTH_SECRET` | 필수 | NextAuth |
+| `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | 필수 | Google OAuth |
+| `DATABASE_URL` / `DIRECT_URL` | 필수 | Supabase |
+| `LLM_KEY_SECRET` | 권장 | LLM Key + 빌링키 암호화 마스터 (32+자 랜덤, 없으면 AUTH_SECRET fallback) |
+| `TOSS_CLIENT_KEY` | 결제 활성 | 없으면 `/billing` 버튼 disable |
+| `TOSS_SECRET_KEY` | 결제 활성 | 서버 전용 |
+| `TOSS_WEBHOOK_SECRET` | 결제 활성 | 웹훅 `?secret=` 쿼리 대조 |
+| `TOSS_WEBHOOK_SIGNING_SECRET` | 선택 | HMAC 서명 검증 (Toss 콘솔 설정 시) |
+| `CRON_SECRET` | 갱신 cron | Vercel Cron 호출 인증 |
+| `ADMIN_API_SECRET` | 토큰 회전 | `/api/admin/rotate-tokens` bearer |
+| `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | 레이트리밋 | 없으면 in-memory fallback |
+| `RL_FAIL_MODE` | 선택 | `close` = Upstash 장애 시 429 (기본 open) |
+| `SLACK_WEBHOOK_URL` | 선택 | 이상징후 알림. 없으면 noop |
+| `NEXT_PUBLIC_VIBE_SANDBOX_ORIGIN` | 선택 | sandbox 서브도메인 분리 후 |
+| `CLAUDE_MODEL_ID` / `OPENAI_MODEL_ID` / `GEMINI_MODEL_ID` | 선택 | 모델 override |
 
-## 남은 후속 작업 (우선순위 순)
+## 수동 작업 대기
 
-1. **정기결제 갱신 cron** — `/api/cron/billing-renew` 추가. `currentPeriodEnd ≤ now` 인 active 구독 스캔 → `chargeBillingKey` 재호출. 실패 시 status=past_due.
-2. **환불·부분취소 API** — Toss `/v1/payments/cancel`. scaffold에 미포함.
-3. **웹훅 HMAC 서명 검증** — 쿼리 secret 방식은 초기용. Toss가 서명 헤더 제공하면 교체.
-4. **Pro 기능 게이팅 DB 반영** — `CreateBreakoutBoardModal`의 `userTier` prop이 env 기반 sync 호출. `isProTierAsync`로 바꾸면 DB 구독 반영됨.
-5. **Canva Connect 연동 UI 마감** — `/teacher/settings#canva` 섹션에 뱃지/버튼은 있으나 연결 플로우 end-to-end 확인 필요.
-6. **Vibe Phase 3 (교사 모더레이션)** — 슬롯 그리드 클릭 시 교사 검토 모달. 현재 Studio만 연결.
-7. **vibe-arcade 설정 풀 UI** — 교사가 쿼터/리뷰 정책을 게이트 해제 후 조정할 수 있게. 지금은 PATCH API만 존재.
-8. **SEC-1~6** — Upstash 레이트리밋, Slack 이상징후 알림, PlayModal postMessage origin 검증, sandbox.aura-board.app DNS.
-9. **dead CSS/blocks 정리 (T10)** — `.classroom-nav-*`, `ClassroomDetail.tsx`의 `{false && ...}` 블록.
+1. 원격 브랜치 `feat/vibe-coding-arcade` 삭제 (destructive 승인 대기)
+2. `sandbox.aura-board.app` Vercel 도메인 추가 + DNS CNAME (tasks/2026-04-22-sandbox-dns/steps.md)
+3. Canva Connect end-to-end 검증 (본인 Canva 계정으로 /teacher/settings#canva)
+4. Toss Payments 프로덕션 키 발급 + Vercel env 추가 + 웹훅 등록 (/docs/billing-setup)
 
-## 사용자가 미완료로 남긴 지시
+## 다음에 할 수 있는 작업 (우선순위)
 
-- `origin/feat/vibe-coding-arcade` 원격 브랜치 삭제 (destructive, 명시적 승인 필요)
+### 즉시 가능 (코드 기반 모두 있음, 설정만 필요)
+- Toss 테스트 키로 첫 결제 플로우 end-to-end 검증 → 실키 전환
+- Upstash Redis 연결 → Vercel env 추가 → 레이트리밋 Redis 모드 전환
+- Slack incoming webhook 생성 → `SLACK_WEBHOOK_URL` 추가
+
+### 코드 추가 필요
+- iframe src에 `NEXT_PUBLIC_VIBE_SANDBOX_ORIGIN` 적용 (현재 postMessage origin만 준비됨)
+- `next.config.ts` 에 sandbox 라우트 `frame-ancestors` CSP 헤더
+- 더 많은 AuditEvent 커버리지 (board.delete, role.grant, student.add, classroom.delete 등)
+- `/api/admin/audit-events` 조회 엔드포인트 (관리자 UI용)
+
+### 중기
+- Vibe Phase 3 세부: 교사 모더레이션 패널에 미리보기 iframe 내장 (현재 새 탭)
+- 모더레이션 flagCount 임계 초과 자동 hidden 로직
+- 학생 `sessionVersion` 기반 쿠키 무효화 실제 경로 (현재 admin API만 있음)
+- Pro 구독 3일 만료 임박 알림 이메일
 
 ## 원격 재개 스니펫
 
 ```bash
-cd ~/padlet   # 원격 경로에 맞게
-git fetch origin
-git pull origin main --ff-only
+cd ~/padlet
+git fetch origin && git pull origin main --ff-only
 npx prisma generate
+npx prisma migrate deploy   # 20260422_board_updated_at + audit_event 2건
 npm run dev
 ```
 
 상태 확인:
 ```bash
-git log --oneline -3   # 최신이 3b7051b 여야 함
+git log --oneline -5   # 최신이 96a5d65 (또는 본 커밋)
 npx tsc --noEmit       # 0 errors
+npm run build          # prod build 성공
 ```
 
-## 세션 컨텍스트 메모
+## Next.js 16 App Router 주의사항
 
-- 사용자는 윈도우(본 세션)와 원격 우분투 CLI를 교대로 쓴다
-- 커밋 훅이 main 직접 커밋 차단 → feat 브랜치 생성 후 `git push origin feat/X:main` 패턴
-- 파괴적 작업 (force push, branch -D, 원격 브랜치 삭제)은 사용자 명시적 승인만
-- 주 언어는 한국어. 코멘트·커밋 메시지·UI 텍스트 전부 한글
-- **Next.js 16 App Router 주의점**: `useSearchParams()`는 반드시 `<Suspense>` 경계 안에서. 이거 놓치면 prod build만 실패하고 dev는 통과함 (c574404 사례)
+- `useSearchParams()` 는 반드시 `<Suspense>` 경계 안. 놓치면 dev는 통과하고 prod build만 실패 (c574404 사례)
+- 서버 컴포넌트에서 `await` 필요한 곳은 async 함수로. `isProTierAsync` 같은 variant를 제공
+- Prisma generate EPERM on Windows: 실행 중인 dev 서버가 DLL을 잡고 있으면 발생. node 프로세스 kill 후 재시도
 
-## 실 사용자 확인된 시나리오
+## 오늘 세션 통계
 
-- Gemini API Key 저장 → 검증 통과 → "연결됨" 뱃지 노출 (`/teacher/settings#llm`)
-- vibe-arcade 보드 생성하면 학급 아케이드 아직 잠긴 상태 — 교사가 "열기" 버튼 눌러야 함 (3b7051b로 버튼 추가됨)
+- **총 커밋**: 4건 (chore + feat batch + feat security + docs)
+- **추가 코드**: ~2,500줄 (신규 lib/components/routes)
+- **삭제 코드**: ~680줄 (dead JSX + CSS)
+- **새 Prisma 모델**: 1개 (AuditEvent)
+- **새 마이그레이션**: 2건 (board_updated_at + audit_event)
+- **새 API 라우트**: 4개 (cron/billing-renew, billing/refund, vibe/moderation, admin/rotate-tokens)
+- **수정 API 라우트**: 15개 (board touch + rate limit + audit hooks)
+- **새 UI 컴포넌트**: 3개 (TeacherModerationPanel, VibeSettingsPanel, ClassroomBoardsTab)
