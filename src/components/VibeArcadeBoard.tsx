@@ -133,6 +133,7 @@ export function VibeArcadeBoard(props: VibeArcadeBoardProps) {
   }
 
   if (!config.enabled) {
+    const isTeacherGate = props.viewerKind === "teacher";
     return (
       <section className="va-gate-off" role="status">
         <div className="va-gate-off-inner">
@@ -140,10 +141,27 @@ export function VibeArcadeBoard(props: VibeArcadeBoardProps) {
             🔒
           </span>
           <h2>학급 아케이드가 아직 열리지 않았어요</h2>
-          <p>
-            선생님이 보드 설정에서 <strong>학급 아케이드</strong>를 켜면 여기에서 친구들의 작품을
-            만들고 플레이할 수 있어요.
-          </p>
+          {isTeacherGate ? (
+            <>
+              <p>
+                지금 열면 학생들이 Claude/ChatGPT/Gemini로 카드·게임을 만들고 공유할 수
+                있어요. 저장된 AI Key와 학급 쿼터는{" "}
+                <a href="/docs/ai-setup" className="va-gate-off-link">
+                  AI 연결 페이지
+                </a>
+                에서 조정할 수 있어요.
+              </p>
+              <EnableButton
+                boardId={props.boardId}
+                onEnabled={(next) => setConfig(next)}
+              />
+            </>
+          ) : (
+            <p>
+              선생님이 보드 설정에서 <strong>학급 아케이드</strong>를 켜면 여기에서 친구들의 작품을
+              만들고 플레이할 수 있어요.
+            </p>
+          )}
         </div>
       </section>
     );
@@ -283,6 +301,53 @@ export function VibeArcadeBoard(props: VibeArcadeBoardProps) {
         />
       )}
     </section>
+  );
+}
+
+function EnableButton({
+  boardId,
+  onEnabled,
+}: {
+  boardId: string;
+  onEnabled: (config: VibeArcadeConfig) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function handleClick() {
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/vibe/config?boardId=${boardId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: true }),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`HTTP ${res.status}${text ? `: ${text.slice(0, 120)}` : ""}`);
+      }
+      const cfg = (await res.json()) as VibeArcadeConfig;
+      onEnabled(cfg);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="va-gate-off-actions">
+      <button
+        type="button"
+        className="va-gate-off-enable"
+        onClick={handleClick}
+        disabled={busy}
+      >
+        {busy ? "여는 중…" : "학급 아케이드 열기"}
+      </button>
+      {err && <p className="va-gate-off-error">열기 실패: {err}</p>}
+    </div>
   );
 }
 
