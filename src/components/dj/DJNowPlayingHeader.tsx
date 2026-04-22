@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { CardData } from "../DraggableCard";
 import { useDJPlayer } from "./DJPlayerProvider";
 
@@ -21,9 +21,18 @@ function extractVideoId(url: string | null | undefined): string | null {
   return null;
 }
 
+/**
+ * NOW PLAYING 카드.
+ * - `hostRef` 가 달린 썸네일 자리를 provider 에 host 로 등록 → 재생 중이면
+ *   iframe 이 그 rect 위에 올라앉음 (프로바이더는 iframe 을 re-parent 하지
+ *   않고 fixed position 으로 덮음). 페이지 이탈 시 등록 해제 → PiP 로 전환.
+ * - 썸네일 `<img>` 는 iframe 이 덮는 영역과 동일 — iframe 이 불투명해서
+ *   시각적으로 숨겨지고, 재생 중이 아닐 땐 썸네일이 자연스럽게 보임.
+ */
 export function DJNowPlayingHeader({ card, canControl, onNext }: Props) {
-  const { activeCard, playing, play, toggle, setExpanded, setAdvanceHandler } =
+  const { activeCard, playing, play, toggle, registerHost, setAdvanceHandler } =
     useDJPlayer();
+  const hostRef = useRef<HTMLDivElement | null>(null);
 
   const submitter =
     card.externalAuthorName ??
@@ -33,17 +42,15 @@ export function DJNowPlayingHeader({ card, canControl, onNext }: Props) {
   const videoId = extractVideoId(card.videoUrl ?? card.linkUrl);
   const isActive = activeCard?.id === card.id;
 
-  // Switch the global player to "prominent" mode while a DJ board is
-  // mounted. Compact mini-player on other pages.
+  // DJ 보드가 마운트된 동안 썸네일 자리를 host 로 등록. 언마운트 시 해제.
   useEffect(() => {
-    setExpanded(true);
+    registerHost(hostRef.current);
     return () => {
-      setExpanded(false);
+      registerHost(null);
     };
-  }, [setExpanded]);
+  }, [registerHost]);
 
-  // Wire DJ board's onNext to the provider so auto-advance works from the
-  // mini player (and survives tab backgrounding).
+  // 다음 곡 advance 핸들러 provider 에 위임 — 자동 advance + PiP next 버튼.
   useEffect(() => {
     setAdvanceHandler(() => onNext());
     return () => {
@@ -51,8 +58,7 @@ export function DJNowPlayingHeader({ card, canControl, onNext }: Props) {
     };
   }, [onNext, setAdvanceHandler]);
 
-  // Auto-load the new track when nowPlaying changes while something else
-  // was already playing (i.e., after end-of-track auto-advance).
+  // NOW PLAYING 변경 시 자동 로드 (auto-advance 이후).
   useEffect(() => {
     if (!activeCard) return;
     if (activeCard.id === card.id) return;
@@ -88,15 +94,24 @@ export function DJNowPlayingHeader({ card, canControl, onNext }: Props) {
     >
       <div className="dj-nowplaying-label">▶ NOW PLAYING</div>
       <div className="dj-nowplaying-body">
-        {card.linkImage && (
-          <img
-            className="dj-thumb dj-thumb-lg"
-            src={card.linkImage}
-            width={240}
-            height={135}
-            alt=""
-          />
-        )}
+        {/* host 자리 — iframe 이 fixed position 으로 이 rect 위에 덮임.
+            재생 중이 아닐 때는 썸네일 이미지가 그대로 보이고, 재생 시작
+            하면 iframe 이 같은 위치에 올라앉음. */}
+        <div ref={hostRef} className="dj-thumb-lg dj-nowplaying-host">
+          {card.linkImage ? (
+            <img
+              className="dj-nowplaying-host-img"
+              src={card.linkImage}
+              width={240}
+              height={135}
+              alt=""
+            />
+          ) : (
+            <div className="dj-nowplaying-host-fallback" aria-hidden="true">
+              ♪
+            </div>
+          )}
+        </div>
         <div className="dj-nowplaying-info">
           <div className="dj-track-title">{card.title}</div>
           <div className="dj-track-meta">

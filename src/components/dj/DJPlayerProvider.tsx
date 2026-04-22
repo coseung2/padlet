@@ -1,20 +1,19 @@
 "use client";
 
 /**
- * Global YouTube playback provider.
+ * Global YouTube playback provider — 2026-04-22 docked+PiP 리팩터.
  *
- * A single iframe lives in the provider's own fixed container and NEVER
- * moves — no React portals, no DOM re-parenting. The previous portal-based
- * approach lost the iframe when a DJ board unmounted (the portal target
- * died with its component tree). Anchoring the iframe at root level means
- * playback survives every navigation.
+ * 핵심 아이디어: iframe 은 root 에 단 하나 살아있고 **시각적으로만 이동**.
+ * 호스트 엘리먼트(예: DJ 보드의 NOW PLAYING 썸네일 자리) 가 등록되면
+ * 그 DOM 의 getBoundingClientRect 를 tracking 하여 fixed 포지션으로
+ * 덮어씌움. 호스트가 없으면 우하단 PiP 로 floating.
  *
- * The visual trade-off: instead of rendering inside the DJ board's NOW
- * PLAYING card, the player lives in a fixed container that switches size /
- * position based on whether a DJ board is active ("prominent" bottom-right
- * vs "compact" top-right). The DJ board's NOW PLAYING section still shows
- * track thumbnail + title + controls — it's the "info card" half, while the
- * provider owns the "playback" half.
+ * iframe 이 실제로 re-parent 되는 게 아니라 그냥 CSS 로 옮겨지므로
+ * YouTube 재생 상태는 모든 navigation / 호스트 변경에 생존한다.
+ *
+ * PiP 모드 추가 기능:
+ *  - 헤더 잡고 드래그로 이동 (pipPos 상태 → localStorage 영구 저장)
+ *  - 우하단 핸들 드래그로 리사이즈
  */
 
 import {
@@ -39,9 +38,12 @@ type Ctx = {
   play: (card: PlayerCard) => void;
   stop: () => void;
   toggle: () => void;
-  /** Toggle "prominent" mode on. DJ boards call this on mount. */
-  setExpanded: (on: boolean) => void;
-  /** Register a next-track handler. DJ boards pass their onNext. */
+  /**
+   * Register a "host" DOM element — the player iframe will be visually
+   * positioned over this element while it is mounted. Passing null moves
+   * the iframe back into PiP floating mode.
+   */
+  registerHost: (el: HTMLElement | null) => void;
   setAdvanceHandler: (fn: (() => Promise<void> | void) | null) => void;
 };
 
@@ -73,7 +75,7 @@ declare global {
             onReady?: (e: { target: YTPlayer }) => void;
             onStateChange?: (e: YTState) => void;
           };
-        }
+        },
       ) => YTPlayer;
     };
     onYouTubeIframeAPIReady?: () => void;
@@ -101,13 +103,56 @@ function loadYouTubeAPI(): Promise<void> {
 }
 
 const MOUNT_ID = "dj-global-yt-player";
+const PIP_STORAGE_KEY = "djPipPos";
+const DEFAULT_PIP = { x: -1, y: -1, w: 360, h: 260 }; // -1 = "anchor to right/bottom"
+const MIN_W = 240;
+const MIN_H = 180;
+
+type PipPos = { x: number; y: number; w: number; h: number };
+
+function loadPipPos(): PipPos {
+  if (typeof window === "undefined") return DEFAULT_PIP;
+  try {
+    const raw = localStorage.getItem(PIP_STORAGE_KEY);
+    if (!raw) return DEFAULT_PIP;
+    const parsed = JSON.parse(raw) as Partial<PipPos>;
+    return {
+      x: typeof parsed.x === "number" ? parsed.x : DEFAULT_PIP.x,
+      y: typeof parsed.y === "number" ? parsed.y : DEFAULT_PIP.y,
+      w: Math.max(MIN_W, typeof parsed.w === "number" ? parsed.w : DEFAULT_PIP.w),
+      h: Math.max(MIN_H, typeof parsed.h === "number" ? parsed.h : DEFAULT_PIP.h),
+    };
+  } catch {
+    return DEFAULT_PIP;
+  }
+}
+
+function savePipPos(p: PipPos) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(PIP_STORAGE_KEY, JSON.stringify(p));
+  } catch {
+    // quota / disabled — ignore
+  }
+}
 
 export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
   const [activeCard, setActiveCard] = useState<PlayerCard | null>(null);
   const [playing, setPlaying] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [hostEl, setHostEl] = useState<HTMLElement | null>(null);
+  const [hostRect, setHostRect] = useState<DOMRect | null>(null);
+  const [pipPos, setPipPos] = useState<PipPos>(DEFAULT_PIP);
   const advanceRef = useRef<(() => Promise<void> | void) | null>(null);
   const playerRef = useRef<YTPlayer | null>(null);
+
+  // PiP 위치 — mount 시 localStorage 로드 (SSR 안전).
+  useEffect(() => {
+    setPipPos(loadPipPos());
+  }, []);
+
+  useEffect(() => {
+    savePipPos(pipPos);
+  }, [pipPos]);
 
   const play = useCallback((card: PlayerCard) => {
     setActiveCard(card);
@@ -142,14 +187,41 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [playing]);
 
+  const registerHost = useCallback((el: HTMLElement | null) => {
+    setHostEl(el);
+  }, []);
+
   const setAdvanceHandler = useCallback(
     (fn: (() => Promise<void> | void) | null) => {
       advanceRef.current = fn;
     },
-    []
+    [],
   );
 
-  // Attach / re-attach YT.Player when activeCard.videoId changes.
+  // Host rect 추적 — ResizeObserver + window resize + scroll. 모든 이벤트에
+  // 대해 최신 getBoundingClientRect 를 state 로 push.
+  useEffect(() => {
+    if (!hostEl) {
+      setHostRect(null);
+      return;
+    }
+    function update() {
+      if (hostEl) setHostRect(hostEl.getBoundingClientRect());
+    }
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(hostEl);
+    window.addEventListener("resize", update);
+    // capture:true — 내부 스크롤 컨테이너 이동도 잡기 위해.
+    window.addEventListener("scroll", update, true);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [hostEl]);
+
+  // YT.Player 생성 — activeCard.videoId 변경 시 재부착.
   useEffect(() => {
     if (!activeCard) return;
     let cancelled = false;
@@ -173,7 +245,6 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
           },
           onStateChange: (e) => {
             if (e.data === 0) {
-              // Ended → advance the DJ board queue if still mounted.
               const advance = advanceRef.current;
               if (advance) {
                 Promise.resolve(advance()).catch(() => {});
@@ -194,10 +265,7 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
     };
   }, [activeCard, stop]);
 
-  // Media Session API — lets the OS treat this page as a playing-media app.
-  // Mobile browsers will usually allow background audio + show lock-screen
-  // controls only when metadata + action handlers are set. No-op on browsers
-  // without support.
+  // Media Session — lock-screen/OS 컨트롤.
   useEffect(() => {
     if (typeof navigator === "undefined") return;
     if (!("mediaSession" in navigator)) return;
@@ -253,11 +321,8 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
     for (const [action, fn] of handlers) {
       try {
         ms.setActionHandler(action, fn);
-      } catch {
-        // unsupported action on this browser — skip
-      }
+      } catch {}
     }
-
     return () => {
       for (const [action] of handlers) {
         try {
@@ -273,68 +338,174 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
     navigator.mediaSession.playbackState = playing ? "playing" : "paused";
   }, [playing]);
 
+  // PiP 드래그 — 헤더 onMouseDown 에서 트리거. 전역 mousemove/up 등록.
+  const startDrag = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (hostEl) return; // docked 상태에선 드래그 불가
+      e.preventDefault();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const origPos = resolvePipPos(pipPos);
+      function onMove(ev: PointerEvent) {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const nx = Math.max(0, Math.min(vw - origPos.w, origPos.x + ev.clientX - startX));
+        const ny = Math.max(0, Math.min(vh - origPos.h, origPos.y + ev.clientY - startY));
+        setPipPos((p) => ({ ...p, x: nx, y: ny }));
+      }
+      function onUp() {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+      }
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [hostEl, pipPos],
+  );
+
+  // PiP 리사이즈 — 우하단 핸들 mousedown.
+  const startResize = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (hostEl) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const orig = resolvePipPos(pipPos);
+      function onMove(ev: PointerEvent) {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const maxW = vw - orig.x;
+        const maxH = vh - orig.y;
+        const nw = Math.max(MIN_W, Math.min(maxW, orig.w + ev.clientX - startX));
+        const nh = Math.max(MIN_H, Math.min(maxH, orig.h + ev.clientY - startY));
+        setPipPos((p) => ({ ...p, w: nw, h: nh, x: orig.x, y: orig.y }));
+      }
+      function onUp() {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+      }
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [hostEl, pipPos],
+  );
+
   const value: Ctx = {
     activeCard,
     playing,
     play,
     stop,
     toggle,
-    setExpanded,
+    registerHost,
     setAdvanceHandler,
   };
 
   const visible = !!activeCard;
+  const isDocked = !!hostEl && !!hostRect;
+
+  // Container style — docked 모드는 hostRect, PiP 모드는 pipPos.
+  let containerStyle: React.CSSProperties = { display: "none" };
+  if (visible) {
+    if (isDocked && hostRect) {
+      containerStyle = {
+        position: "fixed",
+        left: hostRect.left,
+        top: hostRect.top,
+        width: hostRect.width,
+        height: hostRect.height,
+        borderRadius: 8,
+        background: "#000",
+        boxShadow: "none",
+      };
+    } else {
+      const resolved = resolvePipPos(pipPos);
+      containerStyle = {
+        position: "fixed",
+        left: resolved.x,
+        top: resolved.y,
+        width: resolved.w,
+        height: resolved.h,
+      };
+    }
+  }
+
   const containerClass = [
     "dj-mini-player",
     visible ? "is-visible" : "is-hidden",
-    expanded ? "is-expanded" : "is-compact",
+    isDocked ? "is-docked" : "is-pip",
   ].join(" ");
 
   return (
     <DJPlayerContext.Provider value={value}>
       {children}
-      <div className={containerClass} aria-hidden={!visible}>
+      <div className={containerClass} style={containerStyle} aria-hidden={!visible}>
         {visible && (
           <>
             <div className="dj-mini-body">
               <div id={MOUNT_ID} className="dj-mini-iframe" />
             </div>
-            <div className="dj-mini-header">
-              <div className="dj-mini-title" title={activeCard?.title}>
-                {activeCard?.title}
-              </div>
-              <div className="dj-mini-actions">
-                <button
-                  type="button"
-                  className="dj-mini-btn"
-                  onClick={toggle}
-                  aria-label={playing ? "일시정지" : "재생"}
-                >
-                  {playing ? "❚❚" : "▶"}
-                </button>
-                <button
-                  type="button"
-                  className="dj-mini-btn"
-                  onClick={() => advanceRef.current?.()}
-                  aria-label="다음 곡"
-                  disabled={!advanceRef.current}
-                  style={{ opacity: advanceRef.current ? 1 : 0.4 }}
-                >
-                  ⏭
-                </button>
-                <button
-                  type="button"
-                  className="dj-mini-btn dj-mini-close"
-                  onClick={stop}
-                  aria-label="닫기"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
+            {!isDocked && (
+              <>
+                <div className="dj-mini-header" onPointerDown={startDrag}>
+                  <div className="dj-mini-drag-hint" aria-hidden="true">
+                    ⋮⋮
+                  </div>
+                  <div className="dj-mini-title" title={activeCard?.title}>
+                    {activeCard?.title}
+                  </div>
+                  <div className="dj-mini-actions">
+                    <button
+                      type="button"
+                      className="dj-mini-btn"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={toggle}
+                      aria-label={playing ? "일시정지" : "재생"}
+                    >
+                      {playing ? "❚❚" : "▶"}
+                    </button>
+                    <button
+                      type="button"
+                      className="dj-mini-btn"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={() => advanceRef.current?.()}
+                      aria-label="다음 곡"
+                      disabled={!advanceRef.current}
+                      style={{ opacity: advanceRef.current ? 1 : 0.4 }}
+                    >
+                      ⏭
+                    </button>
+                    <button
+                      type="button"
+                      className="dj-mini-btn dj-mini-close"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={stop}
+                      aria-label="닫기"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+                <div
+                  className="dj-mini-resize"
+                  onPointerDown={startResize}
+                  aria-hidden="true"
+                  title="크기 조절"
+                />
+              </>
+            )}
           </>
         )}
       </div>
     </DJPlayerContext.Provider>
   );
+}
+
+/** DEFAULT_PIP 의 -1 sentinel 을 실제 뷰포트 기준 "우하단 기본 위치" 로 해석. */
+function resolvePipPos(p: PipPos): PipPos {
+  const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+  const x = p.x < 0 ? Math.max(0, vw - p.w - 20) : p.x;
+  const y = p.y < 0 ? Math.max(0, vh - p.h - 20) : p.y;
+  return { x, y, w: p.w, h: p.h };
 }
