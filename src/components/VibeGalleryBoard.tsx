@@ -66,7 +66,7 @@ export function VibeGalleryBoard(props: VibeGalleryBoardProps) {
     <section className="va-root vg-root">
       <header className="va-header">
         <div>
-          <h1 className="va-title">🖼️ 바이브 갤러리</h1>
+          <h1 className="va-title">🖼️ 코딩 갤러리</h1>
           <p className="va-subtitle">학급에서 승인된 바이브 프로젝트를 모아 봐요</p>
         </div>
       </header>
@@ -85,7 +85,7 @@ export function VibeGalleryBoard(props: VibeGalleryBoardProps) {
         <div className="va-empty">
           <p>아직 전시된 작품이 없어요.</p>
           <p className="vg-empty-hint">
-            학생이 <strong>학급 아케이드</strong>에서 만들어 선생님이 승인하면 여기에 올라옵니다.
+            학생이 <strong>코딩 교실</strong>에서 만들어 선생님이 승인하면 여기에 올라옵니다.
           </p>
         </div>
       ) : (

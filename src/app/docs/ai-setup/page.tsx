@@ -5,7 +5,7 @@ export const metadata = {
 };
 
 // 교사가 본인이 쓰는 생성형 AI(제미나이/ChatGPT/Claude)의 API Key를
-// Aura-board에 연결해 **학급 아케이드**의 바이브 코딩 보드에서 쓰도록 안내.
+// Aura-board에 연결해 **코딩 교실**의 바이브 코딩 보드에서 쓰도록 안내.
 // 실제 연결 폼·저장 로직은 후속(teacher API Key 암호화 저장소 예정) —
 // 본 페이지는 "발급 방법"만 우선 안내. 2026-04-22.
 
@@ -18,7 +18,7 @@ export default function AiSetupPage() {
         </Link>
         <h1 className="docs-title">생성형 AI 연결하기</h1>
         <p className="docs-subtitle">
-          교사가 보유한 AI API Key를 연결하면 <strong>학급 아케이드</strong>의
+          교사가 보유한 AI API Key를 연결하면 <strong>코딩 교실</strong>의
           바이브 코딩 보드에서 학생들이 이 Key로 AI와 대화해 게임·퀴즈를
           만들게 됩니다. 학생 개인이 별도 가입할 필요 없이 교사 한 명의 쿼터로
           운영되는 구조입니다.
@@ -47,7 +47,7 @@ export default function AiSetupPage() {
         <section className="docs-section">
           <h2 className="docs-h2">1. ✨ Claude (Anthropic) — 추천</h2>
           <p className="docs-p">
-            코드 생성과 한국어 품질이 가장 안정적이에요. 학급 아케이드의
+            코드 생성과 한국어 품질이 가장 안정적이에요. 코딩 교실의
             기본 모델(claude-sonnet)과 정합이 맞아 별도 프롬프트 튜닝이 필요
             없습니다.
           </p>
@@ -191,8 +191,8 @@ export default function AiSetupPage() {
           <h2 className="docs-h2">Key 저장</h2>
           <p className="docs-p">
             발급한 Key는 <strong>교사 설정</strong> 페이지에서 한 번 저장하면
-            해당 계정의 모든 <strong>학급 아케이드</strong>·
-            <strong>바이브 갤러리</strong> 보드에 자동 적용됩니다. 보드별로
+            해당 계정의 모든 <strong>코딩 교실</strong>·
+            <strong>코딩 갤러리</strong> 보드에 자동 적용됩니다. 보드별로
             다시 연결할 필요는 없습니다.
           </p>
           <Link href="/teacher/settings#llm" className="docs-cta-btn">

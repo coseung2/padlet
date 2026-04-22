@@ -11,7 +11,6 @@ type Tab = {
 
 const TABS: Tab[] = [
   { key: "students", label: "학생 명부", emoji: "👥" },
-  { key: "parent-access", label: "학부모 연결", emoji: "👪" },
   { key: "boards", label: "학급 보드", emoji: "📋" },
   { key: "roles", label: "학급 역할", emoji: "🎖️" },
   { key: "bank", label: "은행", emoji: "🏦" },

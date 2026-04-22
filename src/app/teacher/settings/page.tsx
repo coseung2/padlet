@@ -39,10 +39,11 @@ export default async function TeacherSettingsPage() {
             </Link>
           </div>
           <p className="docs-p">
-            교사가 보유한 Claude/ChatGPT/Gemini API Key를 등록하면 <strong>학급
-            아케이드</strong>의 바이브 코딩 보드에서 학생들이 이 Key로 AI와
-            대화해 게임·퀴즈를 만듭니다. 보드 생성 시 별도 연결 과정은 없고,
-            여기서 한 번 저장하면 해당 교사의 모든 아케이드 보드에 적용됩니다.
+            교사가 보유한 Claude/ChatGPT/Gemini API Key를 등록하면{" "}
+            <strong>코딩 교실</strong>의 바이브 코딩 보드에서 학생들이 이 Key로
+            AI와 대화해 게임·퀴즈를 만듭니다. 보드 생성 시 별도 연결 과정은
+            없고, 여기서 한 번 저장하면 해당 교사의 모든 코딩 교실 보드에
+            적용됩니다.
           </p>
           <LlmKeyForm />
         </section>

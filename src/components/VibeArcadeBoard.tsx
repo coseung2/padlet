@@ -140,7 +140,7 @@ export function VibeArcadeBoard(props: VibeArcadeBoardProps) {
           <span className="va-gate-off-icon" aria-hidden>
             🔒
           </span>
-          <h2>학급 아케이드가 아직 열리지 않았어요</h2>
+          <h2>코딩 교실가 아직 열리지 않았어요</h2>
           {isTeacherGate ? (
             <>
               <p>
@@ -158,7 +158,7 @@ export function VibeArcadeBoard(props: VibeArcadeBoardProps) {
             </>
           ) : (
             <p>
-              선생님이 보드 설정에서 <strong>학급 아케이드</strong>를 켜면 여기에서 친구들의 작품을
+              선생님이 보드 설정에서 <strong>코딩 교실</strong>를 켜면 여기에서 친구들의 작품을
               만들고 플레이할 수 있어요.
             </p>
           )}
@@ -173,7 +173,7 @@ export function VibeArcadeBoard(props: VibeArcadeBoardProps) {
     <section className="va-root">
       <header className="va-header">
         <div>
-          <h1 className="va-title">🎮 학급 아케이드</h1>
+          <h1 className="va-title">💻 코딩 교실</h1>
           <p className="va-subtitle">
             {isTeacher
               ? "학급 학생들의 진행 상황과 승인 대기를 한 화면에 모아봤어요."
@@ -344,7 +344,7 @@ function EnableButton({
         onClick={handleClick}
         disabled={busy}
       >
-        {busy ? "여는 중…" : "학급 아케이드 열기"}
+        {busy ? "여는 중…" : "코딩 교실 열기"}
       </button>
       {err && <p className="va-gate-off-error">열기 실패: {err}</p>}
     </div>

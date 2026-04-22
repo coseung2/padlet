@@ -5,6 +5,27 @@
      tasks/2026-04-09-initial-padlet-app/phase5/rejected/
    ===================================================== */
 
+/* Twemoji — TwemojiRoot가 <img class="emoji">로 교체한 이모지.
+   폰트 높이와 동일하게 맞추고 인라인 플로우 안정화. */
+img.emoji {
+  height: 1em;
+  width: 1em;
+  margin: 0 0.05em 0 0.1em;
+  vertical-align: -0.1em;
+  display: inline-block;
+}
+
+.board-grid-emoji img.emoji,
+.layout-option-emoji img.emoji,
+.layout-grid-option-emoji img.emoji {
+  /* 보드 카드/피커에선 이모지가 타이포그래피의 일부가 아니라
+     독립된 아이콘이므로 더 크게 노출. */
+  height: 1.6em;
+  width: 1.6em;
+  margin: 0;
+  vertical-align: middle;
+}
+
 :root {
   /* Colors — Warm neutral palette (Notion DESIGN.md) */
   --color-bg: #f6f5f4;

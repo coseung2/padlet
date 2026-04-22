@@ -12,7 +12,7 @@ export default function BillingPage() {
         <Link href="/" className="docs-back">← 대시보드로</Link>
         <h1 className="docs-title">결제·구독</h1>
         <p className="docs-subtitle">
-          Aura-board Pro는 모둠 학습·학급 아케이드 등 부가 기능을 풀 해제합니다.
+          Aura-board Pro는 모둠 학습·코딩 교실 등 부가 기능을 풀 해제합니다.
           카드 정보는 Toss Payments에 직접 보관되며 Aura-board 서버에는 빌링키만
           저장됩니다.
         </p>

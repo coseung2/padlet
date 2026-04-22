@@ -32,9 +32,16 @@ const LAYOUT_LABEL: Record<string, string> = {
   freeform: "자유 배치",
   grid: "그리드",
   stream: "스트림",
-  columns: "칼럼",
+  columns: "주제별 보드",
   assignment: "과제 배부",
   quiz: "퀴즈",
+  assessment: "수행평가",
+  "dj-queue": "DJ 큐",
+  "vibe-arcade": "코딩 교실",
+  "vibe-gallery": "코딩 갤러리",
+  "plant-roadmap": "식물 관찰",
+  drawing: "그림보드",
+  breakout: "모둠 학습",
 };
 
 export function StudentDashboard({ studentName, classroomName, boards, duties }: Props) {

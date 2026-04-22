@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AuthProvider } from "@/components/AuthProvider";
 import { DJPlayerProvider } from "@/components/dj/DJPlayerProvider";
+import { TwemojiRoot } from "@/components/TwemojiRoot";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -20,6 +21,7 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body>
+        <TwemojiRoot />
         <AuthProvider>
           <DJPlayerProvider>{children}</DJPlayerProvider>
         </AuthProvider>

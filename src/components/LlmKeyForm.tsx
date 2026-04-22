@@ -89,7 +89,7 @@ export function LlmKeyForm() {
         setMsg(
           provider === "ollama"
             ? "저장 완료. Ollama 엔드포인트 응답 확인됐습니다."
-            : "저장 완료. 학급 아케이드 보드에서 바로 사용할 수 있습니다.",
+            : "저장 완료. 코딩 교실 보드에서 바로 사용할 수 있습니다.",
         );
         setApiKey("");
       } else {
@@ -111,7 +111,7 @@ export function LlmKeyForm() {
   }
 
   async function handleDelete() {
-    if (!confirm("저장된 API Key를 삭제하시겠어요? 학급 아케이드는 새 Key를 저장하기 전까지 사용할 수 없어요.")) return;
+    if (!confirm("저장된 API Key를 삭제하시겠어요? 코딩 교실는 새 Key를 저장하기 전까지 사용할 수 없어요.")) return;
     setBusy(true);
     setMsg(null);
     try {
