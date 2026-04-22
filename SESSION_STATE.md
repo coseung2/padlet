@@ -67,10 +67,19 @@
 
 ## 수동 작업 대기
 
-1. 원격 브랜치 `feat/vibe-coding-arcade` 삭제 (destructive 승인 대기)
+1. ~~원격 브랜치 `feat/vibe-coding-arcade` 삭제~~ → 완료
 2. `sandbox.aura-board.app` Vercel 도메인 추가 + DNS CNAME (tasks/2026-04-22-sandbox-dns/steps.md)
 3. Canva Connect end-to-end 검증 (본인 Canva 계정으로 /teacher/settings#canva)
 4. Toss Payments 프로덕션 키 발급 + Vercel env 추가 + 웹훅 등록 (/docs/billing-setup)
+
+## ⚠️ 중대 기술 부채 (별도 task 착수 필요)
+
+- **역할 모델 완전 제거** — `tasks/2026-04-22-role-model-full-cleanup/README.md`
+  · 레거시 `owner/editor/viewer` 가 42개 파일·DB 컬럼에 잔존
+  · 새 identity 모델(`teacher/student/parent`)이 `card-permissions.ts`
+    + `identity.ts` 로 병존 중
+  · 본 세션에서는 학생 뱃지 `· viewer` 숨김(옵션 A)만 임시 적용
+  · 전면 제거는 Phase 1-4 단계 구성. 예상 수 시간 ~ 하루
 
 ## 다음에 할 수 있는 작업 (우선순위)
 

@@ -133,6 +133,32 @@ export function VibeArcadeBoard(props: VibeArcadeBoardProps) {
   }, [config?.enabled, tab, loadSlots, loadCatalog]);
 
   if (!config) {
+    if (error) {
+      return (
+        <div className="va-error" role="alert">
+          코딩 교실을 불러오지 못했어요: {error}
+          <button
+            type="button"
+            onClick={() => {
+              setError(null);
+              // config fetch 다시 시도 — useEffect에 종속된 boardId로 강제 재호출.
+              void (async () => {
+                try {
+                  const res = await fetch(`/api/vibe/config?boardId=${props.boardId}`);
+                  if (!res.ok) throw new Error(`config ${res.status}`);
+                  const cfg = (await res.json()) as VibeArcadeConfig;
+                  setConfig(cfg);
+                } catch (e) {
+                  setError((e as Error).message);
+                }
+              })();
+            }}
+          >
+            재시도
+          </button>
+        </div>
+      );
+    }
     return <div className="va-loading">불러오는 중…</div>;
   }
 

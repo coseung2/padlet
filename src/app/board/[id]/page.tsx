@@ -767,6 +767,8 @@ export default async function BoardPage({
         layout={board.layout}
         userName={effectiveUserName}
         userRole={effectiveRole}
+        isStudent={!!studentViewer}
+        backHref={studentViewer ? "/student" : "/"}
         mockRole={mockRole}
         canEdit={effectiveRole === "owner" || effectiveRole === "editor"}
         settingsSections={settingsSections}
@@ -782,6 +784,8 @@ function BoardHeader({
   layout,
   userName,
   userRole,
+  isStudent,
+  backHref,
   mockRole,
   canEdit,
   settingsSections,
@@ -791,6 +795,10 @@ function BoardHeader({
   layout: string;
   userName?: string;
   userRole?: string;
+  /** Student identity 로 접근 중이면 true — 뱃지에서 leaked legacy role 숨김. */
+  isStudent?: boolean;
+  /** ← 버튼 이동 경로. 기본 "/"(교사 대시보드). 학생은 "/student" 로 전달. */
+  backHref?: string;
   mockRole: string | null;
   canEdit: boolean;
   settingsSections?: BoardSection[];
@@ -798,7 +806,11 @@ function BoardHeader({
   return (
     <header className="board-header">
       <div className="board-header-left">
-        <Link href="/" className="board-back-link" aria-label="보드 목록으로">
+        <Link
+          href={backHref ?? "/"}
+          className="board-back-link"
+          aria-label="보드 목록으로"
+        >
           ←
         </Link>
         {boardId ? (
@@ -814,10 +826,13 @@ function BoardHeader({
           />
         )}
         <span className="board-layout-badge">{layoutLabel(layout)}</span>
-        {userName && userRole && (
+        {userName && userRole && !isStudent && (
           <span className="board-badge">
             {userName} · {userRole}
           </span>
+        )}
+        {userName && isStudent && (
+          <span className="board-badge">{userName}</span>
         )}
       </div>
       <div className="board-header-right">
