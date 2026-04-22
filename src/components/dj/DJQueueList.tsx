@@ -67,7 +67,7 @@ export function DJQueueList({
 
   return (
     <ul className="dj-queue-list">
-      {cards.map((card) => {
+      {cards.map((card, idx) => {
         const isOwnPending =
           card.queueStatus === "pending" &&
           !!currentStudentId &&
@@ -76,6 +76,7 @@ export function DJQueueList({
           <DJQueueItem
             key={card.id}
             card={card}
+            rank={idx + 1}
             canControl={canControl}
             isOwnPending={isOwnPending}
             isDragging={draggingId === card.id}

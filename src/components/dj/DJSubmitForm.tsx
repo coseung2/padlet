@@ -5,10 +5,14 @@ import { useState } from "react";
 type Props = {
   error: string | null;
   onSubmit: (youtubeUrl: string) => void | Promise<void>;
-  onClose: () => void;
 };
 
-export function DJSubmitForm({ error, onSubmit, onClose }: Props) {
+/**
+ * 신청곡 인라인 카드.
+ * 핸드오프 디자인(DJBoardPage.jsx)에 맞춰 모달 → 사이드 aside 상시 노출로 전환.
+ * onClose / backdrop 제거됨 — 부모가 언제 렌더할지 결정.
+ */
+export function DJSubmitForm({ error, onSubmit }: Props) {
   const [url, setUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -18,55 +22,37 @@ export function DJSubmitForm({ error, onSubmit, onClose }: Props) {
     setSubmitting(true);
     try {
       await onSubmit(url.trim());
+      setUrl("");
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <div
-      className="dj-submit-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-label="곡 신청"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <form className="dj-submit-modal" onSubmit={handle}>
-        <h2 className="dj-submit-title">🎧 곡 신청</h2>
-        <label className="dj-submit-label" htmlFor="dj-submit-url">
-          YouTube 링크
-        </label>
-        <input
-          id="dj-submit-url"
-          type="url"
-          className="dj-submit-input"
-          placeholder="https://www.youtube.com/watch?v=..."
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          autoFocus
-          disabled={submitting}
-        />
-        {error && <p className="dj-submit-error">{error}</p>}
-        <div className="dj-submit-actions">
-          <button
-            type="button"
-            className="dj-submit-cancel"
-            onClick={onClose}
-            disabled={submitting}
-          >
-            취소
-          </button>
-          <button
-            type="submit"
-            className="dj-submit-confirm"
-            disabled={!url.trim() || submitting}
-          >
-            {submitting ? "신청 중…" : "신청"}
-          </button>
-        </div>
-      </form>
-    </div>
+    <form className="dj-submit-card" onSubmit={handle}>
+      <h3 className="dj-submit-title">신청곡 추가</h3>
+      <input
+        type="text"
+        className="dj-submit-input"
+        placeholder="YouTube 링크 또는 곡 제목"
+        value={url}
+        onChange={(e) => setUrl(e.target.value)}
+        disabled={submitting}
+      />
+      <button
+        type="submit"
+        className="dj-submit-btn"
+        disabled={!url.trim() || submitting}
+      >
+        {submitting ? "신청 중…" : "신청하기"}
+      </button>
+      {error ? (
+        <p className="dj-submit-error">{error}</p>
+      ) : (
+        <p className="dj-submit-note">
+          학생 신청은 대기 상태로 등록되고, 교사 승인 후 재생 목록에 올라갑니다.
+        </p>
+      )}
+    </form>
   );
 }

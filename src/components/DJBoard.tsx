@@ -5,7 +5,6 @@ import type { CardData } from "./DraggableCard";
 import { DJNowPlayingHeader } from "./dj/DJNowPlayingHeader";
 import { DJQueueList } from "./dj/DJQueueList";
 import { DJSubmitForm } from "./dj/DJSubmitForm";
-import { DJEmptyState } from "./dj/DJEmptyState";
 import { DJRanking } from "./dj/DJRanking";
 import { DJPlayedStack } from "./dj/DJPlayedStack";
 
@@ -18,6 +17,17 @@ type Props = {
   currentStudentId: string | null;
 };
 
+/**
+ * DJ 보드 — 2026-04-22 핸드오프 디자인 포팅.
+ *   ┌─ 헤더 (제목 + 카운트 + 재생완료 토글 + 공유) ──────────┐
+ *   ├─ NOW PLAYING 카드 (전체 폭) ─────────────────────────┤
+ *   ├─ [2열] 대기열 카드           | 사이드(신청폼 + 랭킹) ─┤
+ *   └────────────────────────────────────────────────────┘
+ *   + 재생 완료 드로어 (헤더 토글, 왼쪽 슬라이드)
+ *
+ * 레이아웃은 디자인 시안 DJBoardPage.jsx 를 1:1 포팅하되, 기존 SSE / API 계약은
+ * 유지. DJPlayerProvider 연동도 그대로.
+ */
 export function DJBoard({
   boardId,
   boardTitle,
@@ -26,8 +36,8 @@ export function DJBoard({
   currentStudentId,
 }: Props) {
   const [cards, setCards] = useState<CardData[]>(initialCards);
-  const [submitOpen, setSubmitOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [playedOpen, setPlayedOpen] = useState(false);
   const canControl = currentRole === "owner" || currentRole === "editor";
 
   // Tracks cards currently mid-flight so SSE snapshots don't stomp optimistic
@@ -36,8 +46,7 @@ export function DJBoard({
 
   // dj-played-delete-touchdrag — 태블릿에서 HTML5 DnD 이벤트가 터치로 발화되지
   // 않아 재생완료 → 큐 복귀 드래그가 막힘. drag-drop-touch 폴리필을 클라이언트
-  // 진입 시점에만 동적으로 로드. `document.addEventListener`를 생성자에서 호출
-  // 하므로 SSR 경로에는 절대 실려서는 안 됨.
+  // 진입 시점에만 동적으로 로드.
   useEffect(() => {
     let cancelled = false;
     import("drag-drop-touch").catch((e) => {
@@ -97,18 +106,17 @@ export function DJBoard({
       es.removeEventListener("forbidden", onForbidden);
       es.close();
     };
-    // boardId stable — merge fn uses setCards which reads current via updater.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boardId]);
 
-  // Active queue = pending + approved (non-played). Played cards get a
-  // separate pile on the left so they can be dragged back into the queue.
+  // Active queue = pending + approved (non-played). Played cards go into the
+  // left drawer so they can be dragged back.
   const activeQueue = useMemo(() => {
     const visible = cards.filter(
       (c) =>
         c.queueStatus &&
         c.queueStatus !== "played" &&
-        (canControl || c.queueStatus !== "rejected")
+        (canControl || c.queueStatus !== "rejected"),
     );
     return [...visible].sort((a, b) => a.order - b.order);
   }, [cards, canControl]);
@@ -116,7 +124,6 @@ export function DJBoard({
   const playedCards = useMemo(() => {
     return cards
       .filter((c) => c.queueStatus === "played")
-      // Newest-played first (most recently moved to the pile at the top).
       .sort((a, b) => b.order - a.order);
   }, [cards]);
 
@@ -125,6 +132,9 @@ export function DJBoard({
   }, [activeQueue]);
 
   const upNext = activeQueue.filter((c) => c.id !== nowPlaying?.id);
+
+  const pendingCount = activeQueue.filter((c) => c.queueStatus === "pending").length;
+  const approvedCount = activeQueue.filter((c) => c.queueStatus === "approved").length;
 
   async function handleSubmit(youtubeUrl: string) {
     setError(null);
@@ -140,16 +150,15 @@ export function DJBoard({
     }
     const { card } = (await res.json()) as { card: CardData };
     setCards((prev) => [...prev, card]);
-    setSubmitOpen(false);
   }
 
   async function handleStatus(
     cardId: string,
-    status: "approved" | "rejected" | "played"
+    status: "approved" | "rejected" | "played",
   ) {
     const prev = cards;
     setCards((list) =>
-      list.map((c) => (c.id === cardId ? { ...c, queueStatus: status } : c))
+      list.map((c) => (c.id === cardId ? { ...c, queueStatus: status } : c)),
     );
     await trackMutation(cardId, async () => {
       const res = await fetch(`/api/boards/${boardId}/queue/${cardId}`, {
@@ -176,7 +185,7 @@ export function DJBoard({
   async function handleReorder(cardId: string, newOrder: number) {
     const prev = cards;
     setCards((list) =>
-      list.map((c) => (c.id === cardId ? { ...c, order: newOrder } : c))
+      list.map((c) => (c.id === cardId ? { ...c, order: newOrder } : c)),
     );
     await trackMutation(cardId, async () => {
       const res = await fetch(
@@ -185,7 +194,7 @@ export function DJBoard({
           method: "PATCH",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ order: newOrder }),
-        }
+        },
       );
       if (!res.ok) setCards(prev);
     });
@@ -196,21 +205,17 @@ export function DJBoard({
     await handleStatus(nowPlaying.id, "played");
   }
 
-  // Drag-drop into the queue. Used for both queue-internal reorders and
-  // restoring a played card into the queue. If the dragged card is "played"
-  // we flip status to "approved" AND update its order.
   async function handleQueueDrop(cardId: string, targetOrder: number) {
     const card = cards.find((c) => c.id === cardId);
     if (!card) return;
     if (card.queueStatus === "played") {
-      // Restore — optimistic flip + reorder, server in two calls.
       const prev = cards;
       setCards((list) =>
         list.map((c) =>
           c.id === cardId
             ? { ...c, queueStatus: "approved", order: targetOrder }
-            : c
-        )
+            : c,
+        ),
       );
       await trackMutation(cardId, async () => {
         const [statusRes, moveRes] = await Promise.all([
@@ -233,31 +238,41 @@ export function DJBoard({
   }
 
   async function handleRestorePlayed(cardId: string) {
-    // Double-click shortcut from played stack — restore to end of queue.
     const maxOrder = activeQueue.reduce((m, c) => Math.max(m, c.order), 0);
     await handleQueueDrop(cardId, maxOrder + 1);
   }
 
   const isEmpty = activeQueue.length === 0;
-
-  // Ranking sidebar refetch signal — bumped on any queue mutation that could
-  // change counts (submit / status change / delete).
-  const rankingKey = cards.length + cards.filter((c) => c.queueStatus === "played").length;
+  const rankingKey = cards.length + playedCards.length;
 
   return (
-    <main className="dj-board">
+    <>
       <DJPlayedStack
         cards={playedCards}
         canControl={canControl}
+        open={playedOpen}
+        onClose={() => setPlayedOpen(false)}
         onRestore={handleRestorePlayed}
         onDelete={handleDelete}
       />
 
-      <div className="dj-board-main">
+      <main className="dj-board">
         <header className="dj-board-header">
-          <h1>🎧 {boardTitle}</h1>
-          <div className="dj-board-meta">
-            <span className="dj-count">{activeQueue.length}곡</span>
+          <div>
+            <h1>🎧 {boardTitle}</h1>
+            <p className="dj-board-subtitle">
+              DJ 큐 · 대기 {pendingCount} · 승인 {approvedCount} · 재생 완료 {playedCards.length}
+            </p>
+          </div>
+          <div className="dj-header-actions">
+            <button
+              type="button"
+              className="dj-header-btn"
+              onClick={() => setPlayedOpen((v) => !v)}
+              aria-pressed={playedOpen}
+            >
+              🕘 재생 완료 ({playedCards.length})
+            </button>
           </div>
         </header>
 
@@ -269,42 +284,38 @@ export function DJBoard({
           />
         )}
 
-        {isEmpty ? (
-          <DJEmptyState canControl={canControl} onAdd={() => setSubmitOpen(true)} />
-        ) : (
-          <DJQueueList
-            cards={upNext}
-            canControl={canControl}
-            currentStudentId={currentStudentId}
-            onStatus={handleStatus}
-            onDelete={handleDelete}
-            onReorder={handleQueueDrop}
-          />
-        )}
+        <div className="dj-layout">
+          <section className="dj-queue-card">
+            <h3 className="dj-queue-title">
+              대기열
+              <span className="dj-queue-hint">
+                {canControl ? "드래그해서 순서 변경 · 재생 완료에서도 복귀 가능" : "선생님이 승인하면 재생 목록에 올라갑니다"}
+              </span>
+            </h3>
+            {isEmpty ? (
+              <div className="dj-empty">
+                {canControl
+                  ? "신청곡이 없습니다. 학생들에게 신청을 받아보세요."
+                  : "아직 신청된 곡이 없어요. 오른쪽에서 신청해 보세요."}
+              </div>
+            ) : (
+              <DJQueueList
+                cards={upNext}
+                canControl={canControl}
+                currentStudentId={currentStudentId}
+                onStatus={handleStatus}
+                onDelete={handleDelete}
+                onReorder={handleQueueDrop}
+              />
+            )}
+          </section>
 
-        <div className="dj-board-footer">
-          <button
-            type="button"
-            className="dj-submit-btn"
-            onClick={() => setSubmitOpen(true)}
-          >
-            + 곡 신청
-          </button>
+          <aside className="dj-side">
+            <DJSubmitForm error={error} onSubmit={handleSubmit} />
+            <DJRanking boardId={boardId} refreshKey={rankingKey} />
+          </aside>
         </div>
-      </div>
-
-      <DJRanking boardId={boardId} refreshKey={rankingKey} />
-
-      {submitOpen && (
-        <DJSubmitForm
-          error={error}
-          onSubmit={handleSubmit}
-          onClose={() => {
-            setSubmitOpen(false);
-            setError(null);
-          }}
-        />
-      )}
-    </main>
+      </main>
+    </>
   );
 }

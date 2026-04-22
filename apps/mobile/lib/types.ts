@@ -62,10 +62,15 @@ export type BoardCard = {
   authorId: string | null;
   externalAuthorName: string | null;
   studentAuthorId: string | null;
+  // DJ queue 전용 — pending/approved/rejected/played
+  queueStatus?: string | null;
+  // Submission 경로 — 학생이 POST /api/boards/:id/queue 로 올린 카드
   createdAt: string;
   updatedAt: string;
   attachments?: CardAttachment[];
   authors?: CardAuthor[];
+  authorName?: string | null;
+  studentAuthorName?: string | null;
 };
 
 export type Section = {

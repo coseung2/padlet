@@ -5,6 +5,9 @@ import type { CardData } from "../DraggableCard";
 type Props = {
   cards: CardData[];
   canControl: boolean;
+  /** 드로어 열림 상태 — 부모(DJBoard)의 `재생 완료` 토글과 연결. */
+  open: boolean;
+  onClose: () => void;
   /** Called when the user drags a played card back into the main queue.
    *  DJBoard maps that to: queueStatus = "approved" + reinsert at the end. */
   onRestore: (cardId: string) => void;
@@ -13,75 +16,136 @@ type Props = {
   onDelete: (cardId: string) => void;
 };
 
-export function DJPlayedStack({ cards, canControl, onRestore, onDelete }: Props) {
-  if (cards.length === 0) return null;
-
+/**
+ * 재생 완료 드로어 — 왼쪽에서 슬라이드.
+ * 핸드오프 디자인(DJBoardPage.jsx)의 `ab-dj-played-drawer.ab-dj-played-left` 형태.
+ * 3-column 고정 레일을 대체.
+ */
+export function DJPlayedStack({
+  cards,
+  canControl,
+  open,
+  onClose,
+  onRestore,
+  onDelete,
+}: Props) {
   function handleDragStart(
     e: React.DragEvent<HTMLLIElement>,
-    cardId: string
+    cardId: string,
   ) {
     if (!canControl) return;
     e.dataTransfer.effectAllowed = "move";
-    // Use a distinct MIME so the queue drop target can discriminate restores
-    // from queue-internal reorders.
+    // 쪽 구분용 MIME — queue 가 외부 드롭인지 내부 재정렬인지 구분.
     e.dataTransfer.setData("application/x-dj-played", cardId);
     e.dataTransfer.setData("text/plain", cardId);
   }
 
   return (
-    <aside
-      className="dj-played-stack"
-      aria-label="재생 완료된 곡"
-      onDragOver={(e) => {
-        // Accept drops from the queue so DJ can push an unwanted card into
-        // the played pile without marking it via the action menu.
-        if (canControl && e.dataTransfer.types.includes("text/plain")) {
-          e.preventDefault();
-        }
-      }}
-    >
-      <h3 className="dj-played-title">재생 완료</h3>
-      <ul className="dj-played-list">
-        {cards.map((card) => (
-          <li
-            key={card.id}
-            className="dj-played-item"
-            draggable={canControl}
-            onDragStart={(e) => handleDragStart(e, card.id)}
-            onDoubleClick={() => canControl && onRestore(card.id)}
-            title={canControl ? "끌어서 큐로 되돌리기 · 더블클릭으로 복귀" : card.title}
+    <>
+      <div
+        className={`dj-played-backdrop${open ? " is-open" : ""}`}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <aside
+        className={`dj-played-stack${open ? " is-open" : ""}`}
+        aria-label="재생 완료된 곡"
+        aria-hidden={!open}
+        onDragOver={(e) => {
+          // queue 아이템을 드롭하면 played 로 이동 가능 — 상위 DJBoard 에서 처리.
+          if (canControl && e.dataTransfer.types.includes("text/plain")) {
+            e.preventDefault();
+          }
+        }}
+      >
+        <header className="dj-played-head">
+          <div>
+            <div className="dj-played-title">재생 완료</div>
+            <div className="dj-played-subtitle">드래그로 대기열에 복귀시킬 수 있습니다</div>
+          </div>
+          <button
+            type="button"
+            className="dj-played-close"
+            onClick={onClose}
+            aria-label="닫기"
           >
-            {card.linkImage && (
-              <img
-                className="dj-played-thumb"
-                src={card.linkImage}
-                width={64}
-                height={36}
-                alt=""
-              />
-            )}
-            <span className="dj-played-item-title">{card.title}</span>
-            {canControl && (
-              <button
-                type="button"
-                className="dj-played-delete"
-                aria-label="재생 완료 곡 삭제"
-                title="삭제"
-                // 폴리필(drag-drop-touch)이 상위 li의 dragstart를 터치에서 합성
-                // 하므로, 버튼 영역을 드래그 원점에서 제외해 탭만 가도록.
-                draggable={false}
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(card.id);
-                }}
+            ×
+          </button>
+        </header>
+
+        {cards.length === 0 ? (
+          <div className="dj-empty" style={{ padding: "24px 16px" }}>
+            재생 완료된 곡이 없습니다.
+          </div>
+        ) : (
+          <ul className="dj-played-list">
+            {cards.map((card) => (
+              <li
+                key={card.id}
+                className="dj-played-item"
+                draggable={canControl}
+                onDragStart={(e) => handleDragStart(e, card.id)}
+                onDoubleClick={() => canControl && onRestore(card.id)}
+                title={canControl ? "끌어서 큐로 되돌리기 · 더블클릭으로 복귀" : card.title}
               >
-                ×
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
-    </aside>
+                {card.linkImage ? (
+                  <img
+                    className="dj-played-thumb"
+                    src={card.linkImage}
+                    width={44}
+                    height={34}
+                    alt=""
+                  />
+                ) : (
+                  <div className="dj-played-thumb" aria-hidden="true">
+                    ♪
+                  </div>
+                )}
+                <div className="dj-info">
+                  <div className="dj-track">{card.title}</div>
+                  <div className="dj-sub">
+                    {card.linkDesc ? <>{card.linkDesc} · </> : null}
+                    {card.externalAuthorName ?? card.studentAuthorName ?? card.authorName ?? ""}
+                  </div>
+                </div>
+                {canControl ? (
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <button
+                      type="button"
+                      className="dj-ctrl restore"
+                      draggable={false}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRestore(card.id);
+                      }}
+                      title="대기열로 복귀"
+                    >
+                      ↺
+                    </button>
+                    <button
+                      type="button"
+                      className="dj-played-delete"
+                      aria-label="재생 완료 곡 삭제"
+                      title="삭제"
+                      draggable={false}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(card.id);
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <footer className="dj-played-foot">총 {cards.length}곡 재생됨</footer>
+      </aside>
+    </>
   );
 }

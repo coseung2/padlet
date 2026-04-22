@@ -1,14 +1,13 @@
 import type { CardData } from "../DraggableCard";
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: "대기",
-  approved: "승인",
-  played: "재생됨",
-  rejected: "거부",
-};
-
+/**
+ * 핸드오프 DJBoardPage.jsx 의 `.ab-dj-item` 그리드 구조를 그대로 포팅:
+ *   [rank 24px] [tinythumb 56px] [info 1fr] [controls auto]
+ * pending 상태일 때는 큐 아이템 전체에 연한 warn 틴트 + pending pill.
+ */
 type Props = {
   card: CardData;
+  rank: number;
   canControl: boolean;
   isOwnPending: boolean;
   isDragging: boolean;
@@ -24,6 +23,7 @@ type Props = {
 
 export function DJQueueItem({
   card,
+  rank,
   canControl,
   isOwnPending,
   isDragging,
@@ -42,13 +42,14 @@ export function DJQueueItem({
     card.authorName ??
     "";
   const status = card.queueStatus ?? "pending";
-  const statusLabel = STATUS_LABEL[status] ?? status;
+  const isPending = status === "pending";
 
   return (
     <li
       className={[
         "dj-queue-item",
         `dj-status-${status}`,
+        isPending && "is-pending",
         isDragging && "is-dragging",
         isDragOver && "is-drag-over",
       ]
@@ -59,89 +60,83 @@ export function DJQueueItem({
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
-      {canControl && (
-        <span
-          className="dj-drag-handle"
-          aria-label={`${card.title} 순서 변경`}
-        >
-          ⋮⋮
-        </span>
-      )}
+      <div className="dj-rank">{rank}</div>
 
-      {card.linkImage && (
+      {card.linkImage ? (
         <img
-          className="dj-thumb"
+          className="dj-tinythumb"
           src={card.linkImage}
-          width={96}
-          height={54}
+          width={56}
+          height={42}
           alt=""
         />
+      ) : (
+        <div className="dj-tinythumb" aria-hidden="true">
+          ♪
+        </div>
       )}
 
-      <div className="dj-item-info">
-        <div className="dj-track-title">{card.title}</div>
-        <div className="dj-track-meta">
-          {card.linkDesc && <span>{card.linkDesc}</span>}
-          {submitter && <span> · {submitter}님</span>}
+      <div className="dj-info">
+        <div className="dj-track">{card.title}</div>
+        <div className="dj-sub">
+          {card.linkDesc ? <>{card.linkDesc}</> : null}
+          {submitter ? (
+            <>
+              {card.linkDesc ? " · " : ""}
+              {submitter}
+            </>
+          ) : null}
+          {isPending ? (
+            <span className="dj-pending-pill">
+              <span className="dj-dot" />
+              대기
+            </span>
+          ) : null}
         </div>
       </div>
 
-      <span className={`dj-status-pill dj-status-pill-${status}`}>
-        {statusLabel}
-      </span>
-
-      {canControl && (
-        <div className="dj-item-actions">
-          {status === "pending" && (
-            <>
+      <div className="dj-controls">
+        {canControl ? (
+          <>
+            {isPending ? (
               <button
                 type="button"
-                className="dj-action-btn"
+                className="dj-ctrl approve"
                 onClick={onApprove}
                 aria-label="승인"
               >
                 승인
               </button>
-              <button
-                type="button"
-                className="dj-action-btn dj-action-reject"
-                onClick={onReject}
-                aria-label="거부"
-              >
-                거부
-              </button>
-            </>
-          )}
-          {status === "approved" && (
+            ) : null}
             <button
               type="button"
-              className="dj-action-btn"
+              className="dj-ctrl"
               onClick={onMarkPlayed}
+              title="재생 완료로 이동"
               aria-label="재생 완료"
             >
-              재생
+              ✓
             </button>
-          )}
+            <button
+              type="button"
+              className="dj-ctrl reject"
+              onClick={isPending ? onReject : onDelete}
+              aria-label={isPending ? "거부" : "제거"}
+            >
+              {isPending ? "거부" : "제거"}
+            </button>
+          </>
+        ) : isOwnPending ? (
           <button
             type="button"
-            className="dj-action-btn dj-action-delete"
+            className="dj-ctrl reject"
             onClick={onDelete}
-            aria-label="삭제"
+            aria-label="내 신청 취소"
           >
-            삭제
+            취소
           </button>
-        </div>
-      )}
-
-      {!canControl && isOwnPending && (
-        <button
-          type="button"
-          className="dj-action-btn dj-action-cancel-own"
-          onClick={onDelete}
-        >
-          취소
-        </button>
-      )}
+        ) : null}
+      </div>
     </li>
   );
 }

@@ -25,6 +25,7 @@ import { VibeArcadeBoard } from "../../../components/layouts/VibeArcadeBoard";
 import { QuizBoard } from "../../../components/layouts/QuizBoard";
 import { AssignmentBoard } from "../../../components/layouts/AssignmentBoard";
 import { PlantRoadmapBoard } from "../../../components/layouts/PlantRoadmapBoard";
+import { DJQueueBoard } from "../../../components/layouts/DJQueueBoard";
 import { ReadOnlyCardsBoard } from "../../../components/layouts/ReadOnlyCardsBoard";
 
 // 학생 앱 보드 상세 dispatcher. /api/student/board/:slug 한 번 fetch 후
@@ -117,13 +118,14 @@ function renderLayout(
       return <AssignmentBoard data={data} onMutate={reload} />;
     case "plant-roadmap":
       return <PlantRoadmapBoard data={data} onMutate={reload} />;
+    case "dj-queue":
+      return <DJQueueBoard data={data} onMutate={reload} />;
     case "freeform":
     case "grid":
     case "stream":
       return <CardsBoard data={data} onMutate={reload} />;
     // 카드 기반 read-heavy 레이아웃들 — 작성은 제한하고 읽기 + 본인 카드 추가만.
     case "vibe-gallery":
-    case "dj-queue":
     case "event-signup":
     case "breakout":
     case "assessment":
