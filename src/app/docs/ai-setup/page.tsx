@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { LlmKeyForm } from "@/components/LlmKeyForm";
 
 export const metadata = {
   title: "생성형 AI 연결하기 · Aura-board",
@@ -191,16 +190,18 @@ export default function AiSetupPage() {
         <section className="docs-section">
           <h2 className="docs-h2">Key 저장</h2>
           <p className="docs-p">
-            아래 폼에 Key를 붙여넣고 <strong>저장 + 검증</strong>을 누르면 즉시
-            각 사 API에 테스트 호출을 보내 유효성을 확인합니다. 검증이 통과하면
-            해당 교사 계정으로 생성한 모든 <strong>학급 아케이드</strong>·
-            <strong>바이브 갤러리</strong> 보드에서 바로 사용됩니다.
+            발급한 Key는 <strong>교사 설정</strong> 페이지에서 한 번 저장하면
+            해당 계정의 모든 <strong>학급 아케이드</strong>·
+            <strong>바이브 갤러리</strong> 보드에 자동 적용됩니다. 보드별로
+            다시 연결할 필요는 없습니다.
           </p>
-          <LlmKeyForm />
+          <Link href="/teacher/settings#llm" className="docs-cta-btn">
+            교사 설정에서 Key 저장하기 →
+          </Link>
           <p className="docs-p docs-note">
             Key 유출 시 해당 사 대시보드에서 즉시 <strong>Revoke / Delete</strong>
-            처리 후 새 Key를 발급·교체하세요. 여기서 <strong>삭제</strong> 또는
-            <strong>다시 저장</strong>을 누르면 기존 학급 아케이드 세션이 새 Key로
+            처리 후 새 Key를 발급·교체하세요. 교사 설정에서 <strong>삭제</strong>
+            또는 <strong>다시 저장</strong>을 누르면 기존 세션이 새 Key로
             전환됩니다.
           </p>
         </section>

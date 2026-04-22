@@ -826,3 +826,162 @@
   color: var(--color-text-muted);
   margin: 0;
 }
+
+/* -------- /teacher/settings 허브 -------- */
+
+.settings-section {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--color-border-subtle, var(--color-border));
+}
+
+.settings-section:last-of-type {
+  border-bottom: none;
+}
+
+.settings-section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.settings-section-header .docs-h2 {
+  margin: 0;
+}
+
+.settings-help-link {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.settings-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-btn);
+  background: var(--color-surface-alt);
+  font-size: 13.5px;
+}
+
+.settings-status-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-status-dot {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.settings-status-row.is-ok .settings-status-dot {
+  color: var(--color-positive, #2a9d5a);
+}
+
+.settings-status-row.is-warn .settings-status-dot {
+  color: var(--color-warning, #c9a227);
+}
+
+.settings-status-row.is-idle .settings-status-dot {
+  color: var(--color-text-muted);
+}
+
+.settings-action-btn {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: var(--radius-btn);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.settings-action-btn:hover {
+  background: var(--color-surface-alt);
+}
+
+.settings-action-btn.is-primary {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent);
+}
+
+.settings-action-btn.is-primary:hover {
+  filter: brightness(0.95);
+}
+
+.settings-billing-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border-radius: var(--radius-btn);
+  background: var(--color-surface-alt);
+}
+
+.settings-billing-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.settings-billing-muted {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.settings-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.settings-pill.is-pro {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.settings-pill.is-free {
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.settings-billing-summary .settings-action-btn {
+  align-self: flex-start;
+  margin-top: 6px;
+}
+
+/* /docs 에서 설정 허브로 유도하는 CTA 버튼 */
+.docs-cta-btn {
+  display: inline-block;
+  padding: 10px 16px;
+  border-radius: var(--radius-btn);
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  margin: 8px 0 12px;
+}
+
+.docs-cta-btn:hover {
+  filter: brightness(0.95);
+}
+
+/* ⚙ 메뉴 sub-item 들여쓰기 */
+.auth-settings-subitem {
+  padding-left: 28px;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}

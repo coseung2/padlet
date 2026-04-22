@@ -57,22 +57,29 @@ function SettingsMenu() {
       </summary>
       <div className="auth-settings-panel" role="menu">
         <Link
-          href="/docs/canva-setup"
+          href="/teacher/settings"
           className="auth-settings-item"
           role="menuitem"
         >
-          🎨 Canva 앱 연결 안내
+          ⚙ 교사 설정
         </Link>
         <Link
-          href="/docs/ai-setup"
-          className="auth-settings-item"
+          href="/teacher/settings#llm"
+          className="auth-settings-item auth-settings-subitem"
           role="menuitem"
         >
-          🤖 생성형 AI 연결하기
+          🤖 생성형 AI 연결
         </Link>
         <Link
-          href="/billing"
-          className="auth-settings-item"
+          href="/teacher/settings#canva"
+          className="auth-settings-item auth-settings-subitem"
+          role="menuitem"
+        >
+          🎨 Canva 연동
+        </Link>
+        <Link
+          href="/teacher/settings#billing"
+          className="auth-settings-item auth-settings-subitem"
           role="menuitem"
         >
           💳 결제·구독
