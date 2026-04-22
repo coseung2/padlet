@@ -30,8 +30,17 @@ function extractVideoId(url: string | null | undefined): string | null {
  *   시각적으로 숨겨지고, 재생 중이 아닐 땐 썸네일이 자연스럽게 보임.
  */
 export function DJNowPlayingHeader({ card, canControl, onNext }: Props) {
-  const { activeCard, playing, play, toggle, registerHost, setAdvanceHandler } =
-    useDJPlayer();
+  const {
+    activeCard,
+    playing,
+    play,
+    toggle,
+    registerHost,
+    setAdvanceHandler,
+    openExternalPip,
+    pipExternalOpen,
+    pipExternalSupported,
+  } = useDJPlayer();
   const hostRef = useRef<HTMLDivElement | null>(null);
 
   const submitter =
@@ -138,6 +147,19 @@ export function DJNowPlayingHeader({ card, canControl, onNext }: Props) {
                 aria-label="다음 곡으로"
               >
                 ⏭ 다음
+              </button>
+            )}
+            {isActive && playing && pipExternalSupported && !pipExternalOpen && (
+              <button
+                type="button"
+                className="dj-next-btn"
+                onClick={() => {
+                  void openExternalPip();
+                }}
+                aria-label="외부 창으로 빼기"
+                title="브라우저를 최소화해도 계속 재생됩니다"
+              >
+                📺 외부 창
               </button>
             )}
           </div>
