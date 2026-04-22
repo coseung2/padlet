@@ -10,6 +10,8 @@ import type { LlmProvider } from "./stream";
 export type ResolvedTeacherKey = {
   provider: LlmProvider;
   apiKey: string;
+  baseUrl: string | null;
+  modelId: string | null;
 };
 
 /**
@@ -34,9 +36,13 @@ export async function getTeacherKeyForBoard(
   if (!row) return null;
 
   try {
+    // ollama 는 apiKey 가 비어있을 수 있음 — 빈 암호문도 허용.
+    const apiKey = row.apiKeyEnc ? decryptApiKey(row.apiKeyEnc) : "";
     return {
       provider: row.provider as LlmProvider,
-      apiKey: decryptApiKey(row.apiKeyEnc),
+      apiKey,
+      baseUrl: row.baseUrl ?? null,
+      modelId: row.modelId ?? null,
     };
   } catch {
     return null;

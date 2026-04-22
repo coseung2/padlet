@@ -120,6 +120,8 @@ export async function POST(req: Request) {
         const result = await streamLlm({
           provider: teacherKey.provider,
           apiKey: teacherKey.apiKey,
+          baseUrl: teacherKey.baseUrl,
+          modelId: teacherKey.modelId,
           systemPrompt: DEFAULT_SYSTEM_PROMPT,
           messages: nextMessages,
           studentId: student.id,

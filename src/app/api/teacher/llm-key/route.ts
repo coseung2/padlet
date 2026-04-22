@@ -12,11 +12,14 @@ import { getCurrentUser } from "@/lib/auth";
 import { encryptApiKey, last4 } from "@/lib/llm/encryption";
 import { verifyApiKey, type LlmProvider } from "@/lib/llm/stream";
 
-const PROVIDERS = ["claude", "openai", "gemini"] as const;
+const PROVIDERS = ["claude", "openai", "gemini", "ollama"] as const;
 
+// ollama 는 apiKey 선택, baseUrl + modelId 필수. 다른 provider 는 apiKey 필수.
 const SaveSchema = z.object({
   provider: z.enum(PROVIDERS),
-  apiKey: z.string().trim().min(8).max(500),
+  apiKey: z.string().trim().max(500).optional().default(""),
+  baseUrl: z.string().trim().url().max(500).optional(),
+  modelId: z.string().trim().min(1).max(200).optional(),
 });
 
 function keyShapeOk(provider: LlmProvider, key: string): boolean {
@@ -24,6 +27,7 @@ function keyShapeOk(provider: LlmProvider, key: string): boolean {
   if (provider === "claude") return key.startsWith("sk-ant-");
   if (provider === "openai") return key.startsWith("sk-");
   if (provider === "gemini") return key.startsWith("AIza") || key.length >= 30;
+  if (provider === "ollama") return true; // key 없어도 OK
   return false;
 }
 
@@ -44,6 +48,8 @@ export async function GET() {
       present: true,
       provider: row.provider,
       last4: row.last4,
+      baseUrl: row.baseUrl,
+      modelId: row.modelId,
       verified: row.verified,
       verifiedAt: row.verifiedAt,
       lastError: row.lastError,
@@ -68,20 +74,36 @@ export async function POST(req: Request) {
     });
   }
 
-  const { provider, apiKey } = parsed.data;
-  if (!keyShapeOk(provider, apiKey)) {
-    return new Response(
-      JSON.stringify({ error: "key_shape_mismatch", detail: `${provider} key prefix not recognized` }),
-      { status: 400, headers: { "Content-Type": "application/json" } },
-    );
+  const { provider, apiKey, baseUrl, modelId } = parsed.data;
+
+  if (provider === "ollama") {
+    if (!baseUrl || !modelId) {
+      return new Response(
+        JSON.stringify({ error: "ollama_missing_fields", detail: "baseUrl, modelId 필수" }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
+    }
+  } else {
+    if (apiKey.length < 8) {
+      return new Response(
+        JSON.stringify({ error: "api_key_required" }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    if (!keyShapeOk(provider, apiKey)) {
+      return new Response(
+        JSON.stringify({ error: "key_shape_mismatch", detail: `${provider} key prefix not recognized` }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
+    }
   }
 
-  const verifyResult = await verifyApiKey(provider, apiKey);
+  const verifyResult = await verifyApiKey(provider, apiKey, { baseUrl, modelId });
   const verified = verifyResult.ok;
   const lastError = verifyResult.ok ? null : verifyResult.error;
 
-  const enc = encryptApiKey(apiKey);
-  const tail = last4(apiKey);
+  const enc = apiKey ? encryptApiKey(apiKey) : "";
+  const tail = apiKey ? last4(apiKey) : (provider === "ollama" ? "ollama" : "");
 
   const saved = await db.teacherLlmKey.upsert({
     where: { userId: user.id },
@@ -89,6 +111,8 @@ export async function POST(req: Request) {
       provider,
       apiKeyEnc: enc,
       last4: tail,
+      baseUrl: baseUrl ?? null,
+      modelId: modelId ?? null,
       verified,
       verifiedAt: verified ? new Date() : null,
       lastError,
@@ -98,6 +122,8 @@ export async function POST(req: Request) {
       provider,
       apiKeyEnc: enc,
       last4: tail,
+      baseUrl: baseUrl ?? null,
+      modelId: modelId ?? null,
       verified,
       verifiedAt: verified ? new Date() : null,
       lastError,
@@ -109,6 +135,8 @@ export async function POST(req: Request) {
       present: true,
       provider: saved.provider,
       last4: saved.last4,
+      baseUrl: saved.baseUrl,
+      modelId: saved.modelId,
       verified: saved.verified,
       verifiedAt: saved.verifiedAt,
       lastError: saved.lastError,

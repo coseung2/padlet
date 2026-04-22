@@ -13,7 +13,7 @@
 import "server-only";
 import { incrementLedger } from "../vibe-arcade/quota-ledger";
 
-export type LlmProvider = "claude" | "openai" | "gemini";
+export type LlmProvider = "claude" | "openai" | "gemini" | "ollama";
 
 export type LlmStreamArgs = {
   provider: LlmProvider;
@@ -27,6 +27,10 @@ export type LlmStreamArgs = {
   onDelta: (delta: string) => void;
   onTokensUpdate: (tokensIn: number, tokensOut: number) => void;
   onRefusal: () => void;
+  // ollama 전용: OpenAI 호환 엔드포인트 주소 + 모델 식별자.
+  // 다른 provider에서는 무시된다.
+  baseUrl?: string | null;
+  modelId?: string | null;
 };
 
 export type LlmStreamResult = {
@@ -42,11 +46,12 @@ export const DEFAULT_SYSTEM_PROMPT = `당신은 한국 초중등 학생의 바�
 반드시 최종 결과물은 \`\`\`html 블록으로 감싸 출력합니다.
 부적절한 주제(폭력·성인·개인정보·상용 게임 복제 등)는 정중히 거절합니다.`;
 
-const MODELS: Record<LlmProvider, string> = {
+const MODELS: Record<Exclude<LlmProvider, "ollama">, string> = {
   claude: process.env.CLAUDE_MODEL_ID ?? "claude-sonnet-4-5",
   openai: process.env.OPENAI_MODEL_ID ?? "gpt-4o-mini",
   gemini: process.env.GEMINI_MODEL_ID ?? "gemini-2.5-flash",
 };
+// ollama 는 교사가 저장 시 입력한 modelId 를 런타임에 그대로 사용 (MODELS 비적용).
 
 /** Dispatch to the right provider adapter. */
 export async function streamLlm(args: LlmStreamArgs): Promise<LlmStreamResult> {
@@ -57,6 +62,8 @@ export async function streamLlm(args: LlmStreamArgs): Promise<LlmStreamResult> {
       return streamOpenAI(args);
     case "gemini":
       return streamGemini(args);
+    case "ollama":
+      return streamOllama(args);
     default:
       return {
         stopReason: "error",
@@ -355,6 +362,125 @@ async function streamGemini(args: LlmStreamArgs): Promise<LlmStreamResult> {
   }
 }
 
+// ───────────────────── Ollama (로컬 테스트 — OpenAI 호환) ─────────────────────
+// 교사 PC에 Ollama가 설치돼 있다는 전제. `/v1/chat/completions` 가 OpenAI와
+// 동일한 SSE 포맷을 돌려준다. usage 필드가 없거나 다를 수 있어 문자 길이로
+// 대충 추정 (배포 환경이 아니라 본인 개발 PC에서만 쓰는 경로).
+async function streamOllama(args: LlmStreamArgs): Promise<LlmStreamResult> {
+  const baseUrl = (args.baseUrl ?? "").replace(/\/+$/, "");
+  const model = args.modelId ?? "";
+  if (!baseUrl || !model) {
+    return {
+      stopReason: "error",
+      finalContent: "",
+      tokensIn: 0,
+      tokensOut: 0,
+      errorMessage: "ollama: baseUrl / modelId 가 설정되지 않았습니다.",
+    };
+  }
+
+  let tokensIn = 0;
+  let tokensOut = 0;
+  let finalContent = "";
+
+  try {
+    const res = await fetch(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        // Ollama는 API Key 미요구지만 reverse-proxy 보호용으로 넣을 수 있음.
+        ...(args.apiKey ? { Authorization: `Bearer ${args.apiKey}` } : {}),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        stream: true,
+        messages: [
+          { role: "system", content: args.systemPrompt },
+          ...args.messages.map((m) => ({ role: m.role, content: m.content })),
+        ],
+      }),
+    });
+
+    if (!res.ok || !res.body) {
+      const text = await res.text().catch(() => "");
+      return {
+        stopReason: "error",
+        finalContent,
+        tokensIn,
+        tokensOut,
+        errorMessage: `ollama http ${res.status}: ${text.slice(0, 200)}`,
+      };
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    let stopReason: LlmStreamResult["stopReason"] = "end_turn";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+
+      let nl;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (!line.startsWith("data:")) continue;
+        const payload = line.slice(5).trim();
+        if (payload === "[DONE]") break;
+        try {
+          const ev = JSON.parse(payload) as {
+            choices?: Array<{ delta?: { content?: string }; finish_reason?: string | null }>;
+            usage?: { prompt_tokens?: number; completion_tokens?: number };
+          };
+          const delta = ev.choices?.[0]?.delta?.content;
+          if (delta) {
+            args.onDelta(delta);
+            finalContent += delta;
+          }
+          const finish = ev.choices?.[0]?.finish_reason;
+          if (finish === "length") stopReason = "max_tokens";
+          if (ev.usage) {
+            tokensIn = ev.usage.prompt_tokens ?? tokensIn;
+            tokensOut = ev.usage.completion_tokens ?? tokensOut;
+            args.onTokensUpdate(tokensIn, tokensOut);
+          }
+        } catch {
+          // skip malformed chunk
+        }
+      }
+    }
+
+    // Ollama usage 미제공 시 글자 수 기반으로 근사치 제공 — quota ledger 가
+    // 0으로 내려가 쿼터 카운팅이 안 되는 것 방지.
+    if (tokensIn === 0 && tokensOut === 0) {
+      const promptChars = args.messages.reduce((n, m) => n + m.content.length, 0);
+      tokensIn = Math.ceil(promptChars / 3);
+      tokensOut = Math.ceil(finalContent.length / 3);
+      args.onTokensUpdate(tokensIn, tokensOut);
+    }
+
+    await incrementLedger({
+      classroomId: args.classroomId,
+      studentId: args.studentId,
+      tokensIn,
+      tokensOut,
+      newSession: true,
+    });
+
+    return { stopReason, finalContent, tokensIn, tokensOut };
+  } catch (err) {
+    return {
+      stopReason: "error",
+      finalContent,
+      tokensIn,
+      tokensOut,
+      errorMessage: String((err as Error).message),
+    };
+  }
+}
+
 // ───────────────────── Test ping (저장 시 검증용) ─────────────────────
 // 저장된 Key가 실제로 유효한지 각 사 API에 최소 호출을 보내 확인한다.
 // 성공(true) or 실패사유(string). "verified" 표시에만 사용.
@@ -362,8 +488,34 @@ async function streamGemini(args: LlmStreamArgs): Promise<LlmStreamResult> {
 export async function verifyApiKey(
   provider: LlmProvider,
   apiKey: string,
+  extra?: { baseUrl?: string | null; modelId?: string | null },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
+    if (provider === "ollama") {
+      const baseUrl = (extra?.baseUrl ?? "").replace(/\/+$/, "");
+      const modelId = extra?.modelId ?? "";
+      if (!baseUrl || !modelId) {
+        return { ok: false, error: "baseUrl 과 modelId 가 모두 필요합니다." };
+      }
+      const res = await fetch(`${baseUrl}/models`, {
+        headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        return { ok: false, error: `HTTP ${res.status}: ${text.slice(0, 200)}` };
+      }
+      const data = (await res.json().catch(() => ({}))) as {
+        data?: Array<{ id?: string }>;
+      };
+      const ids = (data.data ?? []).map((m) => m.id ?? "");
+      if (ids.length && !ids.includes(modelId)) {
+        return {
+          ok: false,
+          error: `모델 '${modelId}' 을(를) 찾을 수 없습니다. 설치된 모델: ${ids.slice(0, 5).join(", ")}`,
+        };
+      }
+      return { ok: true };
+    }
     if (provider === "claude") {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",

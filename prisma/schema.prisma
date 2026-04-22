@@ -57,9 +57,12 @@ model User {
 // lastError: 401/결제 실패 등을 UI에 표시하기 위한 최근 에러 메시지.
 model TeacherLlmKey {
   userId     String    @id
-  provider   String // "claude" | "openai" | "gemini"
-  apiKeyEnc  String // base64(iv[12] || authTag[16] || ciphertext)
+  provider   String // "claude" | "openai" | "gemini" | "ollama"
+  apiKeyEnc  String // base64(iv[12] || authTag[16] || ciphertext). ollama면 빈 문자열 허용
   last4      String // 원문 API Key의 마지막 4자 (UI 표시용)
+  // ollama 로컬 테스트용 — 다른 provider는 null
+  baseUrl    String?
+  modelId    String?
   verified   Boolean   @default(false)
   verifiedAt DateTime?
   lastError  String?
