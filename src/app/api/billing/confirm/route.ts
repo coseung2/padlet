@@ -14,6 +14,7 @@ import {
   issueBillingKey,
   TossConfigMissingError,
 } from "@/lib/billing/toss";
+import { encryptBillingKey } from "@/lib/billing/billing-key-crypto";
 
 const Schema = z.object({
   authKey: z.string().min(1),
@@ -91,7 +92,7 @@ export async function POST(req: Request) {
     data: {
       plan: plan.planKey,
       status: "active",
-      pgBillingKey: billing.billingKey,
+      pgBillingKey: encryptBillingKey(billing.billingKey),
       pgBillingKeyLast4: (billing.cardNumber ?? "").replace(/[^0-9]/g, "").slice(-4) || null,
       amount: plan.amount,
       currency: "KRW",

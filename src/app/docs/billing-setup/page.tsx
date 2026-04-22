@@ -62,7 +62,7 @@ export default function BillingSetupPage() {
           <h2 className="docs-h2">4. 보안 체크리스트</h2>
           <ul className="docs-list">
             <li>시크릿 키는 서버 전용. <code className="docs-code">src/lib/billing/toss.ts</code>에서만 import되며 client에 번들되지 않음.</li>
-            <li>빌링키(<code className="docs-code">pgBillingKey</code>) 자체는 현재 평문으로 DB에 저장됩니다. 프로덕션 오픈 전 <code className="docs-code">LLM_KEY_SECRET</code>과 동일한 AES-GCM으로 암호화하세요.</li>
+            <li>빌링키(<code className="docs-code">pgBillingKey</code>)는 <code className="docs-code">LLM_KEY_SECRET</code> 파생키로 AES-256-GCM 암호화되어 저장됩니다(<code className="docs-code">src/lib/billing/billing-key-crypto.ts</code>). <code className="docs-code">LLM_KEY_SECRET</code>을 회전하면 기존 빌링키는 복호화 실패 → 재결제 필요.</li>
             <li>웹훅 엔드포인트는 <code className="docs-code">?secret=</code> 쿼리로 간이 인증. 실 운영은 HMAC 서명 검증으로 교체 권장.</li>
             <li>환불·부분취소 API는 현재 scaffold에 미포함. Toss /v1/payments/cancel로 확장할 것.</li>
           </ul>
