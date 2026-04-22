@@ -7,6 +7,7 @@ import { DJQueueList } from "./dj/DJQueueList";
 import { DJSubmitForm } from "./dj/DJSubmitForm";
 import { DJRanking } from "./dj/DJRanking";
 import { DJPlayedStack } from "./dj/DJPlayedStack";
+import { DJRecapModal } from "./dj/DJRecapModal";
 
 type Props = {
   boardId: string;
@@ -38,6 +39,7 @@ export function DJBoard({
   const [cards, setCards] = useState<CardData[]>(initialCards);
   const [error, setError] = useState<string | null>(null);
   const [playedOpen, setPlayedOpen] = useState(false);
+  const [recapOpen, setRecapOpen] = useState(false);
   const canControl = currentRole === "owner" || currentRole === "editor";
 
   // Tracks cards currently mid-flight so SSE snapshots don't stomp optimistic
@@ -268,6 +270,14 @@ export function DJBoard({
             <button
               type="button"
               className="dj-header-btn"
+              onClick={() => setRecapOpen(true)}
+              aria-label="월말 리캡 열기"
+            >
+              📊 이달의 리캡
+            </button>
+            <button
+              type="button"
+              className="dj-header-btn"
               onClick={() => setPlayedOpen((v) => !v)}
               aria-pressed={playedOpen}
             >
@@ -316,6 +326,14 @@ export function DJBoard({
           </aside>
         </div>
       </main>
+
+      {recapOpen && (
+        <DJRecapModal
+          boardId={boardId}
+          boardTitle={boardTitle}
+          onClose={() => setRecapOpen(false)}
+        />
+      )}
     </>
   );
 }

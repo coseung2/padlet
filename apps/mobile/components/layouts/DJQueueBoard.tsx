@@ -15,6 +15,7 @@ import {
 import { colors, radii, shadows, spacing, tapMin, typography } from "../../theme/tokens";
 import { apiFetch, ApiError } from "../../lib/api";
 import type { BoardDetailResponse, BoardCard } from "../../lib/types";
+import { DJRecapModal } from "../DJRecapModal";
 
 // DJ 큐 보드 — 웹 디자인 핸드오프 DJBoardPage.jsx 를 네이티브로 이식.
 //   [헤더: 제목 + 카운트 + 재생완료 토글]
@@ -39,6 +40,7 @@ export function DJQueueBoard({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [playedOpen, setPlayedOpen] = useState(false);
+  const [recapOpen, setRecapOpen] = useState(false);
   const pendingIds = useRef<Set<string>>(new Set());
   const boardId = data.board.id;
 
@@ -258,12 +260,20 @@ export function DJQueueBoard({
             DJ 큐 · 대기 {pendingCount} · 승인 {approvedCount} · 재생 완료 {playedCards.length}
           </Text>
         </View>
-        <Pressable
-          style={({ pressed }) => [styles.headerBtn, pressed && styles.headerBtnPressed]}
-          onPress={() => setPlayedOpen(true)}
-        >
-          <Text style={styles.headerBtnText}>🕘 재생 완료 ({playedCards.length})</Text>
-        </Pressable>
+        <View style={{ flexDirection: "row", gap: spacing.sm }}>
+          <Pressable
+            style={({ pressed }) => [styles.headerBtn, pressed && styles.headerBtnPressed]}
+            onPress={() => setRecapOpen(true)}
+          >
+            <Text style={styles.headerBtnText}>📊 이달의 리캡</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.headerBtn, pressed && styles.headerBtnPressed]}
+            onPress={() => setPlayedOpen(true)}
+          >
+            <Text style={styles.headerBtnText}>🕘 재생 완료 ({playedCards.length})</Text>
+          </Pressable>
+        </View>
       </View>
 
       {nowPlaying ? <NowPlayingCard card={nowPlaying} onNext={() => handleStatus(nowPlaying.id, "played")} /> : null}
@@ -371,6 +381,13 @@ export function DJQueueBoard({
         onClose={() => setPlayedOpen(false)}
         onRestore={handleRestore}
         onDelete={handleDelete}
+      />
+
+      <DJRecapModal
+        open={recapOpen}
+        boardId={boardId}
+        boardTitle={data.board.title}
+        onClose={() => setRecapOpen(false)}
       />
     </View>
   );

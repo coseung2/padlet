@@ -218,6 +218,7 @@ model Classroom {
   studentAccounts StudentAccount[]
   storeItems      StoreItem[]
   rolePermissions ClassroomRolePermission[]
+  djPlayEvents    DjPlayEvent[]
 
   @@index([teacherId])
   @@index([code])
@@ -319,6 +320,7 @@ model Board {
   assignmentSlots    AssignmentSlot[]
   vibeArcadeConfig   VibeArcadeConfig?
   vibeProjects       VibeProject[]
+  djPlayEvents       DjPlayEvent[]
 }
 
 // Columns/Kanban용 섹션 (grid/stream에선 사용 안 함)
@@ -1547,4 +1549,30 @@ model VibeQuotaLedger {
   @@unique([classroomId, studentId, date])
   @@index([classroomId, date])
   @@index([studentId, date])
+}
+
+// ── DJ Board 재생 이벤트 로그 (2026-04-22 dj-recap) ────────────────────
+// Card.queueStatus='played' 전환 시 1건 기록. Card 삭제돼도 이벤트는 남아서
+// 월말 리캡 집계가 안정적. 같은 곡을 재복귀 후 다시 재생하면 이벤트 2건.
+model DjPlayEvent {
+  id            String   @id @default(cuid())
+  boardId       String
+  classroomId   String
+  cardId        String?  // 카드 삭제 대응 — nullable + 수동 FK 없이 ID만 보존
+  title         String
+  linkUrl       String?
+  linkImage     String?
+  videoId       String?  // youtube 11자 id — 같은 곡 집계 join key
+  submitterName String?
+  submitterId   String?  // Student.id 또는 User.id (교사 신청 대응)
+  submitterKind String?  // "student" | "teacher" | "anon"
+  durationSec   Int?     // YouTube oEmbed 에서 뽑힌 길이(초), 없으면 null
+  playedAt      DateTime @default(now())
+
+  board     Board     @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+
+  @@index([boardId, playedAt])
+  @@index([classroomId, playedAt])
+  @@index([videoId])
 }
