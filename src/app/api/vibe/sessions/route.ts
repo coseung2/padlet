@@ -12,6 +12,7 @@ import { checkQuotaOrReject } from "@/lib/vibe-arcade/quota-ledger";
 import { streamLlm, DEFAULT_SYSTEM_PROMPT } from "@/lib/llm/stream";
 import { getTeacherKeyForBoard } from "@/lib/llm/teacher-key";
 import { limitVibeSession } from "@/lib/rate-limit-routes";
+import { CATEGORY_PROMPTS } from "@/lib/vibe-arcade/category-prompts";
 
 const StartSchema = z.object({
   boardId: z.string().min(1),
@@ -19,6 +20,9 @@ const StartSchema = z.object({
   // .optional() 는 null 을 거부해 400. null + undefined 모두 허용.
   sessionId: z.string().nullable().optional(),
   userMessage: z.string().min(1).max(4000),
+  // 학생이 시작 화면에서 고른 분야. 해당 프롬프트로 AI 를 인터뷰 모드로
+  // 전환. 없으면 (직접 입력 선택) 기본 프롬프트.
+  category: z.enum(["game", "quiz", "art", "sim"]).nullable().optional(),
 });
 
 export async function POST(req: Request) {
@@ -53,7 +57,7 @@ export async function POST(req: Request) {
       headers: { "Content-Type": "application/json" },
     });
   }
-  const { boardId, sessionId, userMessage } = parsed.data;
+  const { boardId, sessionId, userMessage, category } = parsed.data;
 
   const cfg = await db.vibeArcadeConfig.findUnique({ where: { boardId } });
   if (!cfg?.enabled) {
@@ -140,7 +144,7 @@ export async function POST(req: Request) {
           apiKey: teacherKey.apiKey,
           baseUrl: teacherKey.baseUrl,
           modelId: teacherKey.modelId,
-          systemPrompt: DEFAULT_SYSTEM_PROMPT,
+          systemPrompt: category ? CATEGORY_PROMPTS[category] : DEFAULT_SYSTEM_PROMPT,
           messages: nextMessages,
           studentId: student.id,
           classroomId: student.classroomId,

@@ -55,6 +55,24 @@ type Props = {
 
 const TAG_OPTIONS = ["게임", "퀴즈", "시뮬", "아트", "기타"] as const;
 
+// 첫 진입 학생을 위한 분야 선택지. 카드 클릭 → 서버가 해당 분야 시스템
+// 프롬프트로 Gemini 를 인터뷰 모드로 띄움. 학생은 AI 질문에 답하며 작품을
+// 구체화한 뒤 코드 생성 → 그 이후는 자유 프롬프트로 수정 iterate.
+// "직접 입력" 은 category 없이 기본 시스템 프롬프트로 바로 진입.
+type VibeCategory = "game" | "quiz" | "art" | "sim";
+
+const CATEGORY_OPTIONS: ReadonlyArray<{
+  key: VibeCategory;
+  emoji: string;
+  label: string;
+  initialMessage: string;
+}> = [
+  { key: "game", emoji: "🎮", label: "게임", initialMessage: "게임을 만들어 보고 싶어요." },
+  { key: "quiz", emoji: "🧩", label: "퀴즈", initialMessage: "퀴즈를 만들어 보고 싶어요." },
+  { key: "art", emoji: "🎨", label: "아트", initialMessage: "인터랙티브한 시각 작품을 만들고 싶어요." },
+  { key: "sim", emoji: "🧪", label: "시뮬", initialMessage: "간단한 시뮬레이션을 만들고 싶어요." },
+];
+
 export function VibeStudio({
   boardId,
   slot,
@@ -80,7 +98,12 @@ export function VibeStudio({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [dismissedStarters, setDismissedStarters] = useState(false);
+  // 학생이 분야 카드에서 고른 카테고리. 서버에 매 요청마다 같이 보내서
+  // Gemini 가 해당 분야 인터뷰 프롬프트로 응답하게 함.
+  const [category, setCategory] = useState<VibeCategory | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
 
   // 기존 프로젝트 로드 (편집/readonly 공통).
   useEffect(() => {
@@ -130,10 +153,18 @@ export function VibeStudio({
     [htmlContent, cssContent, jsContent],
   );
 
-  async function sendChat() {
-    const trimmed = chatInput.trim();
+  async function sendChat(
+    overrideText?: string,
+    overrideCategory?: VibeCategory | null,
+  ) {
+    const trimmed = (overrideText ?? chatInput).trim();
     if (!trimmed || streaming || !canEdit) return;
+    // category 는 카드 클릭에서 state 업데이트와 동시에 호출되므로 state 가
+    // 아직 반영 전일 수 있음. 명시적 override 우선.
+    const effectiveCategory =
+      overrideCategory !== undefined ? overrideCategory : category;
     setChatInput("");
+    setDismissedStarters(true);
     setMessages((m) => [...m, { role: "user", content: trimmed }]);
     setMessages((m) => [...m, { role: "assistant", content: "", streaming: true }]);
     setStreaming(true);
@@ -145,7 +176,12 @@ export function VibeStudio({
       const res = await fetch("/api/vibe/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ boardId, sessionId, userMessage: trimmed }),
+        body: JSON.stringify({
+          boardId,
+          sessionId,
+          userMessage: trimmed,
+          category: effectiveCategory ?? undefined,
+        }),
         signal: controller.signal,
       });
       if (!res.ok || !res.body) {
@@ -330,13 +366,56 @@ export function VibeStudio({
             {tab === "chat" && (
               <div className="vs-chat">
                 <div className="vs-chat-log" aria-live="polite">
-                  {messages.length === 0 && (
-                    <p className="vs-chat-hint">
-                      {canEdit
-                        ? "Claude에게 만들고 싶은 작품을 설명해 주세요. 예) “3×3 틱택토 게임”"
-                        : "이 작품은 다른 친구 것이라 대화를 볼 수 없어요."}
-                    </p>
-                  )}
+                  {messages.length === 0 &&
+                    canEdit &&
+                    !slot.project &&
+                    !dismissedStarters && (
+                      <div className="vs-starter-grid" role="group" aria-label="시작 분야 선택">
+                        <p className="vs-starter-title">
+                          무엇을 개발해 보시겠어요?
+                        </p>
+                        {CATEGORY_OPTIONS.map((c) => (
+                          <button
+                            key={c.key}
+                            type="button"
+                            className="vs-starter-card"
+                            disabled={streaming}
+                            onClick={() => {
+                              setCategory(c.key);
+                              void sendChat(c.initialMessage, c.key);
+                            }}
+                          >
+                            <span className="vs-starter-emoji" aria-hidden>
+                              {c.emoji}
+                            </span>
+                            <span className="vs-starter-label">{c.label}</span>
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          className="vs-starter-card vs-starter-custom"
+                          onClick={() => {
+                            setDismissedStarters(true);
+                            requestAnimationFrame(() => {
+                              chatInputRef.current?.focus();
+                            });
+                          }}
+                        >
+                          <span className="vs-starter-emoji" aria-hidden>
+                            ✏️
+                          </span>
+                          <span className="vs-starter-label">직접 입력하기</span>
+                        </button>
+                      </div>
+                    )}
+                  {messages.length === 0 &&
+                    (dismissedStarters || !canEdit || slot.project) && (
+                      <p className="vs-chat-hint">
+                        {canEdit
+                          ? "만들고 싶은 작품을 자유롭게 설명해 주세요."
+                          : "이 작품은 다른 친구 것이라 대화를 볼 수 없어요."}
+                      </p>
+                    )}
                   {messages.map((m, i) => (
                     <div
                       key={i}
@@ -355,6 +434,7 @@ export function VibeStudio({
                     }}
                   >
                     <textarea
+                      ref={chatInputRef}
                       className="vs-chat-input"
                       value={chatInput}
                       onChange={(e) => setChatInput(e.target.value)}
