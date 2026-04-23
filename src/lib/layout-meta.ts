@@ -18,7 +18,8 @@ export type LayoutKey =
   | "vibe-arcade"
   | "vibe-gallery"
   | "plant-roadmap"
-  | "event-signup";
+  | "event-signup"
+  | "question-board";
 
 export type LayoutMeta = {
   emoji: string;
@@ -40,6 +41,7 @@ export const LAYOUT_META: Record<LayoutKey, LayoutMeta> = {
   "vibe-gallery": { emoji: "🖼️", label: "코딩 갤러리" },
   "plant-roadmap": { emoji: "🌱", label: "식물 관찰" },
   "event-signup": { emoji: "🎪", label: "행사 신청" },
+  "question-board": { emoji: "💭", label: "질문 보드" },
 };
 
 /** 미지 layout 문자열 fallback — 문서철 이모지 + 원문 */

@@ -45,6 +45,7 @@ model User {
   // Billing (Toss Payments 정기결제 — Seed 14 scaffold, 2026-04-22)
   subscription           TeacherSubscription?
   paymentEvents          PaymentEvent[]
+  boardResponses         BoardResponse[]           @relation("UserBoardResponses")
 }
 
 // ──── Audit Log (Seed 14 security, 2026-04-22) ────
@@ -255,6 +256,7 @@ model Student {
   vibeSessions          VibeSession[]             @relation("VibeSessionAuthor")
   vibeReviews           VibeReview[]              @relation("VibeReviewer")
   vibePlaySessions      VibePlaySession[]         @relation("VibePlayer")
+  boardResponses        BoardResponse[]           @relation("StudentBoardResponses")
 
   @@unique([classroomId, number])
   @@index([classroomId])
@@ -309,6 +311,12 @@ model Board {
   assignmentAllowLate Boolean   @default(true)
   assignmentDeadline  DateTime?
 
+  // ── Question board (QB-1, 2026-04-23) ─────────────────────────────
+  // layout="question-board" 전용. 교사가 주제를 설정하고 학생들이 자유 텍스트
+  // 응답을 올린다. questionVizMode 는 교사가 선택한 시각화 모드.
+  questionPrompt    String?
+  questionVizMode   String     @default("word-cloud")
+
   classroom          Classroom?          @relation("ClassroomBoards", fields: [classroomId], references: [id], onDelete: SetNull)
   members            BoardMember[]
   cards              Card[]
@@ -321,6 +329,26 @@ model Board {
   vibeArcadeConfig   VibeArcadeConfig?
   vibeProjects       VibeProject[]
   djPlayEvents       DjPlayEvent[]
+  responses          BoardResponse[]
+}
+
+// Question Board 응답 (QB-1, 2026-04-23).
+// 하나의 Board(layout=question-board) 에 N 개 응답. 학생 또는 교사가 작성.
+// Board 삭제 시 cascade, Student/User 삭제 시 응답은 남지만 authorship 해지.
+model BoardResponse {
+  id        String   @id @default(cuid())
+  boardId   String
+  studentId String?
+  userId    String?
+  text      String
+  createdAt DateTime @default(now())
+
+  board   Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  student Student? @relation("StudentBoardResponses", fields: [studentId], references: [id], onDelete: SetNull)
+  user    User?    @relation("UserBoardResponses", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([boardId, createdAt])
+  @@index([boardId, studentId])
 }
 
 // Columns/Kanban용 섹션 (grid/stream에선 사용 안 함)

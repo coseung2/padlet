@@ -16,7 +16,8 @@ export type LayoutKey =
   | "vibe-arcade"
   | "vibe-gallery"
   | "plant-roadmap"
-  | "event-signup";
+  | "event-signup"
+  | "question-board";
 
 export const LAYOUT_META: Record<LayoutKey, { emoji: string; label: string }> = {
   freeform: { emoji: "🎯", label: "자유 배치" },
@@ -33,6 +34,7 @@ export const LAYOUT_META: Record<LayoutKey, { emoji: string; label: string }> = 
   "vibe-gallery": { emoji: "🖼️", label: "코딩 갤러리" },
   "plant-roadmap": { emoji: "🌱", label: "식물 관찰" },
   "event-signup": { emoji: "🎪", label: "행사 신청" },
+  "question-board": { emoji: "💭", label: "질문 보드" },
 };
 
 export function layoutEmoji(layout: string): string {

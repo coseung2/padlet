@@ -1,0 +1,30 @@
+{
+  "task_id": "2026-04-23-question-board",
+  "benchmarks": [
+    {
+      "id": "padlet_poll",
+      "name": "Padlet — Poll / 설문",
+      "note": "단일 질문 + 다중선택/서술형, 결과 바/원형 차트. 설문 중심이라 자유 질문 보드 기능 제한.",
+      "source_url_hint": "padlet.com — poll wall layout"
+    },
+    {
+      "id": "mentimeter",
+      "name": "Mentimeter",
+      "note": "Word Cloud, Open Ended, Scale, Quiz, Q&A 다중 슬라이드. 실시간 반영이 핵심 UX. 교사가 모드 전환 가능.",
+      "source_url_hint": "mentimeter.com"
+    },
+    {
+      "id": "slido",
+      "name": "Slido (Cisco)",
+      "note": "Q&A 와 Polls 분리. Q&A 는 투표 upvote 기반 정렬. Word Cloud 제공.",
+      "source_url_hint": "slido.com"
+    },
+    {
+      "id": "google_forms_live",
+      "name": "Google Forms — Live Results",
+      "note": "설문 전용. 실시간 시각화는 약함. 비교용.",
+      "source_url_hint": "forms.google.com"
+    }
+  ],
+  "evidence_note": "솔로 프로젝트 + gstack /browse 미실행. 스크린샷 대신 공지된 UX 패턴 문서 기반 요약."
+}

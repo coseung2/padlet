@@ -1,0 +1,39 @@
+{
+  "type": "feature",
+  "slug": "question-board",
+  "task_id": "2026-04-23-question-board",
+  "change_type": "new_feature",
+  "motivation": "교사가 수업 주제를 던지고 학생 응답을 모아 다양한 시각화로 표시하는 공간. 기존 보드 레이아웃(카드/컬럼/퀴즈 등)은 자유 게시 또는 과제 제출용이라 '주제 하나 × N명 응답 × 교사 시각화 선택' 흐름을 직접 담지 못함.",
+  "user_story": "교사로서 수업 주제에 대한 학생들의 질문·응답을 모아 원하는 시각화(워드클라우드·막대·파이·타임라인·리스트 중 선택)로 표시하고 수업 중 실시간으로 전환할 수 있다.",
+  "success_metric": "(1) 교사가 주제 생성부터 학생 10명 응답 수신까지 2분 이내. (2) 시각화 모드 전환 렌더 200ms 이내. (3) 갤럭시 탭 S6 Lite 기준 응답 100개 워드클라우드 첫 페인트 2초 이내. (4) 교사 모드 변경이 학생 화면에 5초 이내 반영(SSE).",
+  "affected_surfaces": [
+    "/board/[id]",
+    "/api/boards (create with layout=question-board)",
+    "/api/boards/[id]/responses (신규)",
+    "/api/boards/[id]/visualization-mode (신규)",
+    "src/components/layouts/QuestionBoard.tsx (신규)",
+    "apps/mobile/components/layouts/QuestionBoard.tsx (신규)",
+    "src/lib/layout-meta.ts",
+    "apps/mobile/theme/layout-meta.ts",
+    "prisma/schema.prisma (BoardResponse 모델 추가)"
+  ],
+  "scope_decisions": {
+    "mode_consolidation": "설문·질문 두 유스케이스는 하나의 레이아웃 안에서 교사 설정(prompt_mode: survey|question)으로 구분. 데이터 모델 공유.",
+    "topic_semantics": "시간 프레임이 아닌 교사 설정 주제(텍스트). 오픈/마감 시간은 비목표.",
+    "visualizations": ["word-cloud", "bar-chart", "pie-chart", "timeline", "list"]
+  },
+  "non_goals": [
+    "객관식/리커트 스케일 응답 — 자유 텍스트만 (MVP)",
+    "응답 기한 설정 (오픈/마감 시간)",
+    "응답 익명/기명 토글 — 기본 기명(학생 id 기록), 익명 전환은 후속",
+    "교사 간 보드 공유, 템플릿화",
+    "AI 요약·감성분석"
+  ],
+  "assumptions": [
+    "학생 인증은 기존 student-auth 사용 (`getCurrentStudent`)",
+    "보드 권한은 기존 board-member/role 기반 (`getEffectiveBoardRole`)",
+    "실시간은 기존 SSE 구조 재사용 (별도 엔진 도입 없음)",
+    "시각화 렌더는 클라 전용 — 서버는 응답 raw 데이터만 제공"
+  ],
+  "created_at": "2026-04-23T00:00:00+09:00"
+}

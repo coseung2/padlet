@@ -1,0 +1,50 @@
+{
+  "task_id": "2026-04-23-question-board",
+  "patterns": [
+    {
+      "pattern_id": "teacher_prompt_single_topic",
+      "description": "교사가 상단에 하나의 prompt(주제/질문)를 설정하고, 학생들은 이 prompt 아래에서만 응답. 학생 화면에서 prompt 변경은 허용 안 됨.",
+      "source_url": "mentimeter/slido common pattern"
+    },
+    {
+      "pattern_id": "realtime_response_stream",
+      "description": "응답이 들어오면 교사/학생 모든 뷰에 즉시 반영. 프리젠테이션 모드에선 애니메이션으로 추가 강조.",
+      "source_url": "mentimeter live presenter view"
+    },
+    {
+      "pattern_id": "teacher_mode_toggle",
+      "description": "교사가 시각화 모드(워드클라우드/바/파이/타임라인/리스트)를 토글하면 모든 연결된 학생 뷰에도 동일 모드가 반영됨. '현재 내가 보고 있는 모드'가 교실 전체에서 동기화.",
+      "source_url": "mentimeter presenter broadcast"
+    },
+    {
+      "pattern_id": "word_cloud_frequency_size",
+      "description": "단어/어구 빈도가 높을수록 폰트 크기·색 대비가 커짐. d3-cloud 식 레이아웃. 동일 단어 반복 입력이 클라우드의 시그널.",
+      "source_url": "d3.layout.cloud · mentimeter word cloud"
+    },
+    {
+      "pattern_id": "bar_chart_frequency_rank",
+      "description": "빈도 기반 바 차트. 상위 N개만 노출, 나머지는 '기타' 묶음 또는 숨김. MVP 는 상위 10개 고정.",
+      "source_url": "slido poll results"
+    },
+    {
+      "pattern_id": "pie_chart_share",
+      "description": "같은 빈도 기반이지만 상대 비율(퍼센트) 강조. 응답군이 3~5개로 수렴할 때 유용.",
+      "source_url": "padlet poll results"
+    },
+    {
+      "pattern_id": "timeline_chronological",
+      "description": "응답을 등록 시각순으로 쌓아 보여줌. 토론/Q&A 흐름 재생용. 'Slido Q&A' 식.",
+      "source_url": "slido Q&A recent tab"
+    },
+    {
+      "pattern_id": "list_simple",
+      "description": "등록 순 또는 upvote 순으로 단순 리스트. 접근성/저사양 기기에서 가장 안전한 fallback.",
+      "source_url": "generic"
+    },
+    {
+      "pattern_id": "moderation_optional",
+      "description": "교사가 응답 승인 후 시각화에 반영하는 moderated 모드. (비목표 — MVP 제외)",
+      "source_url": "slido Q&A moderated"
+    }
+  ]
+}
