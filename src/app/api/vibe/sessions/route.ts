@@ -15,7 +15,9 @@ import { limitVibeSession } from "@/lib/rate-limit-routes";
 
 const StartSchema = z.object({
   boardId: z.string().min(1),
-  sessionId: z.string().optional(), // null = new session
+  // 클라(VibeStudio) 가 첫 요청에 sessionId: null 을 보내는데 단순
+  // .optional() 는 null 을 거부해 400. null + undefined 모두 허용.
+  sessionId: z.string().nullable().optional(),
   userMessage: z.string().min(1).max(4000),
 });
 
