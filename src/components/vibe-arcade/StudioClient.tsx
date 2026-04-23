@@ -33,10 +33,15 @@ function extractCodeBlocks(text: string): { html?: string; css?: string; js?: st
   while ((m = re.exec(text)) !== null) {
     const lang = (m[1] ?? "").toLowerCase();
     const body = m[2].replace(/\n$/, "");
-    if (lang === "html" || lang === "htm") blocks.html = body;
+    if (lang.startsWith("html") || lang === "htm") blocks.html = body;
     else if (lang === "css") blocks.css = body;
     else if (lang === "js" || lang === "javascript" || lang === "mjs" || lang === "jsx")
       blocks.js = body;
+  }
+  // 폴백: 펜스를 빼먹고 전체 응답에 HTML 문서가 실려 온 경우 살려내기.
+  if (!blocks.html && /<!doctype html|<html[\s>]/i.test(text)) {
+    const m2 = text.match(/<!doctype html[\s\S]*?<\/html\s*>|<html[\s\S]*?<\/html\s*>/i);
+    if (m2) blocks.html = m2[0];
   }
   return blocks;
 }

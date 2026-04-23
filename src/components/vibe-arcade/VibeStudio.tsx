@@ -31,7 +31,7 @@ function extractCodeBlocks(text: string): {
   while ((m = re.exec(text)) !== null) {
     const lang = (m[1] ?? "").toLowerCase();
     const body = m[2].replace(/\n$/, "");
-    if (lang === "html" || lang === "htm") blocks.html = body;
+    if (lang.startsWith("html") || lang === "htm") blocks.html = body;
     else if (lang === "css") blocks.css = body;
     else if (
       lang === "js" ||
@@ -40,6 +40,10 @@ function extractCodeBlocks(text: string): {
       lang === "jsx"
     )
       blocks.js = body;
+  }
+  if (!blocks.html && /<!doctype html|<html[\s>]/i.test(text)) {
+    const m2 = text.match(/<!doctype html[\s\S]*?<\/html\s*>|<html[\s\S]*?<\/html\s*>/i);
+    if (m2) blocks.html = m2[0];
   }
   return blocks;
 }
