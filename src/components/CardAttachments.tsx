@@ -40,12 +40,15 @@ type Props = {
   /** 썸네일 모드 — 첫 첨부만 렌더 + 2개 이상이면 "+N" 배지. 기본은 detail
    *  (모달용, 전부 렌더). 카드 본문에서는 "thumbnail" 로 지정. */
   variant?: "thumbnail" | "detail";
+  /** detail 모드에서 이미지 클릭 시 라이트박스 오픈. index 는 이미지
+   *  속성만 걸러낸 배열 기준 (pdf/video 등 제외). */
+  onImageClick?: (imageIndex: number) => void;
 };
 
 // All props are primitives/null, so default shallow equality is safe.
 // Memoizing avoids re-rendering attachment previews on every unrelated
 // parent state update (drag, selection, modal toggles, etc.).
-export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl, linkTitle, linkDesc, linkImage, videoUrl, fileUrl, fileName, fileSize, fileMimeType, attachments, variant = "detail" }: Props) {
+export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl, linkTitle, linkDesc, linkImage, videoUrl, fileUrl, fileName, fileSize, fileMimeType, attachments, variant = "detail", onImageClick }: Props) {
   const hasAttachments = (attachments?.length ?? 0) > 0;
   if (!hasAttachments && !imageUrl && !linkUrl && !videoUrl && !fileUrl) return null;
 
@@ -64,11 +67,41 @@ export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl
   const sorted = variant === "thumbnail" ? allSorted.slice(0, 1) : allSorted;
   const extraCount = variant === "thumbnail" ? Math.max(0, allSorted.length - 1) : 0;
 
+  // detail 모드에서 이미지 클릭 시 라이트박스를 띄울 수 있도록 인덱스 계산.
+  // 이미지 종류만 navigation 대상 (pdf/video 제외). CardDetailModal 이
+  // onImageClick 을 넘기면 그 안에서 라이트박스 state 를 관리.
+  const imageAttachments = sorted.filter((a) => a.kind === "image");
+
   return (
     <div className="card-attachments">
       {hasAttachments
         ? sorted.map((a) => {
             if (a.kind === "image") {
+              if (variant === "detail") {
+                // 모달 내 이미지는 원본 비율/해상도 보존. OptimizedImage 의
+                // fill 모드는 컨테이너 높이 문제로 크롭처럼 보여서 plain <img>
+                // 로 직접 렌더. 클릭 시 라이트박스 오픈 콜백.
+                const imgIdx = imageAttachments.findIndex((it) => it.id === a.id);
+                const clickable = !!onImageClick;
+                return (
+                  <div key={a.id} className="card-attach-image is-detail">
+                    <img
+                      src={a.url}
+                      alt={a.fileName ?? ""}
+                      loading="lazy"
+                      className={clickable ? "is-clickable" : undefined}
+                      onClick={
+                        clickable ? () => onImageClick!(imgIdx) : undefined
+                      }
+                    />
+                    {extraCount > 0 && (
+                      <span className="card-attach-multi-badge" aria-label={`+${extraCount}개 더`}>
+                        +{extraCount}
+                      </span>
+                    )}
+                  </div>
+                );
+              }
               return (
                 <div key={a.id} className="card-attach-image optimized-img-wrap">
                   <OptimizedImage

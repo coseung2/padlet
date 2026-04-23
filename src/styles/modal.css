@@ -243,23 +243,117 @@
   gap: 12px;
 }
 
-.card-detail-media .card-attach-image {
-  width: 100%;
-  max-height: 70vh;
+/* detail 모드 이미지는 OptimizedImage(fill)가 아니라 plain <img> 로 렌더됨.
+   원본 비율 보존 + 70vh 상한. 클릭 시 라이트박스 오픈. */
+.card-detail-media .card-attach-image.is-detail {
   flex: 0 0 auto;
-  margin-bottom: 0;
+  width: 100%;
+  max-height: none;
+  display: flex;
+  justify-content: center;
+  background: transparent;
+  position: relative;
 }
 
-.card-detail-media .card-attach-image img {
+.card-detail-media .card-attach-image.is-detail img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
   max-height: 70vh;
-  width: 100%;
   object-fit: contain;
+  border-radius: 8px;
+}
+
+.card-detail-media .card-attach-image.is-detail img.is-clickable {
+  cursor: zoom-in;
+  transition: transform 120ms ease-out;
+}
+
+.card-detail-media .card-attach-image.is-detail img.is-clickable:hover {
+  transform: scale(1.01);
 }
 
 .card-detail-media .card-attach-file,
 .card-detail-media .card-attach-file-wrap {
   flex: 0 0 auto;
   width: 100%;
+}
+
+/* Image Lightbox — 카드 상세 모달 내부에서 이미지 클릭 시 띄우는 전체화면
+   뷰어. position: fixed 로 viewport 전체 덮되 카드 상세 모달의 자식이라
+   ESC/화살표 라우팅이 라이트박스 우선. */
+.card-image-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+
+.card-image-lightbox-img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.card-image-lightbox-close,
+.card-image-lightbox-nav {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 22px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease;
+}
+
+.card-image-lightbox-close:hover,
+.card-image-lightbox-nav:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.card-image-lightbox-close {
+  top: 16px;
+  right: 16px;
+}
+
+.card-image-lightbox-nav.is-prev {
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.card-image-lightbox-nav.is-next {
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.card-image-lightbox-counter {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 4px 12px;
+  border-radius: 999px;
 }
 
 /* OptimizedImage wrapper — force the wrapper to take the full pane so

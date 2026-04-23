@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CardAttachments } from "../CardAttachments";
 import { CardAuthorFooter } from "./CardAuthorFooter";
+import { CardImageLightbox } from "./CardImageLightbox";
 import type { CardData } from "../DraggableCard";
 
 type Props = {
@@ -31,6 +32,14 @@ export function CardDetailModal({
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // 카드 내부 이미지 라이트박스. null 이면 닫힘. 값은 card.attachments 중
+  // kind==="image" 만 걸러낸 배열 내 인덱스.
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  // 카드가 바뀌면 라이트박스 자동 닫기 (카드 간 이동은 라이트박스의 scope 밖).
+  useEffect(() => {
+    setLightboxIndex(null);
+  }, [card?.id]);
 
   const navIndex = useMemo(() => {
     if (!card || !cards || cards.length === 0) return -1;
@@ -52,6 +61,9 @@ export function CardDetailModal({
   useEffect(() => {
     if (!card) return;
     function onKey(e: KeyboardEvent) {
+      // 라이트박스 열려 있으면 카드 네비게이션 (좌우 화살표·ESC) 전부
+      // 라이트박스에 위임. 여기선 무시.
+      if (lightboxIndex !== null) return;
       if (e.key === "Escape" && !document.fullscreenElement) onClose();
       else if (e.key === "ArrowLeft") goPrev();
       else if (e.key === "ArrowRight") goNext();
@@ -62,7 +74,7 @@ export function CardDetailModal({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [card, onClose, goPrev, goNext]);
+  }, [card, onClose, goPrev, goNext, lightboxIndex]);
 
   // Sync local state with the browser's fullscreen lifecycle so exiting
   // via F11/ESC flips the button back without an extra click.
@@ -165,6 +177,7 @@ export function CardDetailModal({
                 fileSize={card.fileSize}
                 fileMimeType={card.fileMimeType}
                 attachments={card.attachments}
+                onImageClick={(i) => setLightboxIndex(i)}
               />
             </section>
           )}
@@ -201,6 +214,21 @@ export function CardDetailModal({
             )}
           </aside>
         </div>
+        {lightboxIndex !== null &&
+          (() => {
+            const imageItems = (card.attachments ?? [])
+              .filter((a) => a.kind === "image")
+              .sort((a, b) => a.order - b.order)
+              .map((a) => ({ id: a.id, url: a.url, alt: a.fileName ?? "" }));
+            if (imageItems.length === 0) return null;
+            return (
+              <CardImageLightbox
+                images={imageItems}
+                initialIndex={lightboxIndex}
+                onClose={() => setLightboxIndex(null)}
+              />
+            );
+          })()}
       </div>
     </>
   );
