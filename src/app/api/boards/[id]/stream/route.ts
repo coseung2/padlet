@@ -73,7 +73,7 @@ export async function GET(
 
   const board = await db.board.findFirst({
     where: { OR: [{ id: boardIdOrSlug }, { slug: boardIdOrSlug }] },
-    select: { id: true },
+    select: { id: true, layout: true },
   });
   if (!board) {
     return new Response("Not found", { status: 404 });
@@ -88,6 +88,7 @@ export async function GET(
   }
 
   const boardId = board.id;
+  const boardLayout = board.layout;
   const userId = user?.id ?? null;
   const studentId = student?.id ?? null;
   let cancelled = false;
@@ -97,6 +98,7 @@ export async function GET(
       const encoder = new TextEncoder();
       let lastCardsHash = "";
       let lastSectionsHash = "";
+      let lastQuestionHash = "";
       let lastPermissionCheck = Date.now();
       let lastKeepalive = Date.now();
 
@@ -234,7 +236,48 @@ export async function GET(
             lastCardsHash = cardsHash;
             lastSectionsHash = sectionsHash;
             send("snapshot", { cards, sections });
-          } else if (now - lastKeepalive >= KEEPALIVE_INTERVAL_MS) {
+          }
+
+          // Question board 전용 snapshot: prompt/vizMode + 응답 200개.
+          // 기존 cards/sections snapshot 과 독립적으로 전송해 hash 충돌 방지.
+          if (boardLayout === "question-board") {
+            const [boardMeta, responsesRaw] = await Promise.all([
+              db.board.findUnique({
+                where: { id: boardId },
+                select: { questionPrompt: true, questionVizMode: true },
+              }),
+              db.boardResponse.findMany({
+                where: { boardId },
+                orderBy: { createdAt: "desc" },
+                take: 200,
+                include: {
+                  student: { select: { id: true, name: true } },
+                  user: { select: { id: true, name: true } },
+                },
+              }),
+            ]);
+            if (boardMeta) {
+              const payload = {
+                prompt: boardMeta.questionPrompt,
+                vizMode: boardMeta.questionVizMode,
+                responses: responsesRaw.map((r) => ({
+                  id: r.id,
+                  text: r.text,
+                  createdAt: r.createdAt.toISOString(),
+                  studentId: r.studentId,
+                  userId: r.userId,
+                  authorName: r.student?.name ?? r.user?.name ?? "익명",
+                })),
+              };
+              const questionHash = hashStable(payload);
+              if (questionHash !== lastQuestionHash) {
+                lastQuestionHash = questionHash;
+                send("question_snapshot", payload);
+              }
+            }
+          }
+
+          if (now - lastKeepalive >= KEEPALIVE_INTERVAL_MS) {
             sendComment("ping");
             lastKeepalive = now;
           }

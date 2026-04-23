@@ -30,6 +30,7 @@ const PICKER_ROWS: PickerRow[] = [
   { id: "dj-queue", desc: "학생이 YouTube 곡을 신청 · DJ가 재생 순서 관리" },
   { id: "vibe-arcade", desc: "생성형 AI를 활용한 바이브 코딩 교실" },
   { id: "vibe-gallery", desc: "승인된 코딩 결과물을 전시 · 체험" },
+  { id: "question-board", desc: "교사가 주제를 던지고 학생 응답을 다양한 시각화로 표시" },
 ];
 
 const LAYOUTS = PICKER_ROWS.map((r) => ({
@@ -99,7 +100,8 @@ export function CreateBoardModal({ classrooms, userTier = "pro", onClose }: Prop
         layoutId === "assessment" ||
         layoutId === "dj-queue" ||
         layoutId === "vibe-arcade" ||
-        layoutId === "vibe-gallery") &&
+        layoutId === "vibe-gallery" ||
+        layoutId === "question-board") &&
       classrooms.length > 0
     ) {
       setSelectedLayout(layoutId);

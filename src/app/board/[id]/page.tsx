@@ -19,6 +19,7 @@ import { BreakoutBoard } from "@/components/BreakoutBoard";
 import { DJBoard } from "@/components/DJBoard";
 import { VibeArcadeBoard } from "@/components/VibeArcadeBoard";
 import { VibeGalleryBoard } from "@/components/VibeGalleryBoard";
+import { QuestionBoard } from "@/components/QuestionBoard";
 import { cloneStructure } from "@/lib/breakout";
 import { parseObservationPoints, STALL_THRESHOLD_DAYS } from "@/lib/plant-schemas";
 import type { PlantJournalResponse } from "@/types/plant";
@@ -68,12 +69,14 @@ export default async function BoardPage({
   const needsEventData = board.layout === "event-signup";
   const needsDrawingData = board.layout === "drawing";
   const needsBreakoutData = board.layout === "breakout";
+  const needsQuestionData = board.layout === "question-board";
   const needsCards =
     !needsAssignmentData &&
     !needsQuizData &&
     !needsPlantData &&
     !needsEventData &&
-    !needsDrawingData;
+    !needsDrawingData &&
+    !needsQuestionData;
   // Breakout reuses cards + sections both.
   const needsSections = board.layout === "columns" || needsBreakoutData;
   const needsBreakoutAssignment = needsBreakoutData;
@@ -747,6 +750,30 @@ export default async function BoardPage({
             boardId={board!.id}
             classroomId={board!.classroomId ?? ""}
             viewerKind={viewerKind}
+          />
+        );
+      }
+      case "question-board": {
+        const viewerKind: "teacher" | "student" | "none" = studentViewer
+          ? "student"
+          : effectiveRole === "owner" || effectiveRole === "editor"
+            ? "teacher"
+            : "none";
+        return (
+          <QuestionBoard
+            boardId={board!.id}
+            boardSlug={board!.slug}
+            initialPrompt={board!.questionPrompt ?? null}
+            initialVizMode={
+              (board!.questionVizMode as
+                | "word-cloud"
+                | "bar"
+                | "pie"
+                | "timeline"
+                | "list") ?? "word-cloud"
+            }
+            viewerKind={viewerKind}
+            currentStudentId={studentViewer?.id ?? null}
           />
         );
       }
