@@ -12,6 +12,7 @@
 // Studio 진입(학생 슬롯 클릭) → VibeStudio 모달. 교사 슬롯 클릭(검토) →
 // (Phase 3) TeacherModerationPanel 모달. 지금은 Studio만 연결.
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { StarRating } from "./vibe-arcade/StarRating";
 import { StudentSlotCard } from "./vibe-arcade/StudentSlotCard";
@@ -199,6 +200,27 @@ export function VibeArcadeBoard(props: VibeArcadeBoardProps) {
 
   const isTeacher = props.viewerKind === "teacher";
 
+  // 학생 뷰: 다른 친구들 작품·탭 숨김. 중앙 "입장하기" 버튼만 노출 →
+  // /board/[id]/vibe-arcade/studio 로 이동해 풀페이지 챗·프리뷰 편집.
+  if (props.viewerKind === "student") {
+    return (
+      <section className="va-root va-student-landing">
+        <div className="va-student-landing-inner">
+          <h1 className="va-title">💻 코딩 교실</h1>
+          <p className="va-subtitle">
+            Claude 와 대화하며 나만의 작품을 만들어 보세요.
+          </p>
+          <Link
+            href={`/board/${props.boardId}/vibe-arcade/studio`}
+            className="va-student-enter"
+          >
+            🚀 입장하기
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="va-root">
       <header className="va-header">
@@ -311,22 +333,6 @@ export function VibeArcadeBoard(props: VibeArcadeBoardProps) {
             </li>
           ))}
         </ul>
-      )}
-
-      {props.viewerKind === "student" && tab !== "slots" && (
-        <button
-          type="button"
-          className="va-fab"
-          aria-label="새 작품 만들기"
-          onClick={() => {
-            const selfSlot = slots.find((s) => s.studentId === props.studentId);
-            setStudioSlot(selfSlot ?? null);
-            // 슬롯 데이터가 비어있으면 뒤에서 fetch 후 재클릭. 빠른 경로 — 탭 전환.
-            if (!selfSlot) setTab("slots");
-          }}
-        >
-          +
-        </button>
       )}
 
       {studioSlot && (
