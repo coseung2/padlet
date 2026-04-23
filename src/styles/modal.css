@@ -224,6 +224,44 @@
   object-position: center;
 }
 
+/* Twemoji 이모지(📥 다운로드 아이콘 등) 는 위 광범위 규칙에 말려 거대해짐.
+   이모지는 항상 글자 크기로 되돌린다. */
+.card-detail-media img.emoji {
+  width: 1em;
+  height: 1em;
+  max-width: 1em;
+  max-height: 1em;
+  object-fit: initial;
+  display: inline-block;
+  vertical-align: -0.1em;
+}
+
+/* 여러 파일/이미지가 쌓여 모달이 비대해지는 것 방지 — 첨부별 상한. */
+.card-detail-media .card-attachments {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card-detail-media .card-attach-image {
+  width: 100%;
+  max-height: 70vh;
+  flex: 0 0 auto;
+  margin-bottom: 0;
+}
+
+.card-detail-media .card-attach-image img {
+  max-height: 70vh;
+  width: 100%;
+  object-fit: contain;
+}
+
+.card-detail-media .card-attach-file,
+.card-detail-media .card-attach-file-wrap {
+  flex: 0 0 auto;
+  width: 100%;
+}
+
 /* OptimizedImage wrapper — force the wrapper to take the full pane so
    the <img> inside can actually grow. next/image with fill needs a sized
    parent. */

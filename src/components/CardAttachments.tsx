@@ -37,12 +37,15 @@ type Props = {
   /** multi-attachment (2026-04-20): 정규화 첨부 배열. 있으면 이 배열이
    *  우선 렌더되고, 비어있을 때만 위의 single-field fallback이 동작. */
   attachments?: AttachmentItem[];
+  /** 썸네일 모드 — 첫 첨부만 렌더 + 2개 이상이면 "+N" 배지. 기본은 detail
+   *  (모달용, 전부 렌더). 카드 본문에서는 "thumbnail" 로 지정. */
+  variant?: "thumbnail" | "detail";
 };
 
 // All props are primitives/null, so default shallow equality is safe.
 // Memoizing avoids re-rendering attachment previews on every unrelated
 // parent state update (drag, selection, modal toggles, etc.).
-export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl, linkTitle, linkDesc, linkImage, videoUrl, fileUrl, fileName, fileSize, fileMimeType, attachments }: Props) {
+export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl, linkTitle, linkDesc, linkImage, videoUrl, fileUrl, fileName, fileSize, fileMimeType, attachments, variant = "detail" }: Props) {
   const hasAttachments = (attachments?.length ?? 0) > 0;
   if (!hasAttachments && !imageUrl && !linkUrl && !videoUrl && !fileUrl) return null;
 
@@ -54,9 +57,12 @@ export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl
 
   // multi-attachment: 링크·canva·youtube는 기존 로직 그대로, 나머지
   // 이미지/동영상/파일은 attachments 배열을 우선 렌더.
-  const sorted = hasAttachments
+  const allSorted = hasAttachments
     ? [...(attachments ?? [])].sort((a, b) => a.order - b.order)
     : [];
+  // 썸네일 모드: 첫 첨부만. 모달 모드: 전부.
+  const sorted = variant === "thumbnail" ? allSorted.slice(0, 1) : allSorted;
+  const extraCount = variant === "thumbnail" ? Math.max(0, allSorted.length - 1) : 0;
 
   return (
     <div className="card-attachments">
@@ -70,6 +76,11 @@ export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl
                     alt={a.fileName ?? ""}
                     sizes="(max-width: 768px) 100vw, 480px"
                   />
+                  {extraCount > 0 && (
+                    <span className="card-attach-multi-badge" aria-label={`+${extraCount}개 더`}>
+                      +{extraCount}
+                    </span>
+                  )}
                 </div>
               );
             }
@@ -84,24 +95,40 @@ export const CardAttachments = memo(function CardAttachments({ imageUrl, linkUrl
                       allowFullScreen
                       title="YouTube"
                     />
+                    {extraCount > 0 && (
+                      <span className="card-attach-multi-badge" aria-label={`+${extraCount}개 더`}>
+                        +{extraCount}
+                      </span>
+                    )}
                   </div>
                 );
               }
               return (
                 <div key={a.id} className="card-attach-video">
                   <video src={a.url} controls preload="metadata" />
+                  {extraCount > 0 && (
+                    <span className="card-attach-multi-badge" aria-label={`+${extraCount}개 더`}>
+                      +{extraCount}
+                    </span>
+                  )}
                 </div>
               );
             }
             // file
             return (
-              <CardFileAttachment
-                key={a.id}
-                fileUrl={a.url}
-                fileName={a.fileName}
-                fileSize={a.fileSize}
-                fileMimeType={a.mimeType}
-              />
+              <div key={a.id} className="card-attach-file-wrap">
+                <CardFileAttachment
+                  fileUrl={a.url}
+                  fileName={a.fileName}
+                  fileSize={a.fileSize}
+                  fileMimeType={a.mimeType}
+                />
+                {extraCount > 0 && (
+                  <span className="card-attach-multi-badge is-inline" aria-label={`+${extraCount}개 더`}>
+                    +{extraCount}
+                  </span>
+                )}
+              </div>
             );
           })
         : (

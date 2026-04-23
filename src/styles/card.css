@@ -139,6 +139,7 @@
   border-radius: 8px;
   overflow: hidden;
   margin-bottom: 8px;
+  position: relative;
 }
 
 .card-attach-image img {
@@ -146,6 +147,29 @@
   width: 100%;
   max-height: 180px;
   object-fit: cover;
+}
+
+/* "+N" 앨범 배지 — 썸네일 모드에서 첫 첨부 위에 나머지 개수 표시. */
+.card-attach-multi-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 2px 8px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.card-attach-file-wrap {
+  position: relative;
+}
+
+.card-attach-multi-badge.is-inline {
+  top: 4px;
+  right: 4px;
 }
 
 .card-attach-video {

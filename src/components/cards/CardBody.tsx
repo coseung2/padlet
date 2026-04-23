@@ -55,6 +55,7 @@ export const CardBody = memo(function CardBody({ card, titleAs = "h3" }: Props) 
         fileSize={card.fileSize}
         fileMimeType={card.fileMimeType}
         attachments={card.attachments}
+        variant="thumbnail"
       />
       <Title className="padlet-card-title">{card.title}</Title>
       <p className="padlet-card-content">{card.content}</p>
