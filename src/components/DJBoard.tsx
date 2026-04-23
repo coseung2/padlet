@@ -186,8 +186,16 @@ export function DJBoard({
 
   async function handleReorder(cardId: string, newOrder: number) {
     const prev = cards;
+    // 서버의 "insert-at-order" 의미론에 맞춰 optimistic 업데이트도 동일하게
+    // 계산: 이동 대상 외 카드 중 order >= newOrder 인 건 +1 로 밀어냄.
     setCards((list) =>
-      list.map((c) => (c.id === cardId ? { ...c, order: newOrder } : c)),
+      list.map((c) => {
+        if (c.id === cardId) return { ...c, order: newOrder };
+        if (c.queueStatus !== null && c.order >= newOrder) {
+          return { ...c, order: c.order + 1 };
+        }
+        return c;
+      }),
     );
     await trackMutation(cardId, async () => {
       const res = await fetch(

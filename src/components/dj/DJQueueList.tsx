@@ -58,10 +58,8 @@ export function DJQueueList({
     if (draggedId === targetCardId) return;
     const target = cards.find((c) => c.id === targetCardId);
     if (!target) return;
-    // Place dragged right before target by using (target.order - 0.5).
-    // Server stores integer order, so we use target.order (and push target
-    // forward by 1 implicitly on next reorder). MVP keeps this simple —
-    // collisions resolve on next SSE snapshot.
+    // "insert at target.order" — 서버가 target.order 이상인 카드들을 +1 밀어내고
+    // 이동 카드를 그 자리에 삽입해서 target 바로 앞에 꽂히게 됨.
     onReorder(draggedId, target.order);
   }
 

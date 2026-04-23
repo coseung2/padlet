@@ -56,10 +56,24 @@ export async function PATCH(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const updated = await db.card.update({
-    where: { id: cardId },
-    data: { order: parsed.data.order },
-  });
+  // "insert at order N" 의미론: 기존에 order >= N 인 큐 카드를 +1 밀어낸 뒤
+  // 이동 대상 카드를 order=N 으로 세팅. 같은 order 충돌 방지 (이전 구현은
+  // 단순 덮어쓰기라 두 카드가 동일 order 를 갖게 돼 sort 가 결정적이지 않았음).
+  const [, updated] = await db.$transaction([
+    db.card.updateMany({
+      where: {
+        boardId: board.id,
+        id: { not: cardId },
+        queueStatus: { not: null },
+        order: { gte: parsed.data.order },
+      },
+      data: { order: { increment: 1 } },
+    }),
+    db.card.update({
+      where: { id: cardId },
+      data: { order: parsed.data.order },
+    }),
+  ]);
 
   // classroom-boards-tab "🟢 새 활동" 배지 — 큐 순서 변경도 활동 신호.
   await touchBoardUpdatedAt(board.id);
