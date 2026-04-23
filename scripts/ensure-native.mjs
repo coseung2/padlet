@@ -3,6 +3,11 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { dirname } from "node:path";
 
+// Vercel/CI 는 매 빌드가 fresh 컨테이너라 OS 변경 감지가 불필요하고,
+// NODE_ENV=production 상태에서 npm install 을 재실행하면 devDependencies
+// 가 제거되어 TypeScript 빌드가 깨진다. 로컬 왕복에만 필요한 안전장치.
+if (process.env.VERCEL || process.env.CI) process.exit(0);
+
 const STAMP = "node_modules/.native-os";
 const current = `${process.platform}-${process.arch}`;
 
