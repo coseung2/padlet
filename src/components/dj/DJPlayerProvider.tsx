@@ -450,7 +450,7 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
   // PiP 드래그 — 헤더 onMouseDown 에서 트리거. 전역 mousemove/up 등록.
   const startDrag = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (hostEl) return; // docked 상태에선 드래그 불가
+      if (hostEl && !manualPip) return; // docked 일 때만 차단 (manualPip 로 floating 중이면 허용)
       e.preventDefault();
       const startX = e.clientX;
       const startY = e.clientY;
@@ -469,7 +469,7 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
     },
-    [hostEl, pipPos],
+    [hostEl, manualPip, pipPos],
   );
 
   // PiP 리사이즈 — 3면 핸들(우/하/우하단). direction 별로 w/h 독립 변경.
@@ -477,7 +477,7 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
   const startResize = useCallback(
     (dir: ResizeDir) =>
       (e: React.PointerEvent<HTMLDivElement>) => {
-        if (hostEl) return;
+        if (hostEl && !manualPip) return;
         e.preventDefault();
         e.stopPropagation();
         const startX = e.clientX;
@@ -507,7 +507,7 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
         window.addEventListener("pointermove", onMove);
         window.addEventListener("pointerup", onUp);
       },
-    [hostEl, pipPos],
+    [hostEl, manualPip, pipPos],
   );
 
   const value: Ctx = {
