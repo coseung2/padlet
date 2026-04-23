@@ -17,6 +17,33 @@ type TabKey = "html" | "css" | "js" | "chat";
 
 type ChatMessage = { role: "user" | "assistant"; content: string; streaming?: boolean };
 
+// 챗 응답에서 ```html ...```, ```css ...```, ```js ...``` 블록을 찾아
+// 마지막 것으로 html/css/js state 를 세팅. 학생은 탭 없이 챗만 쓰니
+// 자동 반영이 필수 (수동 복붙 경로가 사라졌음).
+function extractCodeBlocks(text: string): {
+  html?: string;
+  css?: string;
+  js?: string;
+} {
+  const blocks: { html?: string; css?: string; js?: string } = {};
+  const re = /```(\w+)?\s*\n([\s\S]*?)```/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const lang = (m[1] ?? "").toLowerCase();
+    const body = m[2].replace(/\n$/, "");
+    if (lang === "html" || lang === "htm") blocks.html = body;
+    else if (lang === "css") blocks.css = body;
+    else if (
+      lang === "js" ||
+      lang === "javascript" ||
+      lang === "mjs" ||
+      lang === "jsx"
+    )
+      blocks.js = body;
+  }
+  return blocks;
+}
+
 type Props = {
   boardId: string;
   classroomId: string;
@@ -39,7 +66,8 @@ export function VibeStudio({
   const isTeacher = viewerKind === "teacher";
   const canEdit = isSelf;
 
-  const [tab, setTab] = useState<TabKey>("html");
+  // 학생은 챗만. 교사/readonly 뷰어는 기존 html 탭 시작 (디버깅·리뷰용).
+  const [tab, setTab] = useState<TabKey>(isSelf ? "chat" : "html");
   const [title, setTitle] = useState(slot.project?.title ?? "");
   const [htmlContent, setHtmlContent] = useState("");
   const [cssContent, setCssContent] = useState("");
@@ -160,6 +188,12 @@ export function VibeStudio({
           }
         }
       }
+      // 스트림 종료 후 응답에서 코드 블록 자동 추출 → state 반영.
+      // 없는 블록은 건드리지 않아 이전 값 보존.
+      const extracted = extractCodeBlocks(assistantText);
+      if (extracted.html !== undefined) setHtmlContent(extracted.html);
+      if (extracted.css !== undefined) setCssContent(extracted.css);
+      if (extracted.js !== undefined) setJsContent(extracted.js);
     } catch (e) {
       if ((e as Error).name === "AbortError") return;
       setMessages((m) => [...m, { role: "assistant", content: `⚠ ${(e as Error).message}` }]);
@@ -179,7 +213,11 @@ export function VibeStudio({
       return;
     }
     if (!htmlContent.trim()) {
-      setSaveError("HTML 탭에 본문이 있어야 해요.");
+      setSaveError(
+        isSelf
+          ? "작품이 아직 없어요. Claude 에게 만들고 싶은 걸 더 구체적으로 요청해 주세요."
+          : "HTML 탭에 본문이 있어야 해요.",
+      );
       return;
     }
     setSaving(true);
@@ -242,19 +280,22 @@ export function VibeStudio({
 
         <div className="vs-studio-body">
           <div className="vs-studio-editor">
-            <div className="vs-studio-tabs" role="tablist" aria-label="에디터 탭">
-              {(["html", "css", "js", "chat"] as const).map((k) => (
-                <button
-                  key={k}
-                  role="tab"
-                  aria-selected={tab === k}
-                  className={`vs-studio-tab${tab === k ? " is-active" : ""}`}
-                  onClick={() => setTab(k)}
-                >
-                  {k === "chat" ? "💬 Claude" : k.toUpperCase()}
-                </button>
-              ))}
-            </div>
+            {/* 학생은 챗 탭만 보임 — html/css/js 는 챗 응답에서 자동 추출. */}
+            {!isSelf && (
+              <div className="vs-studio-tabs" role="tablist" aria-label="에디터 탭">
+                {(["html", "css", "js", "chat"] as const).map((k) => (
+                  <button
+                    key={k}
+                    role="tab"
+                    aria-selected={tab === k}
+                    className={`vs-studio-tab${tab === k ? " is-active" : ""}`}
+                    onClick={() => setTab(k)}
+                  >
+                    {k === "chat" ? "💬 Claude" : k.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {tab === "html" && (
               <textarea
