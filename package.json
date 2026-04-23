@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "ensure-native": "node scripts/ensure-native.mjs",
+    "predev": "npm run ensure-native",
+    "prebuild": "npm run ensure-native",
     "dev": "next dev",
     "build": "prisma migrate deploy && next build",
     "start": "next start",
