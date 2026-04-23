@@ -1461,6 +1461,9 @@
   flex: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
+  /* row 를 minmax(0,1fr) 로 잠가야 자식의 긴 콘텐츠가 row 를 늘리지 않음.
+     이전: rows 가 auto → 챗 로그가 커지면 row 가 함께 커져 프리뷰까지 무한 확장. */
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
 }
 
@@ -1468,6 +1471,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
   border-right: 1px solid var(--color-border);
   background: var(--color-surface);
 }
@@ -1533,19 +1537,66 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
   background: #f0ede9;
 }
 
-.va-studio-preview-label {
-  padding: 8px 14px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
+.va-studio-preview-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
   background: #faf9f7;
   border-bottom: 1px solid var(--color-border);
+}
+
+.va-studio-preview-tab {
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-btn);
+  transition: background var(--t-normal), color var(--t-normal);
+}
+
+.va-studio-preview-tab:hover {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.va-studio-preview-tab.is-active {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.va-studio-code {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 14px 16px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--color-text);
+  background: #fff;
+  white-space: pre;
+  tab-size: 2;
+}
+
+.va-studio-code-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  background: #fff;
 }
 
 .va-studio-iframe {

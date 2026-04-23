@@ -76,6 +76,7 @@ export function StudioClient({ boardId, boardHref, studentName, existingProject 
   const [loadError, setLoadError] = useState<string | null>(null);
   const [dismissedStarters, setDismissedStarters] = useState(false);
   const [category, setCategory] = useState<VibeCategory | null>(null);
+  const [previewTab, setPreviewTab] = useState<"preview" | "code">("preview");
   const abortRef = useRef<AbortController | null>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
@@ -129,6 +130,16 @@ export function StudioClient({ boardId, boardHref, studentName, existingProject 
     () => buildStudioSrcDoc({ htmlContent, cssContent, jsContent }),
     [htmlContent, cssContent, jsContent],
   );
+
+  // 코드 뷰: 보통 AI 가 단일 HTML 문서로 돌려주지만, 드물게 css/js 블록이
+  // 분리돼 들어올 수 있어 셋 다 합친 걸 보여준다.
+  const codeView = useMemo(() => {
+    const parts: string[] = [];
+    if (htmlContent.trim()) parts.push(htmlContent);
+    if (cssContent.trim()) parts.push(`/* ---- CSS ---- */\n${cssContent}`);
+    if (jsContent.trim()) parts.push(`// ---- JS ----\n${jsContent}`);
+    return parts.join("\n\n");
+  }, [htmlContent, cssContent, jsContent]);
 
   async function sendChat(
     overrideText?: string,
@@ -382,13 +393,40 @@ export function StudioClient({ boardId, boardHref, studentName, existingProject 
         </div>
 
         <div className="va-studio-preview">
-          <div className="va-studio-preview-label">미리보기</div>
-          <iframe
-            title="vibe-studio-preview"
-            className="va-studio-iframe"
-            srcDoc={srcDoc}
-            sandbox="allow-scripts"
-          />
+          <div className="va-studio-preview-head" role="tablist" aria-label="프리뷰 탭">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={previewTab === "preview"}
+              className={`va-studio-preview-tab${previewTab === "preview" ? " is-active" : ""}`}
+              onClick={() => setPreviewTab("preview")}
+            >
+              미리보기
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={previewTab === "code"}
+              className={`va-studio-preview-tab${previewTab === "code" ? " is-active" : ""}`}
+              onClick={() => setPreviewTab("code")}
+            >
+              코드
+            </button>
+          </div>
+          {previewTab === "preview" ? (
+            <iframe
+              title="vibe-studio-preview"
+              className="va-studio-iframe"
+              srcDoc={srcDoc}
+              sandbox="allow-scripts"
+            />
+          ) : codeView ? (
+            <pre className="va-studio-code"><code>{codeView}</code></pre>
+          ) : (
+            <div className="va-studio-code-empty">
+              아직 코드가 없어요. 챗에 요청을 보내면 여기에 생성된 코드가 보여요.
+            </div>
+          )}
         </div>
       </section>
     </main>
