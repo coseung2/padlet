@@ -1,0 +1,14 @@
+# Normalize all text files to LF on commit. Prevents CRLF/LF churn
+# when the repo is edited from both Windows and WSL.
+* text=auto eol=lf
+
+# Binary files — never touch.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
