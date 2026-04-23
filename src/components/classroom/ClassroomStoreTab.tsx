@@ -21,18 +21,21 @@ export function ClassroomStoreTab({ classroomId, canManage }: Props) {
   const [loaded, setLoaded] = useState(false);
   const [editing, setEditing] = useState<StoreItem | "new" | null>(null);
   const [busy, setBusy] = useState(false);
+  const [viewArchived, setViewArchived] = useState(false);
 
   const refresh = useCallback(async () => {
-    const res = await fetch(`/api/classrooms/${classroomId}/store/items`, {
+    const qs = viewArchived ? "?archived=1" : "";
+    const res = await fetch(`/api/classrooms/${classroomId}/store/items${qs}`, {
       cache: "no-store",
     });
     if (!res.ok) return;
     const data = (await res.json()) as { items: StoreItem[] };
     setItems(data.items);
     setLoaded(true);
-  }, [classroomId]);
+  }, [classroomId, viewArchived]);
 
   useEffect(() => {
+    setLoaded(false);
     refresh();
   }, [refresh]);
 
@@ -81,25 +84,56 @@ export function ClassroomStoreTab({ classroomId, canManage }: Props) {
     }
   }
 
+  async function restoreItem(id: string) {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/classrooms/${classroomId}/store/items/${id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ archived: false }),
+      });
+      if (!res.ok) {
+        alert("복구 실패");
+        return;
+      }
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="classroom-store">
       <header className="classroom-store-header">
-        <h2>매점 상품</h2>
+        <h2>{viewArchived ? "보관함" : "매점 상품"}</h2>
         {canManage && (
-          <button
-            type="button"
-            className="classroom-store-add"
-            onClick={() => setEditing("new")}
-          >
-            + 상품 추가
-          </button>
+          <div className="classroom-store-header-actions">
+            <button
+              type="button"
+              className="classroom-store-archive-toggle"
+              onClick={() => setViewArchived((v) => !v)}
+            >
+              {viewArchived ? "활성 상품으로" : "보관함 보기"}
+            </button>
+            {!viewArchived && (
+              <button
+                type="button"
+                className="classroom-store-add"
+                onClick={() => setEditing("new")}
+              >
+                + 상품 추가
+              </button>
+            )}
+          </div>
         )}
       </header>
 
       {!loaded ? (
         <p className="classroom-store-loading">불러오는 중…</p>
       ) : items.length === 0 ? (
-        <p className="classroom-store-empty">등록된 상품이 없어요.</p>
+        <p className="classroom-store-empty">
+          {viewArchived ? "보관된 상품이 없어요." : "등록된 상품이 없어요."}
+        </p>
       ) : (
         <ul className="classroom-store-grid">
           {items.map((it) => (
@@ -124,21 +158,34 @@ export function ClassroomStoreTab({ classroomId, canManage }: Props) {
               </div>
               {canManage && (
                 <div className="store-item-actions">
-                  <button
-                    type="button"
-                    className="store-item-edit"
-                    onClick={() => setEditing(it)}
-                  >
-                    편집
-                  </button>
-                  <button
-                    type="button"
-                    className="store-item-archive"
-                    onClick={() => archiveItem(it.id)}
-                    disabled={busy}
-                  >
-                    보관
-                  </button>
+                  {viewArchived ? (
+                    <button
+                      type="button"
+                      className="store-item-restore"
+                      onClick={() => restoreItem(it.id)}
+                      disabled={busy}
+                    >
+                      복구
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="store-item-edit"
+                        onClick={() => setEditing(it)}
+                      >
+                        편집
+                      </button>
+                      <button
+                        type="button"
+                        className="store-item-archive"
+                        onClick={() => archiveItem(it.id)}
+                        disabled={busy}
+                      >
+                        보관
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </li>

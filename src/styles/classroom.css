@@ -1107,6 +1107,21 @@
   align-items: center;
 }
 .classroom-store-header h2 { margin: 0; font-size: 18px; }
+.classroom-store-header-actions { display: flex; gap: 8px; align-items: center; }
+.classroom-store-archive-toggle {
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 13px;
+}
+.classroom-store-archive-toggle:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+}
 .classroom-store-add {
   padding: 8px 16px;
   border-radius: 6px;
@@ -1144,7 +1159,7 @@
 .store-item-price { font-weight: 700; color: var(--color-accent); }
 .store-item-stock { font-size: 11px; color: var(--color-text-muted); }
 .store-item-actions { display: flex; gap: 4px; }
-.store-item-edit, .store-item-archive {
+.store-item-edit, .store-item-archive, .store-item-restore {
   flex: 1;
   padding: 6px;
   font-size: 12px;
@@ -1154,6 +1169,8 @@
   cursor: pointer;
 }
 .store-item-archive { color: var(--color-bank-negative); }
+.store-item-restore { color: var(--color-accent); font-weight: 600; }
+.store-item-restore:disabled { opacity: 0.5; cursor: not-allowed; }
 .store-item-editor {
   background: var(--color-surface);
   border-radius: 12px;

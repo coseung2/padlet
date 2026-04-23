@@ -12,12 +12,15 @@ const CreateBody = z.object({
   imageUrl: z.string().url().nullable().optional(),
 });
 
-// GET: anyone authenticated in classroom (teacher OR classroom student)
+// GET: anyone authenticated in classroom (teacher OR classroom student).
+// ?archived=1 → return archived items instead; gated by store.item.manage.
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: classroomId } = await params;
+  const wantArchived =
+    new URL(req.url).searchParams.get("archived") === "1";
 
   const [user, student] = await Promise.all([
     getCurrentUser().catch(() => null),
@@ -40,8 +43,19 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  if (wantArchived) {
+    const allowed = await hasPermission(
+      classroomId,
+      { userId: user?.id, studentId: student?.id },
+      "store.item.manage"
+    );
+    if (!allowed) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
   const items = await db.storeItem.findMany({
-    where: { classroomId, archived: false },
+    where: { classroomId, archived: wantArchived },
     orderBy: [{ createdAt: "desc" }],
   });
 
