@@ -531,12 +531,62 @@ export function ColumnsBoard({
   const [roster, setRoster] = useState<
     { id: string; name: string; number: number | null }[]
   >([]);
-  // feedbackTarget: 칼럼 타이틀로 학생이 자동 매칭되면 preset 으로 전달,
-  // 매칭이 안 되면 studentId=null 로 열어 모달 안 picker 가 나오도록 한다.
+  // feedbackTarget: 모달 host. roster 는 해당 칼럼의 카드 작성자(CardAuthor +
+  // singleton studentAuthorId) 만 포함해 학급 전체 명부 노출을 막는다.
+  // 칼럼 타이틀이 학생 시드 형식이면 그 학생을 preset 으로 추가 체크.
   const [feedbackTarget, setFeedbackTarget] = useState<
-    | { open: true; studentId: string | null; name: string | null; number: number | null }
+    | {
+        open: true;
+        studentId: string | null;
+        name: string | null;
+        number: number | null;
+        roster: { id: string; name: string; number: number | null }[];
+      }
     | null
   >(null);
+
+  // 칼럼 카드들의 작성자 학생 set 을 추출. CardAuthor 다중 + studentAuthorId
+  // singleton 양쪽 모두 합치고 dedupe. roster 는 학급 명부 lookup 으로 보강.
+  function authorsForSection(
+    sectionId: string
+  ): { id: string; name: string; number: number | null }[] {
+    const sectionCards = getCardsForSection(sectionId);
+    const ids = new Set<string>();
+    for (const c of sectionCards) {
+      if (c.studentAuthorId) ids.add(c.studentAuthorId);
+      for (const a of c.authors ?? []) {
+        if (a.studentId) ids.add(a.studentId);
+      }
+    }
+    if (ids.size === 0) return [];
+    // roster 가 비어 있으면 displayName 기반 fallback (출석번호 정렬 X).
+    if (roster.length === 0) {
+      const map = new Map<string, { id: string; name: string; number: number | null }>();
+      for (const c of sectionCards) {
+        for (const a of c.authors ?? []) {
+          if (a.studentId && !map.has(a.studentId)) {
+            map.set(a.studentId, { id: a.studentId, name: a.displayName, number: null });
+          }
+        }
+        if (c.studentAuthorId && !map.has(c.studentAuthorId)) {
+          map.set(c.studentAuthorId, {
+            id: c.studentAuthorId,
+            name: c.studentAuthorName ?? "",
+            number: null,
+          });
+        }
+      }
+      return Array.from(map.values()).filter((s) => s.name);
+    }
+    return roster
+      .filter((s) => ids.has(s.id))
+      .sort((a, b) => {
+        if (a.number == null && b.number == null) return a.name.localeCompare(b.name, "ko");
+        if (a.number == null) return 1;
+        if (b.number == null) return -1;
+        return a.number - b.number;
+      });
+  }
   useEffect(() => {
     if (!canEdit || !classroomId) return;
     let cancelled = false;
@@ -640,21 +690,44 @@ export function ColumnsBoard({
                 // 모달 안 picker 로 학생을 직접 선택. 학생 시드 칼럼 ("1번 홍길동")
                 // 은 자동 매칭으로 preset.
                 ...(classroomId
-                  ? [
-                      {
-                        label: sectionStudent
-                          ? `AI 평어 작성 (${sectionStudent.name})`
-                          : "AI 평어 작성",
-                        icon: "✨",
-                        onClick: () =>
-                          setFeedbackTarget({
-                            open: true,
-                            studentId: sectionStudent?.id ?? null,
-                            name: sectionStudent?.name ?? null,
-                            number: sectionStudent?.number ?? null,
-                          }),
-                      },
-                    ]
+                  ? (() => {
+                      const sectionAuthors = authorsForSection(section.id);
+                      // sectionStudent (학생 시드 칼럼) 이 작성자 목록에 없어도
+                      // preset 으로 살려두면 모달 roster 가 비는 상황 회피.
+                      const seedRow = sectionStudent
+                        ? sectionAuthors.find((s) => s.id === sectionStudent.id) ??
+                          {
+                            id: sectionStudent.id,
+                            name: sectionStudent.name,
+                            number: sectionStudent.number,
+                          }
+                        : null;
+                      const modalRoster = seedRow
+                        ? sectionAuthors.some((s) => s.id === seedRow.id)
+                          ? sectionAuthors
+                          : [seedRow, ...sectionAuthors]
+                        : sectionAuthors;
+                      // 작성자도 없고 preset 도 없는 칼럼 (자유 주제 + 카드 없음)
+                      // 은 평어 대상이 없으니 메뉴 자체에서 숨긴다.
+                      if (modalRoster.length === 0) return [];
+                      const labelSuffix = sectionStudent
+                        ? ` (${sectionStudent.name})`
+                        : ` (${modalRoster.length}명)`;
+                      return [
+                        {
+                          label: `AI 평어 작성${labelSuffix}`,
+                          icon: "✨",
+                          onClick: () =>
+                            setFeedbackTarget({
+                              open: true,
+                              studentId: sectionStudent?.id ?? null,
+                              name: sectionStudent?.name ?? null,
+                              number: sectionStudent?.number ?? null,
+                              roster: modalRoster,
+                            }),
+                        },
+                      ];
+                    })()
                   : []),
                 {
                   label: "Canva에서 가져오기",
@@ -936,7 +1009,7 @@ export function ColumnsBoard({
           studentId={feedbackTarget.studentId}
           studentName={feedbackTarget.name}
           studentNumber={feedbackTarget.number}
-          roster={roster}
+          roster={feedbackTarget.roster}
           onClose={() => setFeedbackTarget(null)}
         />
       )}
