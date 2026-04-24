@@ -273,23 +273,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // If columns layout with classroom, fetch students for auto-sections
-    let students: { number: number | null; name: string }[] = [];
-    if (input.layout === "columns" && input.classroomId) {
-      const classroom = await db.classroom.findUnique({
-        where: { id: input.classroomId },
-        include: {
-          students: { orderBy: [{ number: "asc" }, { createdAt: "asc" }] },
-        },
-      });
-      if (classroom && classroom.teacherId === user.id) {
-        students = classroom.students.map((s) => ({
-          number: s.number,
-          name: s.name,
-        }));
-      }
-    }
-
+    // columns + classroom: 학생 이름 자동 섹션화는 더 이상 기본이 아니다.
+    // 교사가 보드에 들어가서 "🧑 학생 이름으로 칼럼 만들기" 버튼을 명시적으로
+    // 누르면 POST /api/boards/:id/sections/seed-students 가 실행된다.
+    // (사용자 결정 2026-04-24 — 자동 생성이 강제처럼 느껴진다는 피드백)
     const board = await db.board.create({
       data: {
         title: input.title,
@@ -300,15 +287,6 @@ export async function POST(req: Request) {
         members: {
           create: { userId: user.id, role: "owner" },
         },
-        sections:
-          students.length > 0
-            ? {
-                create: students.map((s, i) => ({
-                  title: s.number ? `${s.number}번 ${s.name}` : s.name,
-                  order: i,
-                })),
-              }
-            : undefined,
       },
     });
 

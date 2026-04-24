@@ -521,6 +521,31 @@ export function ColumnsBoard({
     }
   }
 
+  // 학생-시드: 학급 학생을 출석번호 순으로 섹션화. classroom-linked 보드에서만
+  // 노출되며 1회성 시드라 현재 섹션 뒤에 append. 명시적 확인 모달 후 호출.
+  const [seedingStudents, setSeedingStudents] = useState(false);
+  async function handleSeedFromStudents() {
+    if (seedingStudents) return;
+    if (!window.confirm("학급 학생 명단으로 칼럼을 추가할까요?")) return;
+    setSeedingStudents(true);
+    try {
+      const res = await fetch(`/api/boards/${boardId}/sections/seed-students`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const msg = (await res.json().catch(() => ({}))).error;
+        alert(typeof msg === "string" ? msg : "칼럼 추가 실패");
+        return;
+      }
+      const { sections: created } = (await res.json()) as {
+        sections: SectionData[];
+      };
+      setSections((prev) => [...prev, ...created]);
+    } finally {
+      setSeedingStudents(false);
+    }
+  }
+
   function handleSectionRenamed(sectionId: string, newTitle: string) {
     setSections((list) =>
       list.map((s) => (s.id === sectionId ? { ...s, title: newTitle } : s))
@@ -538,7 +563,7 @@ export function ColumnsBoard({
   const sectionOptions = sections.map((s) => ({ id: s.id, title: s.title }));
 
   return (
-    <div className="board-canvas-wrap">
+    <div className="board-canvas-wrap board-canvas-wrap-columns">
       {/* Export mode toolbar */}
       <div className="columns-board">
         {sections.map((section) => {
@@ -703,9 +728,26 @@ export function ColumnsBoard({
         })}
 
         {canEdit && (
-          <button type="button" className="column-add-btn" onClick={handleAddSection}>
-            + 섹션 추가
-          </button>
+          <div className="column-add-stack">
+            <button
+              type="button"
+              className="column-add-btn"
+              onClick={handleAddSection}
+            >
+              + 섹션 추가
+            </button>
+            {classroomId && (
+              <button
+                type="button"
+                className="column-add-btn column-add-btn-seed"
+                onClick={handleSeedFromStudents}
+                disabled={seedingStudents}
+                title="학급 학생 명단으로 칼럼을 한 번에 추가"
+              >
+                {seedingStudents ? "추가 중…" : "🧑 학생 이름으로 칼럼 만들기"}
+              </button>
+            )}
+          </div>
         )}
       </div>
 

@@ -161,7 +161,7 @@ export function CreateBoardModal({ classrooms, userTier = "pro", onClose }: Prop
           {step === "classroom" && selectedLayout && (
             <>
               <p className="create-board-hint">
-                학급을 선택하면 학생별 칼럼이 자동 생성됩니다
+                보드를 어느 학급에 연결할지 선택하세요
               </p>
               <div className="layout-picker">
                 <button
@@ -171,8 +171,8 @@ export function CreateBoardModal({ classrooms, userTier = "pro", onClose }: Prop
                   disabled={busy}
                 >
                   <span className="layout-option-emoji">📊</span>
-                  <span className="layout-option-label">빈 칼럼보드</span>
-                  <span className="layout-option-desc">학급 연결 없이 빈 보드 생성</span>
+                  <span className="layout-option-label">학급 연결 없이</span>
+                  <span className="layout-option-desc">개인 보드로 생성</span>
                 </button>
                 {classrooms.map((c) => (
                   <button
@@ -185,7 +185,7 @@ export function CreateBoardModal({ classrooms, userTier = "pro", onClose }: Prop
                     <span className="layout-option-emoji">🏫</span>
                     <span className="layout-option-label">{c.name}</span>
                     <span className="layout-option-desc">
-                      학생 {c.studentCount}명 → {c.studentCount}개 칼럼 자동 생성
+                      학생 {c.studentCount}명 · 빈 보드로 생성
                     </span>
                   </button>
                 ))}

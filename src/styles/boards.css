@@ -83,12 +83,22 @@
 
 /* -------- Columns (Kanban) Board -------- */
 
+/* columns 보드 wrap — 가로 스크롤바를 항상 viewport 하단에 노출시키기
+   위해 wrap이 직접 스크롤하지 않고 columns-board 가 100% 높이로 채워
+   자체 스크롤한다. (h-scroll-vis 2026-04-24) */
+.board-canvas-wrap-columns {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .columns-board {
   display: flex;
   gap: 24px;
   align-items: stretch;
-  min-height: calc(100vh - 140px);
-  overflow-x: auto;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
   padding-bottom: 24px;
 }
 
@@ -278,6 +288,28 @@
 .column-add-btn:hover {
   border-color: var(--color-accent);
   color: var(--color-accent);
+}
+
+.column-add-btn-seed {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-accent-tinted-bg);
+}
+
+/* 섹션 추가 + 학생 시드 두 버튼을 세로 스택 — 가로 폭(300px)을 유지하되
+   다음 칼럼 위치를 흐리지 않도록 자기 너비만 사용. */
+.column-add-stack {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 240px;
+}
+
+.column-add-stack > .column-add-btn {
+  align-self: stretch;
+  width: 100%;
 }
 
 /* ── DJ Board (dj-board-queue) ── design-handoff 2026-04-22 port ───────── */
