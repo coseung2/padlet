@@ -877,6 +877,60 @@
   line-height: 1;
 }
 
+.settings-status-dot.is-on {
+  color: var(--color-positive, #2a9d5a);
+}
+
+.connected-apps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.connected-app-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-btn);
+  background: var(--color-surface-alt);
+}
+
+.connected-app-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.connected-app-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.connected-app-meta {
+  font-size: 12.5px;
+  color: var(--color-text);
+}
+
+.connected-app-meta-faint {
+  color: var(--color-text-faint);
+  font-size: 11.5px;
+}
+
+.connected-apps-error {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  color: var(--color-danger, #c4302b);
+  background: rgba(196, 48, 43, 0.08);
+  border-radius: 6px;
+}
+
 .settings-status-row.is-ok .settings-status-dot {
   color: var(--color-positive, #2a9d5a);
 }

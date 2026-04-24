@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { isCanvaConnected, getCanvaClientId } from "@/lib/canva";
 import { getSubscriptionSnapshot } from "@/lib/billing/subscription";
 import { LlmKeyForm } from "@/components/LlmKeyForm";
+import { ConnectedAppsSection } from "@/components/teacher/ConnectedAppsSection";
 
 export const metadata = {
   title: "교사 설정 · Aura-board",
@@ -16,9 +18,10 @@ export default async function TeacherSettingsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const [canvaConnected, sub] = await Promise.all([
+  const [canvaConnected, sub, connectedApps] = await Promise.all([
     isCanvaConnected(user.id),
     getSubscriptionSnapshot(user.id),
+    loadConnectedApps(user.id),
   ]);
   const canvaConfigured = !!getCanvaClientId();
 
@@ -58,6 +61,18 @@ export default async function TeacherSettingsPage() {
           <CanvaStatusBlock connected={canvaConnected} configured={canvaConfigured} />
         </section>
 
+        <section id="external-apps" className="docs-section settings-section">
+          <div className="settings-section-header">
+            <h2 className="docs-h2">🔗 연결된 외부 앱</h2>
+          </div>
+          <p className="docs-p">
+            외부 교사 도구(예: Aura)가 OAuth 로 회원님의 학급 평어·채점 결과를
+            읽도록 허용한 목록입니다. 연결을 해제하면 해당 앱은 다음 호출부터
+            401 을 받고 재인증해야 합니다.
+          </p>
+          <ConnectedAppsSection apps={connectedApps} />
+        </section>
+
         <section id="billing" className="docs-section settings-section">
           <div className="settings-section-header">
             <h2 className="docs-h2">💳 결제·구독</h2>
@@ -77,6 +92,47 @@ export default async function TeacherSettingsPage() {
       </article>
     </main>
   );
+}
+
+async function loadConnectedApps(teacherId: string) {
+  // 활성(미revoke + 미만료) access token 그룹핑. 한 교사 × 한 client = 한 row.
+  // tokenPair 한 쌍씩 발급되니 access 만 골라도 충분.
+  const tokens = await db.oAuthAccessToken.findMany({
+    where: {
+      userId: teacherId,
+      revokedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    select: {
+      clientId: true,
+      scope: true,
+      createdAt: true,
+      lastUsedAt: true,
+      client: { select: { name: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  // 같은 client 가 여러 활성 토큰을 가질 수 있으니 가장 최근 1건만.
+  const seen = new Set<string>();
+  const apps: {
+    clientId: string;
+    clientName: string;
+    scope: string;
+    connectedAt: string;
+    lastUsedAt: string | null;
+  }[] = [];
+  for (const t of tokens) {
+    if (seen.has(t.clientId)) continue;
+    seen.add(t.clientId);
+    apps.push({
+      clientId: t.clientId,
+      clientName: t.client.name,
+      scope: t.scope,
+      connectedAt: t.createdAt.toISOString(),
+      lastUsedAt: t.lastUsedAt?.toISOString() ?? null,
+    });
+  }
+  return apps;
 }
 
 function CanvaStatusBlock({
