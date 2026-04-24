@@ -1,0 +1,171 @@
+/* AI 평어 모달 — 학생별 단원·평가항목 입력 + 평어 미리보기/전송. */
+
+.ai-feedback-modal {
+  position: relative;
+  background: var(--color-surface);
+  border: var(--border-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card-hover);
+  width: min(540px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ai-feedback-modal__header {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  gap: 8px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ai-feedback-modal__header h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.ai-feedback-modal__subject {
+  margin-left: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-faint);
+  letter-spacing: 0.4px;
+}
+
+.ai-feedback-modal__student {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-accent-tinted-text);
+  background: var(--color-accent-tinted-bg);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+}
+
+.ai-feedback-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+  overflow-y: auto;
+}
+
+.ai-feedback-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.ai-feedback-modal__field > span {
+  font-weight: 600;
+  color: var(--color-text-faint);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.ai-feedback-modal__field input,
+.ai-feedback-modal__field textarea {
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  resize: vertical;
+}
+
+.ai-feedback-modal__field input:focus,
+.ai-feedback-modal__field textarea:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
+  border-color: var(--color-accent);
+}
+
+.ai-feedback-modal__field--comment textarea {
+  min-height: 110px;
+  line-height: 1.55;
+}
+
+.ai-feedback-modal__model {
+  font-weight: 500;
+  color: var(--color-text-faint);
+  font-size: 11px;
+}
+
+.ai-feedback-modal__counter {
+  align-self: flex-end;
+  font-size: 11px;
+  color: var(--color-text-faint);
+}
+
+.ai-feedback-modal__error {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--color-danger, #c4302b);
+  background: rgba(196, 48, 43, 0.08);
+  border-radius: 6px;
+}
+
+.ai-feedback-modal__success {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--color-success, #1f7a3a);
+  background: rgba(31, 122, 58, 0.1);
+  border-radius: 6px;
+}
+
+.ai-feedback-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-alt);
+}
+
+.ai-feedback-modal__btn {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.ai-feedback-modal__btn--ghost {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.ai-feedback-modal__btn--ghost:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.ai-feedback-modal__btn--primary {
+  background: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  color: #fff;
+}
+
+.ai-feedback-modal__btn--primary:hover:not(:disabled) {
+  background: var(--color-accent-strong, var(--color-accent));
+}
+
+.ai-feedback-modal__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

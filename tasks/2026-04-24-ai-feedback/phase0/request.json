@@ -1,0 +1,62 @@
+{
+  "type": "feature",
+  "slug": "ai-feedback",
+  "task_id": "2026-04-24-ai-feedback",
+  "change_type": "new_feature",
+  "motivation": "교사가 학생 카드/제출물을 보면서 단원·평가항목을 입력하면 LLM이 평어(생기부 문장 톤)를 즉석 생성. 보내기 누르면 DB에 저장돼 별도 교사 웹앱(Aura)이 풀해 종합. 수동 평어 작성 부담을 줄이는 게 목표.",
+  "user_story": "교사로서 주제별 보드 칼럼 헤더의 ⋯ 메뉴 또는 과제 채점 패널에서 '평어 생성'을 눌러 단원·평가항목 2필드 모달로 AI 평어 초안을 생성·검수·전송할 수 있다.",
+  "success_metric": "평어 1건 생성 RTT < 6초 (Gemini Flash p95). 한 학생 당 모달 진입 → 보내기까지 입력 ≤ 4 액션. 보내기 후 Aura GET /api/external/feedbacks 로 < 1초 내 반영.",
+  "affected_surfaces": [
+    "src/components/columns/ColumnMenu.tsx (기존 kebab 메뉴에 '✨ 평어 생성' 액션 추가)",
+    "src/components/ColumnsBoard.tsx (menuItems 배열에 평어 액션 + 모달 host)",
+    "src/components/AssignmentBoard.tsx (학생 채점 패널에 '평어 생성' 버튼 추가)",
+    "src/components/feedback/AiFeedbackModal.tsx (신규 — 단원·평가항목 2필드 + 미리보기 + 보내기)",
+    "src/app/api/ai-feedback/route.ts (POST 생성+저장, GET 조회)",
+    "src/app/api/ai-feedback/preview/route.ts (POST 생성만 — 저장 X)",
+    "src/app/api/ai-feedback/[id]/route.ts (PATCH/DELETE)",
+    "src/app/api/external/feedbacks/route.ts (Aura 풀용 GET, AURA_BRIDGE_TOKEN 인증)",
+    "src/lib/llm/feedback-prompt.ts (단원·평가항목 → Gemini 프롬프트 빌더)",
+    "prisma/schema.prisma (AiFeedback 신규 모델)",
+    "prisma/migrations/20260424_ai_feedback (신규 마이그레이션)"
+  ],
+  "decisions_locked": {
+    "provider_strategy": "A — 기존 TeacherLlmKey BYOK 재사용 (Gemini/Claude/OpenAI 사용자 등록 키)",
+    "persistence_strategy": "B — '보내기' 클릭 시에만 AiFeedback row UPSERT. 미리보기는 저장 안 함",
+    "audience_visibility": "교사 전용 (학생/학부모 노출 X). Aura 컴패니언 앱이 외부 브릿지로 풀",
+    "input_modal": "매번 모달. 2필드 — (1) 단원 (2) 평가항목. '~~하기' 형식 가이드 placeholder",
+    "tier_gate": "Free 허용 (BYOK 비용은 사용자 부담)",
+    "entry_points": [
+      "주제별(columns) 보드 칼럼 헤더 ⋯ 기존 kebab 메뉴에 '✨ 평어 생성' 액션 추가",
+      "과제(assignment) 보드 학생 채점 패널에 '평어 생성' 버튼 추가"
+    ],
+    "external_consumer": "Aura (교사용 별도 웹앱). AURA_BRIDGE_TOKEN 으로 인증, /api/external/grades 1:1 패턴 재사용",
+    "regenerate_policy": "덮어쓰기 — AiFeedback @@unique([studentId, subject, unit, criterion]). 같은 조합 재생성 시 동일 row UPDATE (UPSERT)",
+    "external_response_shape": "flat 배열. row 1개 = JSON 1개. /api/external/grades 컨벤션 일치, Aura art_comment_drafts UPSERT 키 = id (aura_board_ref_id)",
+    "subject_field": "AiFeedback.subject String NOT NULL. 본 task v1 초기값 'art'. 향후 다과목 확장 대비 enum 대신 free string"
+  },
+  "external_response_schema": {
+    "feedbacks": [
+      {
+        "id": "ab_feedback_xxx (cuid, Aura aura_board_ref_id 와 1:1)",
+        "classroomCode": "Classroom.code (학생 매핑 키, /api/external/grades 패턴)",
+        "studentNumber": 14,
+        "studentName": "홍길동",
+        "subject": "art",
+        "unit": "상상의 세계 그리기",
+        "criterion": "색채 표현",
+        "comment": "Gemini 생성 원문 (~150자)",
+        "model": "gemini-2.5-flash",
+        "sentAt": "ISO8601"
+      }
+    ]
+  },
+  "non_goals": [
+    "학부모 노출 (parent-viewer v2 채널 별도, 본 task 스코프 외)",
+    "학생 노출 (decisions_locked 명시적 미노출)",
+    "평어 자동 생성 cron/배치 (교사 명시적 클릭 시점만)",
+    "여러 학생 일괄 생성 (1인 1건 모달 기반)",
+    "평어 버전 이력 (UPSERT 정책으로 최신만 보존)",
+    "다과목 UI 분기 (subject 필드는 두되 v1은 'art' 고정)"
+  ],
+  "created_at": "2026-04-24T13:00:00+09:00"
+}

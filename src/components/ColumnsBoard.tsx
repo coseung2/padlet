@@ -12,6 +12,7 @@ import { EditCardModal } from "./EditCardModal";
 import { ExportModal } from "./ExportModal";
 import { CanvaFolderModal } from "./CanvaFolderModal";
 import { SectionActionsPanel } from "./SectionActionsPanel";
+import { AiFeedbackModal } from "./feedback/AiFeedbackModal";
 import type { CardData } from "./DraggableCard";
 
 type SortMode = "manual" | "newest" | "oldest" | "title";
@@ -524,6 +525,54 @@ export function ColumnsBoard({
   // 학생-시드: 학급 학생을 출석번호 순으로 섹션화. classroom-linked 보드에서만
   // 노출되며 1회성 시드라 현재 섹션 뒤에 append. 명시적 확인 모달 후 호출.
   const [seedingStudents, setSeedingStudents] = useState(false);
+
+  // AI 평어 — 칼럼 헤더 ⋯ 메뉴에서 진입. 학생 시드된 칼럼 ("1번 홍길동" 형식)
+  // 에서만 활성화되며 제목→학생 매칭은 로스터 fetch 후 정규식으로 해결.
+  const [roster, setRoster] = useState<
+    { id: string; name: string; number: number | null }[]
+  >([]);
+  const [feedbackTarget, setFeedbackTarget] = useState<{
+    studentId: string;
+    name: string;
+    number: number | null;
+  } | null>(null);
+  useEffect(() => {
+    if (!canEdit || !classroomId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/classroom/${classroomId}/students`, {
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          students: { id: string; name: string; number: number | null }[];
+        };
+        if (!cancelled) setRoster(data.students ?? []);
+      } catch {
+        /* roster fetch best-effort */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [canEdit, classroomId]);
+
+  function studentForSectionTitle(
+    title: string
+  ): { id: string; name: string; number: number | null } | null {
+    if (roster.length === 0) return null;
+    const m = title.match(/^(\d+)번\s*(.+)$/);
+    if (m) {
+      const num = parseInt(m[1], 10);
+      const name = m[2].trim();
+      const hit = roster.find((s) => s.number === num && s.name === name);
+      if (hit) return hit;
+    }
+    // Fallback — 제목 전체가 학생 이름과 정확히 일치
+    const exact = roster.find((s) => s.name === title.trim());
+    return exact ?? null;
+  }
   async function handleSeedFromStudents() {
     if (seedingStudents) return;
     if (!window.confirm("학급 학생 명단으로 칼럼을 추가할까요?")) return;
@@ -575,6 +624,9 @@ export function ColumnsBoard({
 
           // 섹션 헤더 ⋯ 한 개로 rename/delete + Canva 옵션 통합.
           // 공유(브레이크아웃) 진입점은 보드 헤더의 ⚙ → BoardSettingsPanel 로 이동.
+          const sectionStudent = canEdit
+            ? studentForSectionTitle(section.title)
+            : null;
           const menuItems = canEdit
             ? [
                 {
@@ -583,6 +635,20 @@ export function ColumnsBoard({
                   onClick: () =>
                     setPanelState({ sectionId: section.id, tab: "rename" }),
                 },
+                ...(sectionStudent
+                  ? [
+                      {
+                        label: "AI 평어 작성",
+                        icon: "✨",
+                        onClick: () =>
+                          setFeedbackTarget({
+                            studentId: sectionStudent.id,
+                            name: sectionStudent.name,
+                            number: sectionStudent.number,
+                          }),
+                      },
+                    ]
+                  : []),
                 {
                   label: "Canva에서 가져오기",
                   icon: "📁",
@@ -856,6 +922,14 @@ export function ColumnsBoard({
           sectionTitle={sections.find((s) => s.id === exportSectionId)?.title ?? ""}
           cards={getCardsForSection(exportSectionId)}
           onClose={() => setExportSectionId(null)}
+        />
+      )}
+      {feedbackTarget && (
+        <AiFeedbackModal
+          studentId={feedbackTarget.studentId}
+          studentName={feedbackTarget.name}
+          studentNumber={feedbackTarget.number}
+          onClose={() => setFeedbackTarget(null)}
         />
       )}
     </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { AssignmentSlotDTO } from "@/types/assignment";
 import { ReturnReasonInlineEditor } from "./ReturnReasonInlineEditor";
+import { AiFeedbackModal } from "../feedback/AiFeedbackModal";
 
 const STATUS_LABEL: Record<string, string> = {
   assigned: "미제출",
@@ -36,6 +37,7 @@ export function AssignmentFullscreenModal({
 }: Props) {
   const [returning, setReturning] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -165,6 +167,14 @@ export function AssignmentFullscreenModal({
             </button>
             <button
               type="button"
+              className="assign-btn assign-btn--ghost"
+              disabled={busy}
+              onClick={() => setFeedbackOpen(true)}
+            >
+              ✨ 평어 작성
+            </button>
+            <button
+              type="button"
               className="assign-btn assign-btn--primary"
               disabled={busy || !(slot.submissionStatus === "viewed" || slot.submissionStatus === "submitted")}
               onClick={handleReviewClick}
@@ -180,6 +190,15 @@ export function AssignmentFullscreenModal({
           onSubmit={handleReturnSubmit}
           onCancel={() => setReturning(false)}
           busy={busy}
+        />
+      )}
+
+      {feedbackOpen && (
+        <AiFeedbackModal
+          studentId={slot.studentId}
+          studentName={slot.studentName}
+          studentNumber={slot.slotNumber}
+          onClose={() => setFeedbackOpen(false)}
         />
       )}
     </div>

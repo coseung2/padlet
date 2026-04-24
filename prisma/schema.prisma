@@ -46,6 +46,8 @@ model User {
   subscription           TeacherSubscription?
   paymentEvents          PaymentEvent[]
   boardResponses         BoardResponse[]           @relation("UserBoardResponses")
+  // AI 평어 (2026-04-24) — 교사가 학생별로 생성한 평어 텍스트
+  aiFeedbacks            AiFeedback[]              @relation("TeacherAiFeedbacks")
 }
 
 // ──── Audit Log (Seed 14 security, 2026-04-22) ────
@@ -220,6 +222,7 @@ model Classroom {
   storeItems      StoreItem[]
   rolePermissions ClassroomRolePermission[]
   djPlayEvents    DjPlayEvent[]
+  aiFeedbacks     AiFeedback[]
 
   @@index([teacherId])
   @@index([code])
@@ -257,11 +260,40 @@ model Student {
   vibeReviews           VibeReview[]              @relation("VibeReviewer")
   vibePlaySessions      VibePlaySession[]         @relation("VibePlayer")
   boardResponses        BoardResponse[]           @relation("StudentBoardResponses")
+  aiFeedbacks           AiFeedback[]
 
   @@unique([classroomId, number])
   @@index([classroomId])
   @@index([qrToken])
   @@index([textCode])
+}
+
+// ──── AI 평어 (2026-04-24) ────
+// 교사가 학생별·단원별·평가항목별로 AI 가 생성한 평어(생기부 톤 문장)을 저장.
+// 영속 정책 B: 교사가 모달에서 "보내기" 버튼을 누른 시점에만 row 생성/UPDATE.
+// 같은 (학생, 과목, 단원, 평가항목) 조합 재생성 시 동일 row UPSERT (덮어쓰기).
+// 외부 컴패니언 앱 Aura 가 GET /api/external/feedbacks 로 풀해 종합.
+// 학생/학부모 노출 X — 교사 전용.
+model AiFeedback {
+  id          String   @id @default(cuid())
+  teacherId   String
+  classroomId String
+  studentId   String
+  subject     String   // v1 'art', 향후 다과목 확장 대비 free string
+  unit        String
+  criterion   String
+  comment     String   @db.Text
+  model       String   // 사용된 LLM model id (감사·디버깅용)
+  sentAt      DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  teacher   User      @relation("TeacherAiFeedbacks", fields: [teacherId], references: [id], onDelete: Cascade)
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, subject, unit, criterion])
+  @@index([classroomId, updatedAt])
+  @@index([teacherId, updatedAt])
 }
 
 // layout: "freeform" | "grid" | "stream" | "columns" | "assignment" | "quiz" | "plant-roadmap" | "event-signup" | "drawing" | "breakout" | "vibe-arcade" | "vibe-gallery"
