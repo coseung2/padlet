@@ -1,29 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type RosterStudent = { id: string; name: string; number: number | null };
 
 type Props = {
-  /** 사전 지정된 학생. null/undefined 면 모달 내 picker 로 교사가 선택. */
+  /** 사전 체크할 학생 1명 (assignment 채점 패널 등 단일 진입점). */
   studentId?: string | null;
   studentName?: string | null;
   studentNumber?: number | null;
-  /** picker 노출 시 사용할 학급 학생 명단. studentId 가 없을 때 필수. */
+  /** 학급 학생 명단. 다중 선택 + 일괄 생성 UI 의 소스. */
   roster?: RosterStudent[];
-  /** 'art' v1 고정. 미래 다과목 확장 시 호출자에서 지정. */
+  /** 'art' v1 고정. */
   subject?: string;
-  /** 모달 닫기. */
   onClose: () => void;
 };
 
+type BatchResult =
+  | { studentId: string; ok: true; comment: string; model: string }
+  | { studentId: string; ok: false; error: string };
+
 /**
- * AI 평어 생성·전송 모달.
+ * AI 평어 일괄 생성 모달.
  *
- * - 단원 + 평가항목 2필드 입력 → "미리보기" 누르면 LLM 호출 → 평어 텍스트 생성
- * - 텍스트는 사용자가 직접 수정 가능
- * - "보내기" 누르면 UPSERT 저장 (영속 정책 B)
- * - "미리보기"만 누르고 닫으면 휘발 (저장 안 함)
+ * 흐름:
+ *   1. 학생 다중 선택 (전체 선택 토글 포함). preset 학생이 있으면 자동 체크.
+ *   2. 단원 / 평가항목 입력 — 둘 다 선택. 비어있으면 "학기 전반" 톤으로 생성.
+ *   3. "✨ N명 평어 생성·전송" 한 번 → 서버에서 동시 4 cap 으로 LLM 호출 + UPSERT.
+ *   4. 결과 카드 — 학생별 평어 본문 + 실패 사유.
  */
 export function AiFeedbackModal({
   studentId: presetStudentId,
@@ -33,149 +37,131 @@ export function AiFeedbackModal({
   subject = "art",
   onClose,
 }: Props) {
-  const [pickedStudentId, setPickedStudentId] = useState<string>(
-    presetStudentId ?? ""
+  // preset 학생이 있는데 roster 가 없으면 즉석 1인 roster 로 변환.
+  const effectiveRoster: RosterStudent[] = useMemo(() => {
+    if (roster && roster.length > 0) return roster;
+    if (presetStudentId && presetStudentName) {
+      return [
+        {
+          id: presetStudentId,
+          name: presetStudentName,
+          number: presetStudentNumber ?? null,
+        },
+      ];
+    }
+    return [];
+  }, [roster, presetStudentId, presetStudentName, presetStudentNumber]);
+
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set(presetStudentId ? [presetStudentId] : [])
   );
   const [unit, setUnit] = useState("");
   const [criterion, setCriterion] = useState("");
-  const [comment, setComment] = useState("");
-  const [model, setModel] = useState("");
-  const [busyKind, setBusyKind] = useState<"preview" | "send" | null>(null);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
-
-  const activeStudentId = presetStudentId || pickedStudentId;
-  const pickedFromRoster = roster?.find((s) => s.id === pickedStudentId);
-  const activeStudentName =
-    presetStudentName ?? pickedFromRoster?.name ?? "";
-  const activeStudentNumber =
-    presetStudentNumber ?? pickedFromRoster?.number ?? null;
+  const [results, setResults] = useState<BatchResult[] | null>(null);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape" && busyKind === null) {
-        onClose();
-      }
+      if (e.key === "Escape" && !busy) onClose();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, busyKind]);
+  }, [onClose, busy]);
+
+  const allSelected =
+    effectiveRoster.length > 0 && selected.size === effectiveRoster.length;
+  const someSelected = selected.size > 0 && !allSelected;
+
+  function toggleAll() {
+    if (allSelected) setSelected(new Set());
+    else setSelected(new Set(effectiveRoster.map((s) => s.id)));
+  }
+
+  function toggleOne(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   function explainError(e: string): string {
-    if (e === "ai_key_missing") {
+    if (e === "ai_key_missing")
       return "교사 LLM API Key 가 등록돼 있지 않아요. /docs/ai-setup 에서 등록 후 다시 시도하세요.";
-    }
-    if (e === "ai_key_decrypt_failed") {
+    if (e === "ai_key_decrypt_failed")
       return "LLM Key 복호화에 실패했어요. /docs/ai-setup 에서 키를 다시 저장해주세요.";
-    }
-    if (e === "not_classroom_owner") return "권한이 없어요.";
-    if (e === "llm_failed") return "LLM 호출 실패. 잠시 후 다시 시도해주세요.";
+    if (e === "not_classroom_owner_or_missing")
+      return "권한이 없거나 학생이 존재하지 않아요";
+    if (e === "empty_text") return "LLM 이 빈 응답을 돌려줬어요";
     return e;
   }
 
-  async function handlePreview() {
-    if (busyKind) return;
-    if (!activeStudentId) {
-      setError("학생을 먼저 선택하세요");
-      return;
-    }
-    if (!unit.trim() || !criterion.trim()) {
-      setError("단원과 평가항목을 모두 입력하세요");
-      return;
-    }
-    setBusyKind("preview");
+  async function handleGenerate() {
+    if (busy || selected.size === 0) return;
+    setBusy(true);
     setError(null);
+    setResults(null);
     try {
-      const res = await fetch("/api/ai-feedback/preview", {
+      const res = await fetch("/api/ai-feedback/batch", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          studentId: activeStudentId,
+          studentIds: Array.from(selected),
           subject,
           unit: unit.trim(),
           criterion: criterion.trim(),
         }),
       });
       const data = (await res.json().catch(() => ({}))) as {
-        comment?: string;
-        model?: string;
+        results?: BatchResult[];
         error?: string;
-        detail?: string;
       };
-      if (!res.ok) {
-        setError(explainError(data.error ?? `http ${res.status}`) + (data.detail ? ` — ${data.detail}` : ""));
-        return;
-      }
-      setComment(data.comment ?? "");
-      setModel(data.model ?? "");
-      setSent(false);
-    } finally {
-      setBusyKind(null);
-    }
-  }
-
-  async function handleSend() {
-    if (busyKind) return;
-    if (!activeStudentId) {
-      setError("학생을 먼저 선택하세요");
-      return;
-    }
-    if (!comment.trim()) {
-      setError("미리보기를 먼저 생성하거나 직접 입력하세요");
-      return;
-    }
-    setBusyKind("send");
-    setError(null);
-    try {
-      const res = await fetch("/api/ai-feedback", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          studentId: activeStudentId,
-          subject,
-          unit: unit.trim(),
-          criterion: criterion.trim(),
-          comment: comment.trim(),
-          model: model || "manual",
-        }),
-      });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
         setError(explainError(data.error ?? `http ${res.status}`));
         return;
       }
-      setSent(true);
+      setResults(data.results ?? []);
     } finally {
-      setBusyKind(null);
+      setBusy(false);
     }
   }
+
+  const studentById = useMemo(
+    () => new Map(effectiveRoster.map((s) => [s.id, s])),
+    [effectiveRoster]
+  );
+
+  const successCount = results?.filter((r) => r.ok).length ?? 0;
+  const failureCount = results?.filter((r) => !r.ok).length ?? 0;
 
   return (
     <div
       className="modal-backdrop"
       onClick={(e) => {
-        if (e.target === e.currentTarget && busyKind === null) onClose();
+        if (e.target === e.currentTarget && !busy) onClose();
       }}
       role="dialog"
       aria-modal="true"
-      aria-label="AI 평어 작성"
+      aria-label="AI 평어 일괄 생성"
     >
-      <div className="ai-feedback-modal">
+      <div className="ai-feedback-modal ai-feedback-modal--batch">
         <header className="ai-feedback-modal__header">
           <h3>
-            ✨ AI 평어 작성{" "}
+            ✨ AI 평어 일괄 생성{" "}
             <span className="ai-feedback-modal__subject">[{subject}]</span>
           </h3>
           <span className="ai-feedback-modal__student">
-            {activeStudentName
-              ? `${activeStudentNumber ? `${activeStudentNumber}번 ` : ""}${activeStudentName}`
-              : "학생 선택"}
+            {selected.size === 0
+              ? "학생 미선택"
+              : `${selected.size}명 선택`}
           </span>
           <button
             type="button"
             className="modal-close"
             onClick={onClose}
-            disabled={busyKind !== null}
+            disabled={busy}
             aria-label="닫기"
           >
             ×
@@ -183,90 +169,154 @@ export function AiFeedbackModal({
         </header>
 
         <div className="ai-feedback-modal__body">
-          {!presetStudentId && roster && roster.length > 0 && (
-            <label className="ai-feedback-modal__field">
-              <span>학생</span>
-              <select
-                value={pickedStudentId}
-                onChange={(e) => setPickedStudentId(e.target.value)}
-                disabled={busyKind !== null}
-              >
-                <option value="">— 학생 선택 —</option>
-                {roster.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.number ? `${s.number}번 ` : ""}
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <label className="ai-feedback-modal__field">
-            <span>단원</span>
-            <input
-              type="text"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-              placeholder="예: 상상의 세계 그리기"
-              maxLength={120}
-              disabled={busyKind !== null}
-            />
-          </label>
-          <label className="ai-feedback-modal__field">
-            <span>평가항목</span>
-            <input
-              type="text"
-              value={criterion}
-              onChange={(e) => setCriterion(e.target.value)}
-              placeholder="예: 색채 표현하기"
-              maxLength={120}
-              disabled={busyKind !== null}
-            />
-          </label>
+          {/* 1. 학생 다중 선택 */}
+          <section className="ai-feedback-modal__roster">
+            <header className="ai-feedback-modal__roster-head">
+              <label className="ai-feedback-modal__roster-all">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = someSelected;
+                  }}
+                  onChange={toggleAll}
+                  disabled={busy || effectiveRoster.length === 0}
+                />
+                <span>
+                  전체 선택{" "}
+                  <small>
+                    ({selected.size}/{effectiveRoster.length})
+                  </small>
+                </span>
+              </label>
+            </header>
+            {effectiveRoster.length === 0 ? (
+              <p className="ai-feedback-modal__empty">
+                학급 학생 명단을 불러올 수 없어요.
+              </p>
+            ) : (
+              <ul className="ai-feedback-modal__roster-list">
+                {effectiveRoster.map((s) => {
+                  const checked = selected.has(s.id);
+                  return (
+                    <li key={s.id}>
+                      <label
+                        className={`ai-feedback-modal__roster-row ${
+                          checked ? "is-selected" : ""
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleOne(s.id)}
+                          disabled={busy}
+                        />
+                        <span className="ai-feedback-modal__roster-num">
+                          {s.number ?? "-"}
+                        </span>
+                        <span className="ai-feedback-modal__roster-name">
+                          {s.name}
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
 
-          <label className="ai-feedback-modal__field ai-feedback-modal__field--comment">
-            <span>
-              평어 본문{" "}
-              {model && <small className="ai-feedback-modal__model">({model})</small>}
-            </span>
-            <textarea
-              value={comment}
-              onChange={(e) => {
-                setComment(e.target.value);
-                setSent(false);
-              }}
-              rows={5}
-              maxLength={2000}
-              placeholder="미리보기 버튼을 누르면 AI 가 평어 초안을 생성합니다. 직접 입력·수정도 가능."
-              disabled={busyKind === "send"}
-            />
-            <small className="ai-feedback-modal__counter">{comment.length}/2000</small>
-          </label>
+          {/* 2. 단원 / 평가항목 (선택) */}
+          <section className="ai-feedback-modal__criteria">
+            <label className="ai-feedback-modal__field">
+              <span>
+                단원 <small>(선택)</small>
+              </span>
+              <input
+                type="text"
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                placeholder="예: 상상의 세계 그리기"
+                maxLength={120}
+                disabled={busy}
+              />
+            </label>
+            <label className="ai-feedback-modal__field">
+              <span>
+                평가항목 <small>(선택)</small>
+              </span>
+              <input
+                type="text"
+                value={criterion}
+                onChange={(e) => setCriterion(e.target.value)}
+                placeholder="예: 색채 표현하기"
+                maxLength={120}
+                disabled={busy}
+              />
+            </label>
+            <p className="ai-feedback-modal__hint">
+              비워두면 학기 전반의 학습 모습으로 평어가 생성됩니다.
+            </p>
+          </section>
+
+          {/* 3. 결과 — 생성 후에만 노출 */}
+          {results && (
+            <section className="ai-feedback-modal__results">
+              <header className="ai-feedback-modal__results-head">
+                생성 결과 — 성공 {successCount}명
+                {failureCount > 0 && ` · 실패 ${failureCount}명`}
+                <span className="ai-feedback-modal__results-saved">
+                  (저장 완료, Aura 풀 즉시 반영)
+                </span>
+              </header>
+              <ul className="ai-feedback-modal__results-list">
+                {results.map((r) => {
+                  const s = studentById.get(r.studentId);
+                  const label = s
+                    ? `${s.number ? `${s.number}번 ` : ""}${s.name}`
+                    : r.studentId;
+                  return (
+                    <li
+                      key={r.studentId}
+                      className={
+                        r.ok
+                          ? "ai-feedback-modal__result-row"
+                          : "ai-feedback-modal__result-row is-failed"
+                      }
+                    >
+                      <span className="ai-feedback-modal__result-name">
+                        {r.ok ? "✓" : "✗"} {label}
+                      </span>
+                      <span className="ai-feedback-modal__result-text">
+                        {r.ok ? r.comment : explainError(r.error)}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
 
           {error && <p className="ai-feedback-modal__error">{error}</p>}
-          {sent && (
-            <p className="ai-feedback-modal__success">
-              ✓ 저장 완료. Aura 에서 풀하면 즉시 반영됩니다.
-            </p>
-          )}
         </div>
 
         <footer className="ai-feedback-modal__footer">
           <button
             type="button"
             className="ai-feedback-modal__btn ai-feedback-modal__btn--ghost"
-            onClick={handlePreview}
-            disabled={busyKind !== null}
+            onClick={onClose}
+            disabled={busy}
           >
-            {busyKind === "preview" ? "생성 중…" : "미리보기"}
+            닫기
           </button>
           <button
             type="button"
             className="ai-feedback-modal__btn ai-feedback-modal__btn--primary"
-            onClick={handleSend}
-            disabled={busyKind !== null || comment.trim().length === 0}
+            onClick={handleGenerate}
+            disabled={busy || selected.size === 0}
           >
-            {busyKind === "send" ? "보내는 중…" : sent ? "다시 보내기" : "보내기"}
+            {busy
+              ? `${selected.size}명 생성 중…`
+              : `✨ ${selected.size || ""}명 평어 생성·전송`}
           </button>
         </footer>
       </div>

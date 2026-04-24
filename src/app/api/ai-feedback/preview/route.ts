@@ -11,8 +11,8 @@ import { generateFeedback } from "@/lib/ai-feedback/generate";
 const Body = z.object({
   studentId: z.string().min(1),
   subject: z.string().min(1).max(40),
-  unit: z.string().min(1).max(120),
-  criterion: z.string().min(1).max(120),
+  unit: z.string().max(120).optional().default(""),
+  criterion: z.string().max(120).optional().default(""),
 });
 
 export async function POST(req: Request) {

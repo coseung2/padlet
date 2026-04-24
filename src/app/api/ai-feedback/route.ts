@@ -10,8 +10,8 @@ import { resolveFeedbackContextByStudent } from "@/lib/ai-feedback/auth";
 const PostBody = z.object({
   studentId: z.string().min(1),
   subject: z.string().min(1).max(40),
-  unit: z.string().min(1).max(120),
-  criterion: z.string().min(1).max(120),
+  unit: z.string().max(120).optional().default(""),
+  criterion: z.string().max(120).optional().default(""),
   comment: z.string().min(1).max(2000),
   model: z.string().min(1).max(80),
 });
