@@ -6,6 +6,12 @@ create cards on a teacher's board via a Personal Access Token (PAT).
 > **Pro tier only** — the `cards:write` scope is restricted to Pro accounts.
 > Free accounts calling `/api/external/cards` receive `402 tier_required`.
 
+> **Companion app integration (read path)** — Aura 컴패니언(교사용 별도 웹앱)이
+> AI 평어·OMR 채점 결과를 풀하는 OAuth 2.0 통합은 별도 문서 참조:
+> [`docs/integrations/aura-companion.md`](./integrations/aura-companion.md).
+> 본 문서의 PAT (`aurapat_*`) 는 cards:write (쓰기) 용, OAuth (`auratea_*`)
+> 는 external:read (읽기) 용으로 역할이 분리돼 있다.
+
 ---
 
 ## 1. Get a token
