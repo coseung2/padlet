@@ -347,6 +347,13 @@
   text-overflow: ellipsis;
 }
 
+.ai-feedback-modal__result-vision {
+  display: inline-block;
+  font-size: 12px;
+  cursor: help;
+  vertical-align: baseline;
+}
+
 .ai-feedback-modal__result-text {
   color: var(--color-text);
 }

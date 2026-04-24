@@ -31,9 +31,13 @@ const CONCURRENCY = 4;
 // 막히는 상황 방지.
 const IMAGE_FETCH_TIMEOUT_MS = 5_000;
 
+type VisionStatus =
+  | { used: true }
+  | { used: false; reason: "non_gemini" | "no_card" | "no_image_url" | "fetch_failed" };
+
 type PerStudent =
-  | { studentId: string; ok: true; comment: string; model: string }
-  | { studentId: string; ok: false; error: string };
+  | { studentId: string; ok: true; comment: string; model: string; vision: VisionStatus }
+  | { studentId: string; ok: false; error: string; vision: VisionStatus };
 
 async function runWithConcurrency<T, R>(
   items: T[],
@@ -75,11 +79,14 @@ async function fetchImageAsBase64(url: string): Promise<FeedbackImage | null> {
  * - 작성자 매칭: CardAuthor.studentId OR Card.studentAuthorId
  * - 우선순위: CardAttachment(kind=image) 의 가장 작은 order → Card.imageUrl
  * - 가장 최근 카드(updatedAt desc) 1개만 사용
+ *
+ * 결과 = url 또는 null + reason. reason 으로 "카드 자체가 없음 (no_card)"
+ * 과 "카드는 있는데 이미지가 없음 (no_image_url)" 을 구분해 진단에 활용.
  */
 async function pickStudentImageUrl(
   studentId: string,
   sectionId: string | undefined
-): Promise<string | null> {
+): Promise<{ url: string; reason?: never } | { url: null; reason: "no_card" | "no_image_url" }> {
   const cards = await db.card.findMany({
     where: {
       ...(sectionId ? { sectionId } : {}),
@@ -100,12 +107,13 @@ async function pickStudentImageUrl(
       },
     },
   });
+  if (cards.length === 0) return { url: null, reason: "no_card" };
   for (const c of cards) {
     const attachUrl = c.attachments[0]?.url;
-    if (attachUrl) return attachUrl;
-    if (c.imageUrl) return c.imageUrl;
+    if (attachUrl) return { url: attachUrl };
+    if (c.imageUrl) return { url: c.imageUrl };
   }
-  return null;
+  return { url: null, reason: "no_image_url" };
 }
 
 export async function POST(req: Request) {
@@ -158,13 +166,21 @@ export async function POST(req: Request) {
     studentId: id,
     ok: false,
     error: "not_classroom_owner_or_missing",
+    vision: { used: false, reason: "no_card" },
   }));
 
   const generated = await runWithConcurrency(validStudents, CONCURRENCY, async (s) => {
     let image: FeedbackImage | null = null;
+    let vision: VisionStatus = { used: false, reason: "non_gemini" };
     if (visionEnabled) {
-      const url = await pickStudentImageUrl(s.id, parsed.sectionId);
-      if (url) image = await fetchImageAsBase64(url);
+      const picked = await pickStudentImageUrl(s.id, parsed.sectionId);
+      if (picked.url === null) {
+        vision = { used: false, reason: picked.reason };
+      } else {
+        image = await fetchImageAsBase64(picked.url);
+        if (!image) vision = { used: false, reason: "fetch_failed" };
+        else vision = { used: true };
+      }
     }
 
     const { systemPrompt, userPrompt } = buildFeedbackPrompt({
@@ -184,10 +200,10 @@ export async function POST(req: Request) {
       image,
     });
     if (!r.ok) {
-      return { studentId: s.id, ok: false, error: r.error } as PerStudent;
+      return { studentId: s.id, ok: false, error: r.error, vision } as PerStudent;
     }
     if (!r.text) {
-      return { studentId: s.id, ok: false, error: "empty_text" } as PerStudent;
+      return { studentId: s.id, ok: false, error: "empty_text", vision } as PerStudent;
     }
     try {
       await db.aiFeedback.upsert({
@@ -217,13 +233,19 @@ export async function POST(req: Request) {
         },
       });
     } catch (e) {
-      return { studentId: s.id, ok: false, error: `db: ${(e as Error).message}` } as PerStudent;
+      return {
+        studentId: s.id,
+        ok: false,
+        error: `db: ${(e as Error).message}`,
+        vision,
+      } as PerStudent;
     }
     return {
       studentId: s.id,
       ok: true,
       comment: r.text,
       model: r.model,
+      vision,
     } as PerStudent;
   });
 

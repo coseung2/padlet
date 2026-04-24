@@ -19,9 +19,27 @@ type Props = {
   onClose: () => void;
 };
 
+type VisionStatus =
+  | { used: true }
+  | { used: false; reason: "non_gemini" | "no_card" | "no_image_url" | "fetch_failed" };
+
 type BatchResult =
-  | { studentId: string; ok: true; comment: string; model: string }
-  | { studentId: string; ok: false; error: string };
+  | { studentId: string; ok: true; comment: string; model: string; vision: VisionStatus }
+  | { studentId: string; ok: false; error: string; vision: VisionStatus };
+
+function visionBadge(v: VisionStatus): { icon: string; title: string } {
+  if (v.used) return { icon: "🖼", title: "작품 이미지로 비전 평가" };
+  switch (v.reason) {
+    case "non_gemini":
+      return { icon: "📝", title: "텍스트 전용 (현재 LLM 키가 Gemini 가 아님)" };
+    case "no_card":
+      return { icon: "📝", title: "텍스트 전용 (이 학생이 작성한 카드가 없음)" };
+    case "no_image_url":
+      return { icon: "📝", title: "텍스트 전용 (학생 카드에 이미지 첨부가 없음)" };
+    case "fetch_failed":
+      return { icon: "📝", title: "텍스트 전용 (이미지 fetch 실패 — 5초 timeout)" };
+  }
+}
 
 /**
  * AI 평어 일괄 생성 모달.
@@ -282,6 +300,7 @@ export function AiFeedbackModal({
                   const label = s
                     ? `${s.number ? `${s.number}번 ` : ""}${s.name}`
                     : r.studentId;
+                  const badge = visionBadge(r.vision);
                   return (
                     <li
                       key={r.studentId}
@@ -292,7 +311,15 @@ export function AiFeedbackModal({
                       }
                     >
                       <span className="ai-feedback-modal__result-name">
-                        {r.ok ? "✓" : "✗"} {label}
+                        {r.ok ? "✓" : "✗"}{" "}
+                        <span
+                          className="ai-feedback-modal__result-vision"
+                          title={badge.title}
+                          aria-label={badge.title}
+                        >
+                          {badge.icon}
+                        </span>{" "}
+                        {label}
                       </span>
                       <span className="ai-feedback-modal__result-text">
                         {r.ok ? r.comment : explainError(r.error)}
