@@ -8,6 +8,9 @@ export type FeedbackPromptInput = {
   unit?: string;
   /** 비어있으면 "전반적 학습 태도" 톤으로 fallback. */
   criterion?: string;
+  /** 학생 작품 이미지가 비전 입력으로 함께 들어갈 예정이면 true.
+   *  프롬프트 본문에 "이미지를 관찰해 ..." 안내가 추가된다. */
+  hasImage?: boolean;
 };
 
 const SUBJECT_LABEL: Record<string, string> = {
@@ -31,7 +34,12 @@ export function buildFeedbackPrompt(input: FeedbackPromptInput): {
 - 학생 이름은 출력하지 마세요. (교사가 별도로 학생을 식별합니다)
 - 칭찬/관찰 위주. 부정 표현·주관적 평가어("매우 잘함", "최고") 금지.
 - 입력된 단원·평가항목 키워드를 자연스럽게 본문에 녹여내세요. 둘 다 비어있으면 ${subjectKo} 학기 전반의 학습 태도를 일반적으로 서술합니다.
-- 일괄 생성 시 학생마다 비슷한 표현을 피하고 자연스러운 변주를 줍니다.
+- 일괄 생성 시 학생마다 비슷한 표현을 피하고 자연스러운 변주를 줍니다.${
+    input.hasImage
+      ? `
+- 첨부된 학생 작품 이미지를 직접 관찰해 색채·구도·기법·표현 같이 눈에 띄는 시각적 특징을 평어에 녹여 학생마다 다르게 작성하세요. 이미지에 보이지 않는 내용은 추측하지 마세요.`
+      : ""
+  }
 - 마크다운/번호/따옴표/이모지 없이 평문 한 문장만 출력.`;
 
   const lines: string[] = [];

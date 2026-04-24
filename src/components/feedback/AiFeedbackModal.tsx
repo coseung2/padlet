@@ -13,6 +13,9 @@ type Props = {
   roster?: RosterStudent[];
   /** 'art' v1 고정. */
   subject?: string;
+  /** 칼럼에서 진입했을 때 해당 sectionId — 서버가 그 칼럼 안 학생 카드 이미지를
+   *  Gemini Vision 으로 함께 보낸다. assignment 채점 등 다른 진입점은 omit. */
+  sectionId?: string | null;
   onClose: () => void;
 };
 
@@ -35,6 +38,7 @@ export function AiFeedbackModal({
   studentNumber: presetStudentNumber,
   roster,
   subject = "art",
+  sectionId,
   onClose,
 }: Props) {
   // preset 학생이 있는데 roster 가 없으면 즉석 1인 roster 로 변환.
@@ -60,6 +64,7 @@ export function AiFeedbackModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<BatchResult[] | null>(null);
+  const [visionUsed, setVisionUsed] = useState(false);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -112,10 +117,12 @@ export function AiFeedbackModal({
           subject,
           unit: unit.trim(),
           criterion: criterion.trim(),
+          ...(sectionId ? { sectionId } : {}),
         }),
       });
       const data = (await res.json().catch(() => ({}))) as {
         results?: BatchResult[];
+        visionUsed?: boolean;
         error?: string;
       };
       if (!res.ok) {
@@ -123,6 +130,7 @@ export function AiFeedbackModal({
         return;
       }
       setResults(data.results ?? []);
+      setVisionUsed(!!data.visionUsed);
     } finally {
       setBusy(false);
     }
@@ -265,7 +273,7 @@ export function AiFeedbackModal({
                 생성 결과 — 성공 {successCount}명
                 {failureCount > 0 && ` · 실패 ${failureCount}명`}
                 <span className="ai-feedback-modal__results-saved">
-                  (저장 완료, Aura 풀 즉시 반영)
+                  (저장 완료, Aura 풀 즉시 반영{visionUsed && sectionId ? " · 비전 사용" : ""})
                 </span>
               </header>
               <ul className="ai-feedback-modal__results-list">

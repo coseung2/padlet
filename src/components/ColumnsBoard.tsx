@@ -534,6 +534,7 @@ export function ColumnsBoard({
   // feedbackTarget: 모달 host. roster 는 해당 칼럼의 카드 작성자(CardAuthor +
   // singleton studentAuthorId) 만 포함해 학급 전체 명부 노출을 막는다.
   // 칼럼 타이틀이 학생 시드 형식이면 그 학생을 preset 으로 추가 체크.
+  // sectionId 는 서버 비전 호출에서 학생별 카드 이미지 lookup 에 사용.
   const [feedbackTarget, setFeedbackTarget] = useState<
     | {
         open: true;
@@ -541,6 +542,7 @@ export function ColumnsBoard({
         name: string | null;
         number: number | null;
         roster: { id: string; name: string; number: number | null }[];
+        sectionId: string;
       }
     | null
   >(null);
@@ -724,6 +726,7 @@ export function ColumnsBoard({
                               name: sectionStudent?.name ?? null,
                               number: sectionStudent?.number ?? null,
                               roster: modalRoster,
+                              sectionId: section.id,
                             }),
                         },
                       ];
@@ -1010,6 +1013,7 @@ export function ColumnsBoard({
           studentName={feedbackTarget.name}
           studentNumber={feedbackTarget.number}
           roster={feedbackTarget.roster}
+          sectionId={feedbackTarget.sectionId}
           onClose={() => setFeedbackTarget(null)}
         />
       )}

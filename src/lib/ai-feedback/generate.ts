@@ -16,6 +16,13 @@ const MODELS: Record<Exclude<LlmProvider, "ollama">, string> = {
 // 호출당 비용은 출력 토큰 기준 < $0.0002 수준이라 무시 가능. (2026-04-24)
 const MAX_OUTPUT_TOKENS = 1024;
 
+export type FeedbackImage = {
+  /** raw bytes base64 인코딩 (data: prefix 없이). */
+  base64: string;
+  /** "image/jpeg" | "image/png" | "image/webp" */
+  mimeType: string;
+};
+
 export type GenerateFeedbackArgs = {
   provider: LlmProvider;
   apiKey: string;
@@ -23,6 +30,8 @@ export type GenerateFeedbackArgs = {
   modelId?: string | null; // ollama only
   systemPrompt: string;
   userPrompt: string;
+  /** 학생 작품 이미지. 비전 지원 provider(Gemini)만 사용. 그 외는 무시. */
+  image?: FeedbackImage | null;
 };
 
 export type GenerateFeedbackResult =
@@ -117,7 +126,24 @@ async function callGemini(args: GenerateFeedbackArgs): Promise<GenerateFeedbackR
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: args.systemPrompt }] },
-        contents: [{ role: "user", parts: [{ text: args.userPrompt }] }],
+        contents: [
+          {
+            role: "user",
+            parts: [
+              ...(args.image
+                ? [
+                    {
+                      inlineData: {
+                        mimeType: args.image.mimeType,
+                        data: args.image.base64,
+                      },
+                    },
+                  ]
+                : []),
+              { text: args.userPrompt },
+            ],
+          },
+        ],
         generationConfig: {
           maxOutputTokens: MAX_OUTPUT_TOKENS,
           // Gemini 2.5 Flash 의 thinking 토큰이 maxOutputTokens 한도를 잠식해
