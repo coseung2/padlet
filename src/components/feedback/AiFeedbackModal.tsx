@@ -2,10 +2,15 @@
 
 import { useEffect, useState } from "react";
 
+type RosterStudent = { id: string; name: string; number: number | null };
+
 type Props = {
-  studentId: string;
-  studentName: string;
+  /** 사전 지정된 학생. null/undefined 면 모달 내 picker 로 교사가 선택. */
+  studentId?: string | null;
+  studentName?: string | null;
   studentNumber?: number | null;
+  /** picker 노출 시 사용할 학급 학생 명단. studentId 가 없을 때 필수. */
+  roster?: RosterStudent[];
   /** 'art' v1 고정. 미래 다과목 확장 시 호출자에서 지정. */
   subject?: string;
   /** 모달 닫기. */
@@ -21,12 +26,16 @@ type Props = {
  * - "미리보기"만 누르고 닫으면 휘발 (저장 안 함)
  */
 export function AiFeedbackModal({
-  studentId,
-  studentName,
-  studentNumber,
+  studentId: presetStudentId,
+  studentName: presetStudentName,
+  studentNumber: presetStudentNumber,
+  roster,
   subject = "art",
   onClose,
 }: Props) {
+  const [pickedStudentId, setPickedStudentId] = useState<string>(
+    presetStudentId ?? ""
+  );
   const [unit, setUnit] = useState("");
   const [criterion, setCriterion] = useState("");
   const [comment, setComment] = useState("");
@@ -34,6 +43,13 @@ export function AiFeedbackModal({
   const [busyKind, setBusyKind] = useState<"preview" | "send" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+
+  const activeStudentId = presetStudentId || pickedStudentId;
+  const pickedFromRoster = roster?.find((s) => s.id === pickedStudentId);
+  const activeStudentName =
+    presetStudentName ?? pickedFromRoster?.name ?? "";
+  const activeStudentNumber =
+    presetStudentNumber ?? pickedFromRoster?.number ?? null;
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -59,6 +75,10 @@ export function AiFeedbackModal({
 
   async function handlePreview() {
     if (busyKind) return;
+    if (!activeStudentId) {
+      setError("학생을 먼저 선택하세요");
+      return;
+    }
     if (!unit.trim() || !criterion.trim()) {
       setError("단원과 평가항목을 모두 입력하세요");
       return;
@@ -70,7 +90,7 @@ export function AiFeedbackModal({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          studentId,
+          studentId: activeStudentId,
           subject,
           unit: unit.trim(),
           criterion: criterion.trim(),
@@ -96,6 +116,10 @@ export function AiFeedbackModal({
 
   async function handleSend() {
     if (busyKind) return;
+    if (!activeStudentId) {
+      setError("학생을 먼저 선택하세요");
+      return;
+    }
     if (!comment.trim()) {
       setError("미리보기를 먼저 생성하거나 직접 입력하세요");
       return;
@@ -107,7 +131,7 @@ export function AiFeedbackModal({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          studentId,
+          studentId: activeStudentId,
           subject,
           unit: unit.trim(),
           criterion: criterion.trim(),
@@ -143,8 +167,9 @@ export function AiFeedbackModal({
             <span className="ai-feedback-modal__subject">[{subject}]</span>
           </h3>
           <span className="ai-feedback-modal__student">
-            {studentNumber ? `${studentNumber}번 ` : ""}
-            {studentName}
+            {activeStudentName
+              ? `${activeStudentNumber ? `${activeStudentNumber}번 ` : ""}${activeStudentName}`
+              : "학생 선택"}
           </span>
           <button
             type="button"
@@ -158,6 +183,24 @@ export function AiFeedbackModal({
         </header>
 
         <div className="ai-feedback-modal__body">
+          {!presetStudentId && roster && roster.length > 0 && (
+            <label className="ai-feedback-modal__field">
+              <span>학생</span>
+              <select
+                value={pickedStudentId}
+                onChange={(e) => setPickedStudentId(e.target.value)}
+                disabled={busyKind !== null}
+              >
+                <option value="">— 학생 선택 —</option>
+                {roster.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.number ? `${s.number}번 ` : ""}
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="ai-feedback-modal__field">
             <span>단원</span>
             <input

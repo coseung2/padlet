@@ -531,11 +531,12 @@ export function ColumnsBoard({
   const [roster, setRoster] = useState<
     { id: string; name: string; number: number | null }[]
   >([]);
-  const [feedbackTarget, setFeedbackTarget] = useState<{
-    studentId: string;
-    name: string;
-    number: number | null;
-  } | null>(null);
+  // feedbackTarget: 칼럼 타이틀로 학생이 자동 매칭되면 preset 으로 전달,
+  // 매칭이 안 되면 studentId=null 로 열어 모달 안 picker 가 나오도록 한다.
+  const [feedbackTarget, setFeedbackTarget] = useState<
+    | { open: true; studentId: string | null; name: string | null; number: number | null }
+    | null
+  >(null);
   useEffect(() => {
     if (!canEdit || !classroomId) return;
     let cancelled = false;
@@ -635,16 +636,22 @@ export function ColumnsBoard({
                   onClick: () =>
                     setPanelState({ sectionId: section.id, tab: "rename" }),
                 },
-                ...(sectionStudent
+                // AI 평어: classroom-linked 보드면 항상 노출. 자유 주제 칼럼은
+                // 모달 안 picker 로 학생을 직접 선택. 학생 시드 칼럼 ("1번 홍길동")
+                // 은 자동 매칭으로 preset.
+                ...(classroomId
                   ? [
                       {
-                        label: "AI 평어 작성",
+                        label: sectionStudent
+                          ? `AI 평어 작성 (${sectionStudent.name})`
+                          : "AI 평어 작성",
                         icon: "✨",
                         onClick: () =>
                           setFeedbackTarget({
-                            studentId: sectionStudent.id,
-                            name: sectionStudent.name,
-                            number: sectionStudent.number,
+                            open: true,
+                            studentId: sectionStudent?.id ?? null,
+                            name: sectionStudent?.name ?? null,
+                            number: sectionStudent?.number ?? null,
                           }),
                       },
                     ]
@@ -929,6 +936,7 @@ export function ColumnsBoard({
           studentId={feedbackTarget.studentId}
           studentName={feedbackTarget.name}
           studentNumber={feedbackTarget.number}
+          roster={roster}
           onClose={() => setFeedbackTarget(null)}
         />
       )}
