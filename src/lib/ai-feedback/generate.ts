@@ -11,6 +11,11 @@ const MODELS: Record<Exclude<LlmProvider, "ollama">, string> = {
   gemini: process.env.GEMINI_MODEL_ID ?? "gemini-2.5-flash",
 };
 
+// 평어는 짧지만(60~100자) thinking 모델(Gemini 2.5 Flash 등)이 thinking
+// 토큰을 먼저 소비하면 본문 자리가 모자라 잘리는 사고가 났다. 여유 있게 잡아도
+// 호출당 비용은 출력 토큰 기준 < $0.0002 수준이라 무시 가능. (2026-04-24)
+const MAX_OUTPUT_TOKENS = 1024;
+
 export type GenerateFeedbackArgs = {
   provider: LlmProvider;
   apiKey: string;
@@ -56,7 +61,7 @@ async function callClaude(args: GenerateFeedbackArgs): Promise<GenerateFeedbackR
     })({ apiKey: args.apiKey });
     const res = await client.messages.create({
       model: MODELS.claude,
-      max_tokens: 256,
+      max_tokens: MAX_OUTPUT_TOKENS,
       system: args.systemPrompt,
       messages: [{ role: "user", content: args.userPrompt }],
     });
@@ -81,7 +86,7 @@ async function callOpenAI(args: GenerateFeedbackArgs): Promise<GenerateFeedbackR
       },
       body: JSON.stringify({
         model: MODELS.openai,
-        max_tokens: 256,
+        max_tokens: MAX_OUTPUT_TOKENS,
         messages: [
           { role: "system", content: args.systemPrompt },
           { role: "user", content: args.userPrompt },
@@ -113,7 +118,13 @@ async function callGemini(args: GenerateFeedbackArgs): Promise<GenerateFeedbackR
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: args.systemPrompt }] },
         contents: [{ role: "user", parts: [{ text: args.userPrompt }] }],
-        generationConfig: { maxOutputTokens: 256 },
+        generationConfig: {
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
+          // Gemini 2.5 Flash 의 thinking 토큰이 maxOutputTokens 한도를 잠식해
+          // 본문이 잘리는 회귀를 차단. 평어는 chain-of-thought 가 필요한 작업이
+          // 아니라 thinking 비활성이 안전.
+          thinkingConfig: { thinkingBudget: 0 },
+        },
       }),
     });
     if (!res.ok) {
