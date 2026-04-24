@@ -14,6 +14,9 @@
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getCurrentStudent } from "@/lib/student-auth";
+import { isAuthenticated } from "@/lib/auth";
+import { auth as nextAuth } from "@/lib/auth-config";
+import { subjectKindForClient } from "@/lib/oauth-subject";
 
 type SearchParams = Promise<{
   client_id?: string;
@@ -84,8 +87,11 @@ export default async function AuthorizePage({
     );
   }
 
+  const subject = subjectKindForClient(client.id);
+  const defaultScope = subject === "user" ? "external:read" : "cards:write";
+
   const allowedScopes = JSON.parse(client.scopes) as string[];
-  const requested = (q.scope ?? "cards:write").trim();
+  const requested = (q.scope ?? defaultScope).trim();
   const requestedList = requested.split(/\s+/).filter(Boolean);
   const unknown = requestedList.filter((s) => !allowedScopes.includes(s));
   if (unknown.length > 0) {
@@ -105,13 +111,93 @@ export default async function AuthorizePage({
     }
   }
 
-  // [4] Student session — if missing, bounce through /student/login with a
-  // return URL that brings the user back here with the same query string.
+  const authorizeUrl = `/oauth/authorize?${new URLSearchParams(
+    Object.entries(q).filter(([, v]) => v != null) as [string, string][]
+  ).toString()}`;
+
+  // [4] Subject session lookup. Teacher (user) clients use NextAuth Google
+  // session; student clients use student cookie session. Mismatch = bounce
+  // through the right login page with return URL.
+  if (subject === "user") {
+    if (!(await isAuthenticated())) {
+      redirect(`/login?callbackUrl=${encodeURIComponent(authorizeUrl)}`);
+    }
+    const session = await nextAuth();
+    const teacherUser = session?.user
+      ? { id: session.user.id ?? "", name: session.user.name ?? "", email: session.user.email ?? "" }
+      : null;
+    if (!teacherUser?.id) {
+      redirect(`/login?callbackUrl=${encodeURIComponent(authorizeUrl)}`);
+    }
+
+    return (
+      <main className="oauth-page">
+        <form action="/api/oauth/consent" method="POST" className="oauth-card">
+          <input type="hidden" name="client_id" value={q.client_id} />
+          <input type="hidden" name="redirect_uri" value={q.redirect_uri} />
+          <input type="hidden" name="scope" value={requested} />
+          <input type="hidden" name="state" value={q.state ?? ""} />
+          <input type="hidden" name="code_challenge" value={q.code_challenge ?? ""} />
+          <input
+            type="hidden"
+            name="code_challenge_method"
+            value={q.code_challenge_method ?? "S256"}
+          />
+
+          <div className="oauth-header">
+            <div className="oauth-app-icon" aria-hidden="true">✨</div>
+            <h1 className="oauth-title">{client.name}이 Aura-board 에 연결하려고 해요</h1>
+          </div>
+
+          <div className="oauth-identity">
+            <div className="oauth-identity-label">내 계정 (교사)</div>
+            <div className="oauth-identity-value">
+              👤 {teacherUser?.name ?? ""}
+              {teacherUser?.email && (
+                <span className="oauth-identity-email"> · {teacherUser.email}</span>
+              )}
+            </div>
+          </div>
+
+          <div className="oauth-scopes">
+            <p className="oauth-scopes-head">앱이 할 수 있게 되는 것:</p>
+            <ul className="oauth-scopes-list">
+              {requestedList.includes("external:read") && (
+                <li>📖 회원님의 Aura-board 학급 평어·채점 결과를 읽기 (읽기 전용)</li>
+              )}
+            </ul>
+            <p className="oauth-scopes-note">
+              앱은 회원님의 비밀번호를 절대 볼 수 없고, 데이터를 수정·삭제하지 못합니다.
+              교사 설정 페이지에서 언제든 연결을 끊을 수 있어요.
+            </p>
+          </div>
+
+          <div className="oauth-actions">
+            <button
+              type="submit"
+              name="decision"
+              value="deny"
+              className="oauth-btn oauth-btn-secondary"
+            >
+              거절
+            </button>
+            <button
+              type="submit"
+              name="decision"
+              value="allow"
+              className="oauth-btn oauth-btn-primary"
+            >
+              허용
+            </button>
+          </div>
+        </form>
+      </main>
+    );
+  }
+
+  // Student subject branch (Canva pairing — unchanged).
   const student = await getCurrentStudent();
   if (!student) {
-    const authorizeUrl = `/oauth/authorize?${new URLSearchParams(
-      Object.entries(q).filter(([, v]) => v != null) as [string, string][]
-    ).toString()}`;
     redirect(`/student/login?return=${encodeURIComponent(authorizeUrl)}`);
   }
 

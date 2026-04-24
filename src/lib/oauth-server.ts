@@ -193,6 +193,9 @@ export async function consumeAuthCode(params: {
   if (row.expiresAt.getTime() < Date.now()) return { ok: false, error: "invalid_grant" };
   if (row.clientId !== params.clientId) return { ok: false, error: "invalid_grant" };
   if (row.redirectUri !== params.redirectUri) return { ok: false, error: "invalid_grant" };
+  // Subject discriminator (2026-04-24): teacher 코드를 student token endpoint
+  // 으로 잘못 보낸 경우 → invalid_grant.
+  if (!row.studentId) return { ok: false, error: "invalid_grant" };
 
   // PKCE S256: code_challenge === BASE64URL(SHA256(code_verifier))
   const challenge = createHash("sha256").update(params.codeVerifier).digest("base64url");
@@ -278,7 +281,7 @@ export async function rotateRefreshToken(params: {
   const secret = params.refreshPlaintext.slice(REFRESH_TOKEN_FULL_PREFIX.length + TOKEN_PREFIX_LEN + 1);
 
   const row = await db.oAuthRefreshToken.findUnique({ where: { tokenPrefix: prefix } });
-  if (!row) {
+  if (!row || !row.studentId) {
     // Dummy compare to avoid prefix-leak timing.
     const dummy = Buffer.from(DUMMY_HASH, "hex");
     timingSafeEqual(dummy, dummy);
@@ -353,7 +356,7 @@ export async function verifyAccessToken(plaintext: string): Promise<
   const secret = plaintext.slice(ACCESS_TOKEN_FULL_PREFIX.length + TOKEN_PREFIX_LEN + 1);
 
   const row = await db.oAuthAccessToken.findUnique({ where: { tokenPrefix: prefix } });
-  if (!row) {
+  if (!row || !row.studentId) {
     const dummy = Buffer.from(DUMMY_HASH, "hex");
     timingSafeEqual(dummy, dummy);
     return { ok: false, code: "invalid_token" };

@@ -48,6 +48,10 @@ model User {
   boardResponses         BoardResponse[]           @relation("UserBoardResponses")
   // AI 평어 (2026-04-24) — 교사가 학생별로 생성한 평어 텍스트
   aiFeedbacks            AiFeedback[]              @relation("TeacherAiFeedbacks")
+  // OAuth as subject — Aura companion teacher OAuth (2026-04-24)
+  oauthAuthCodesAsUser   OAuthAuthCode[]           @relation("UserOAuthAuthCodes")
+  oauthAccessTokensAsUser  OAuthAccessToken[]      @relation("UserOAuthAccessTokens")
+  oauthRefreshTokensAsUser OAuthRefreshToken[]     @relation("UserOAuthRefreshTokens")
 }
 
 // ──── Audit Log (Seed 14 security, 2026-04-22) ────
@@ -1119,11 +1123,15 @@ model OAuthClient {
 }
 
 model OAuthAuthCode {
-  // 40-char base64url random — surfaced as `code` query param to Canva.
+  // 40-char base64url random — surfaced as `code` query param to client.
   // One-shot: consumedAt is set on the first /oauth/token exchange. Re-use
   // triggers invalidation of the linked access/refresh tokens per RFC 6749.
+  //
+  // Subject = student (Canva pairing) OR user (Aura companion teacher OAuth).
+  // CHECK 제약: 정확히 하나만 NOT NULL. 마이그레이션 20260424_oauth_teacher_subject.
   code                String    @id
-  studentId           String
+  studentId           String?
+  userId              String?
   clientId            String
   redirectUri         String
   scope               String
@@ -1134,10 +1142,12 @@ model OAuthAuthCode {
   consumedAt          DateTime?
   createdAt           DateTime  @default(now())
 
-  student Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student Student?    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  user    User?       @relation("UserOAuthAuthCodes", fields: [userId], references: [id], onDelete: Cascade)
   client  OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([studentId])
+  @@index([userId])
   @@index([clientId])
   @@index([expiresAt])
 }
@@ -1147,12 +1157,14 @@ model OAuthAccessToken {
   // the token exchange response and never stored.
   tokenHash      String    @id
   // 8-char base62 prefix extracted from plaintext — O(1) lookup index. The
-  // plaintext returned to Canva is `aurastu_{prefix}_{secret}`.
+  // plaintext returned is `aurastu_{prefix}_{secret}` (student) or
+  // `auratea_{prefix}_{secret}` (teacher).
   tokenPrefix    String    @unique
-  studentId      String
+  studentId      String?
+  userId         String?
   clientId       String
   scope          String
-  expiresAt      DateTime // +30 days default
+  expiresAt      DateTime // +30 days default (student); +1h (teacher)
   revokedAt      DateTime?
   // When this access token was rotated out of a refresh_token grant we keep
   // the id of the new refresh token so audits can trace chains.
@@ -1160,21 +1172,24 @@ model OAuthAccessToken {
   createdAt      DateTime  @default(now())
   lastUsedAt     DateTime?
 
-  student Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student Student?    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  user    User?       @relation("UserOAuthAccessTokens", fields: [userId], references: [id], onDelete: Cascade)
   client  OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([tokenPrefix])
   @@index([studentId])
+  @@index([userId])
   @@index([expiresAt])
 }
 
 model OAuthRefreshToken {
   tokenHash       String    @id
   tokenPrefix     String    @unique
-  studentId       String
+  studentId       String?
+  userId          String?
   clientId        String
   scope           String
-  expiresAt       DateTime // +180 days default
+  expiresAt       DateTime // +180 days default (student); +30 days (teacher)
   revokedAt       DateTime?
   // Parent refresh token (set when the current token was rotated out of a
   // prior refresh grant). Used to detect refresh-token reuse attacks — if a
@@ -1182,11 +1197,13 @@ model OAuthRefreshToken {
   parentTokenHash String?
   createdAt       DateTime  @default(now())
 
-  student Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student Student?    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  user    User?       @relation("UserOAuthRefreshTokens", fields: [userId], references: [id], onDelete: Cascade)
   client  OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([tokenPrefix])
   @@index([studentId])
+  @@index([userId])
   @@index([expiresAt])
 }
 

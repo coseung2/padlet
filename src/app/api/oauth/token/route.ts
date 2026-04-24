@@ -14,6 +14,12 @@ import {
   issueTokenPairFor,
   rotateRefreshToken,
 } from "@/lib/oauth-server";
+import {
+  consumeTeacherAuthCode,
+  issueTeacherTokenPair,
+  rotateTeacherRefresh,
+} from "@/lib/oauth-teacher";
+import { subjectKindForClient } from "@/lib/oauth-subject";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
@@ -50,6 +56,7 @@ export async function POST(req: Request) {
   });
   if (!clientAuth.ok) return errorResponse("invalid_client", undefined, 401);
   const client = clientAuth.client;
+  const subject = subjectKindForClient(client.id);
 
   if (grantType === "authorization_code") {
     const code = String(form.get("code") ?? "");
@@ -60,6 +67,31 @@ export async function POST(req: Request) {
     }
     if (client.pkceRequired && !codeVerifier) {
       return errorResponse("invalid_request", "code_verifier required");
+    }
+
+    if (subject === "user") {
+      const result = await consumeTeacherAuthCode({
+        code,
+        clientId: client.id,
+        redirectUri,
+        codeVerifier,
+      });
+      if (!result.ok) return errorResponse(result.error);
+      const pair = await issueTeacherTokenPair({
+        userId: result.userId,
+        clientId: client.id,
+        scope: result.scope,
+      });
+      return NextResponse.json(
+        {
+          access_token: pair.accessToken,
+          token_type: pair.tokenType,
+          expires_in: pair.expiresIn,
+          refresh_token: pair.refreshToken,
+          scope: pair.scope,
+        },
+        { headers: { "Cache-Control": "no-store", Pragma: "no-cache" } }
+      );
     }
 
     const result = await consumeAuthCode({
@@ -93,6 +125,24 @@ export async function POST(req: Request) {
   if (grantType === "refresh_token") {
     const refresh = String(form.get("refresh_token") ?? "");
     if (!refresh) return errorResponse("invalid_request", "refresh_token required");
+
+    if (subject === "user") {
+      const result = await rotateTeacherRefresh({
+        refreshPlaintext: refresh,
+        clientId: client.id,
+      });
+      if (!result.ok) return errorResponse(result.error);
+      return NextResponse.json(
+        {
+          access_token: result.pair.accessToken,
+          token_type: result.pair.tokenType,
+          expires_in: result.pair.expiresIn,
+          refresh_token: result.pair.refreshToken,
+          scope: result.pair.scope,
+        },
+        { headers: { "Cache-Control": "no-store", Pragma: "no-cache" } }
+      );
+    }
 
     const result = await rotateRefreshToken({
       refreshPlaintext: refresh,

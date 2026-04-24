@@ -7,6 +7,7 @@
  */
 import { NextResponse } from "next/server";
 import { authenticateClient, revokeToken } from "@/lib/oauth-server";
+import { isTeacherTokenFormat, revokeTeacherToken } from "@/lib/oauth-teacher";
 
 export const runtime = "nodejs";
 export const maxDuration = 10;
@@ -24,7 +25,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid_client" }, { status: 401 });
   }
 
-  if (token) await revokeToken(token);
+  if (token) {
+    if (isTeacherTokenFormat(token)) {
+      await revokeTeacherToken(token);
+    } else {
+      await revokeToken(token);
+    }
+  }
 
   return new NextResponse(null, { status: 200 });
 }

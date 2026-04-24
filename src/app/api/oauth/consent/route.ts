@@ -13,7 +13,10 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentStudent } from "@/lib/student-auth";
+import { getCurrentUser } from "@/lib/auth";
 import { issueAuthCode } from "@/lib/oauth-server";
+import { issueTeacherAuthCode } from "@/lib/oauth-teacher";
+import { subjectKindForClient } from "@/lib/oauth-subject";
 import { verifyLinkNonce } from "@/lib/canva-link-nonce";
 
 export const runtime = "nodejs";
@@ -50,6 +53,40 @@ export async function POST(req: Request) {
   }
   if (client.pkceRequired && (!codeChallenge || codeChallengeMethod !== "S256")) {
     return NextResponse.json({ error: "invalid_request" }, { status: 400 });
+  }
+
+  const subject = subjectKindForClient(clientId);
+
+  // Teacher branch — NextAuth Google session attests teacher User identity.
+  if (subject === "user") {
+    if (decision === "deny") {
+      return safeRedirect(redirectUri, {
+        error: "access_denied",
+        ...(state ? { state } : {}),
+      });
+    }
+    if (decision !== "allow") {
+      return NextResponse.json({ error: "invalid_decision" }, { status: 400 });
+    }
+    let teacher;
+    try {
+      teacher = await getCurrentUser();
+    } catch {
+      return NextResponse.json({ error: "teacher_session_required" }, { status: 401 });
+    }
+    const code = await issueTeacherAuthCode({
+      userId: teacher.id,
+      clientId,
+      redirectUri,
+      scope,
+      codeChallenge,
+      codeChallengeMethod,
+      state: state || null,
+    });
+    return safeRedirect(redirectUri, {
+      code,
+      ...(state ? { state } : {}),
+    });
   }
 
   // Student must still be logged in at the moment the form is submitted.

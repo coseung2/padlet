@@ -38,7 +38,12 @@ export async function POST(req: Request) {
   const code = parsed.data.code.trim().toUpperCase();
 
   const row = await db.oAuthAuthCode.findUnique({ where: { code } });
-  if (!row || row.clientId !== "canva" || row.redirectUri !== "aura://pair") {
+  if (
+    !row ||
+    !row.studentId ||
+    row.clientId !== "canva" ||
+    row.redirectUri !== "aura://pair"
+  ) {
     return NextResponse.json(
       { error: { code: "invalid_code" } },
       { status: 404 },
