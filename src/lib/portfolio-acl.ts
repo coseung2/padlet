@@ -15,28 +15,17 @@ import { getCurrentParent } from "./parent-session";
 //   - teacher_owner: User 가 보드 owner 인 학급 (= classroom.teacherId)
 //
 // 다른 학급 침범은 모든 kind 에서 차단. canViewStudent / canToggleShowcase
-// 가 게이트 함수.
+// 등 pure 함수는 portfolio-acl-pure.ts (테스트 가능). 이 파일은 session
+// resolving 만 담당.
 
-export type PortfolioViewer =
-  | {
-      kind: "student";
-      id: string;
-      name: string;
-      classroomId: string;
-    }
-  | {
-      kind: "parent";
-      id: string;
-      // 활성 ParentChildLink 의 자녀 ID 배열
-      childIds: string[];
-      // 자녀 학급 ID set (학급 자랑해요 가시 범위)
-      childClassroomIds: string[];
-    }
-  | {
-      kind: "teacher_owner";
-      id: string;
-      classroomIds: string[];
-    };
+export {
+  canViewStudent,
+  canViewClassroomShowcase,
+  canToggleShowcase,
+  type PortfolioViewer,
+  type ShowcaseTogglable,
+} from "./portfolio-acl-pure";
+import type { PortfolioViewer } from "./portfolio-acl-pure";
 
 /**
  * 현재 세션을 viewer 객체로 변환. teacher 가 우선 (NextAuth user 가 살아 있으면
@@ -95,62 +84,4 @@ export async function resolvePortfolioViewer(): Promise<PortfolioViewer | null> 
   }
 
   return null;
-}
-
-/**
- * viewer 가 targetStudent 의 포트폴리오를 볼 수 있는지.
- * - student: 같은 classroomId
- * - parent: targetStudent.id ∈ childIds (자녀 본인만)
- * - teacher_owner: targetStudent.classroomId ∈ classroomIds
- */
-export function canViewStudent(
-  viewer: PortfolioViewer,
-  target: { id: string; classroomId: string }
-): boolean {
-  if (viewer.kind === "student") {
-    return viewer.classroomId === target.classroomId;
-  }
-  if (viewer.kind === "parent") {
-    return viewer.childIds.includes(target.id);
-  }
-  return viewer.classroomIds.includes(target.classroomId);
-}
-
-/**
- * viewer 가 학급 자랑해요 highlight 영역을 볼 수 있는지.
- * - student: 자기 학급
- * - parent: 자녀가 속한 학급
- * - teacher_owner: 자기 학급
- */
-export function canViewClassroomShowcase(
-  viewer: PortfolioViewer,
-  classroomId: string
-): boolean {
-  if (viewer.kind === "student") return viewer.classroomId === classroomId;
-  if (viewer.kind === "parent")
-    return viewer.childClassroomIds.includes(classroomId);
-  return viewer.classroomIds.includes(classroomId);
-}
-
-/**
- * student viewer 만 본인이 작성/공동작성한 카드 자랑해요를 토글 가능.
- * 카드 권한 가드:
- *   1. card.studentAuthorId === viewer.id (단일 작성자) OR
- *      viewer.id ∈ card.authors[].studentId (공동작성자)
- *   2. card.board.classroomId === viewer.classroomId (자기 학급 보드만)
- */
-export type ShowcaseTogglable = {
-  studentAuthorId: string | null;
-  authors: Array<{ studentId: string | null }>;
-  board: { classroomId: string | null };
-};
-
-export function canToggleShowcase(
-  viewer: PortfolioViewer,
-  card: ShowcaseTogglable
-): boolean {
-  if (viewer.kind !== "student") return false;
-  if (card.board.classroomId !== viewer.classroomId) return false;
-  if (card.studentAuthorId === viewer.id) return true;
-  return card.authors.some((a) => a.studentId === viewer.id);
 }
