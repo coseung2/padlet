@@ -4,6 +4,18 @@
 //
 // session-resolving (resolvePortfolioViewer) 만 portfolio-acl.ts 에 둠.
 
+// 학생 결과물 컨텍스트로 부적절한 board layout — 포트폴리오·자랑해요
+// 어디서도 노출 X. 현재 dj-queue 만 제외 (음악 신청은 결과물 아님).
+// 후속 layout 추가될 가능성 대비 set 형태.
+export const EXCLUDED_BOARD_LAYOUTS = ["dj-queue"] as const;
+export const EXCLUDED_BOARD_LAYOUT_SET: ReadonlySet<string> = new Set(
+  EXCLUDED_BOARD_LAYOUTS
+);
+
+export function isPortfolioEligibleLayout(layout: string): boolean {
+  return !EXCLUDED_BOARD_LAYOUT_SET.has(layout);
+}
+
 export type PortfolioViewer =
   | {
       kind: "student";

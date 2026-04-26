@@ -34,15 +34,17 @@ export default async function StudentPortfolioPage() {
     select: { id: true, name: true, number: true },
   });
 
-  // 학생별 카드 수 + 자랑해요 수 단일 round-trip
+  // 학생별 카드 수 + 자랑해요 수 단일 round-trip.
+  // dj-queue 음악 신청은 결과물 아니라 카드 수에서 제외 (API roster 와 동일).
   const counts = await db.$queryRaw<
     Array<{ studentId: string; cardCount: bigint }>
   >`
     SELECT s.id AS "studentId", COUNT(DISTINCT c.id) AS "cardCount"
     FROM "Student" s
     LEFT JOIN "Card" c ON (
-      c."studentAuthorId" = s.id
-      OR c.id IN (SELECT "cardId" FROM "CardAuthor" WHERE "studentId" = s.id)
+      (c."studentAuthorId" = s.id
+       OR c.id IN (SELECT "cardId" FROM "CardAuthor" WHERE "studentId" = s.id))
+      AND c."boardId" IN (SELECT id FROM "Board" WHERE layout != 'dj-queue')
     )
     WHERE s."classroomId" = ${classroomId}
     GROUP BY s.id

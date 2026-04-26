@@ -65,14 +65,17 @@ export async function GET(req: Request) {
   // 카드 수: studentAuthorId 가 있거나 CardAuthor.studentId 가 있는 카드의
   // (studentId, count) 매핑. 공동작성자 다 학생이라도 같은 카드는 학생별로
   // 1번만 세야 하므로 distinct cardId.
+  // dj-queue 등 EXCLUDED_BOARD_LAYOUTS 카드는 카드 수 카운트에서 제외 —
+  // 학생 결과물 컨텍스트 아니라 포트폴리오 그리드와 일치시켜야 함.
   const counts = await db.$queryRaw<
     Array<{ studentId: string; cardCount: bigint }>
   >`
     SELECT s.id AS "studentId", COUNT(DISTINCT c.id) AS "cardCount"
     FROM "Student" s
     LEFT JOIN "Card" c ON (
-      c."studentAuthorId" = s.id
-      OR c.id IN (SELECT "cardId" FROM "CardAuthor" WHERE "studentId" = s.id)
+      (c."studentAuthorId" = s.id
+       OR c.id IN (SELECT "cardId" FROM "CardAuthor" WHERE "studentId" = s.id))
+      AND c."boardId" IN (SELECT id FROM "Board" WHERE layout != 'dj-queue')
     )
     WHERE s."classroomId" = ${classroomId}
     GROUP BY s.id

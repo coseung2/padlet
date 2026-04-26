@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { canViewStudent, resolvePortfolioViewer } from "@/lib/portfolio-acl";
+import { EXCLUDED_BOARD_LAYOUTS } from "@/lib/portfolio-acl-pure";
 import type { PortfolioStudentDTO } from "@/lib/portfolio-dto";
 import { mapPortfolioCard } from "@/lib/portfolio-card-mapper";
 
@@ -45,6 +46,8 @@ export async function GET(
         { studentAuthorId: studentId },
         { authors: { some: { studentId } } },
       ],
+      // dj-queue 음악 신청 카드는 결과물 아니므로 포트폴리오에서 제외
+      board: { layout: { notIn: [...EXCLUDED_BOARD_LAYOUTS] } },
     },
     include: {
       board: {

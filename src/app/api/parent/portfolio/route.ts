@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { resolvePortfolioViewer } from "@/lib/portfolio-acl";
+import { EXCLUDED_BOARD_LAYOUTS } from "@/lib/portfolio-acl-pure";
 import { mapPortfolioCard } from "@/lib/portfolio-card-mapper";
 import type {
   PortfolioCardDTO,
@@ -47,13 +48,14 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "child_not_found" }, { status: 404 });
   }
 
-  // 자녀 본인 카드 (작성/공동작성)
+  // 자녀 본인 카드 (작성/공동작성). dj-queue 등 결과물 아닌 카드 제외.
   const ownCards = await db.card.findMany({
     where: {
       OR: [
         { studentAuthorId: childId },
         { authors: { some: { studentId: childId } } },
       ],
+      board: { layout: { notIn: [...EXCLUDED_BOARD_LAYOUTS] } },
     },
     include: {
       board: {
@@ -66,9 +68,14 @@ export async function GET(req: Request) {
     orderBy: { createdAt: "desc" },
   });
 
-  // 자녀 학급의 자랑해요 (자녀 외 학생 카드 포함)
+  // 자녀 학급의 자랑해요. 카드 자체가 EXCLUDED layout 이면 자랑해요였어도
+  // 학부모/학생 노출 X (방어적 — POST /api/showcase 가 이미 막지만 과거
+  // 데이터 보호).
   const showcase = await db.showcaseEntry.findMany({
-    where: { classroomId: child.classroomId },
+    where: {
+      classroomId: child.classroomId,
+      card: { board: { layout: { notIn: [...EXCLUDED_BOARD_LAYOUTS] } } },
+    },
     orderBy: { createdAt: "desc" },
     take: 30,
     include: {

@@ -3,6 +3,8 @@ import {
   canViewStudent,
   canViewClassroomShowcase,
   canToggleShowcase,
+  isPortfolioEligibleLayout,
+  EXCLUDED_BOARD_LAYOUTS,
   type PortfolioViewer,
 } from "../portfolio-acl-pure";
 
@@ -110,5 +112,30 @@ describe("canToggleShowcase", () => {
   it("teacher: 모든 토글 차단 (학생 자율 정책)", () => {
     const v = teacherViewer(["c_a"]);
     expect(canToggleShowcase(v, myCard)).toBe(false);
+  });
+});
+
+describe("isPortfolioEligibleLayout — dj-queue 등 결과물 아닌 layout 제외", () => {
+  it("dj-queue 차단", () => {
+    expect(isPortfolioEligibleLayout("dj-queue")).toBe(false);
+  });
+  it("일반 결과물 layout 모두 통과", () => {
+    for (const layout of [
+      "freeform",
+      "grid",
+      "stream",
+      "columns",
+      "breakout",
+      "assignment",
+      "drawing",
+      "vibe-arcade",
+      "question-board",
+      "plant-roadmap",
+    ]) {
+      expect(isPortfolioEligibleLayout(layout)).toBe(true);
+    }
+  });
+  it("EXCLUDED_BOARD_LAYOUTS 배열 = 현재 dj-queue 단일 항목", () => {
+    expect([...EXCLUDED_BOARD_LAYOUTS]).toEqual(["dj-queue"]);
   });
 });

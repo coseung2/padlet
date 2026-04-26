@@ -4,6 +4,7 @@ import {
   canViewClassroomShowcase,
   resolvePortfolioViewer,
 } from "@/lib/portfolio-acl";
+import { EXCLUDED_BOARD_LAYOUTS } from "@/lib/portfolio-acl-pure";
 import { mapPortfolioCard } from "@/lib/portfolio-card-mapper";
 import type { ShowcaseEntryDTO } from "@/lib/portfolio-dto";
 
@@ -30,7 +31,13 @@ export async function GET(
   const viewerStudentId = viewer.kind === "student" ? viewer.id : null;
 
   const entries = await db.showcaseEntry.findMany({
-    where: { classroomId },
+    where: {
+      classroomId,
+      // 방어적 — POST /api/showcase 가 EXCLUDED layout 차단하지만 과거
+      // 데이터에 잔존할 가능성 대비. 학생 결과물 컨텍스트 아닌 카드는 학급
+      // dashboard highlight 영역에서도 노출 X.
+      card: { board: { layout: { notIn: [...EXCLUDED_BOARD_LAYOUTS] } } },
+    },
     orderBy: { createdAt: "desc" },
     take: 30,
     include: {

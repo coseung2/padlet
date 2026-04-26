@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { resolvePortfolioViewer, canToggleShowcase } from "@/lib/portfolio-acl";
+import { isPortfolioEligibleLayout } from "@/lib/portfolio-acl-pure";
 import { mapPortfolioCard } from "@/lib/portfolio-card-mapper";
 import { classroomShowcaseChannelKey, publish } from "@/lib/realtime";
 import type { PortfolioCardDTO } from "@/lib/portfolio-dto";
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
   const card = await db.card.findUnique({
     where: { id: cardId },
     include: {
-      board: { select: { id: true, classroomId: true } },
+      board: { select: { id: true, classroomId: true, layout: true } },
       authors: { select: { studentId: true } },
     },
   });
@@ -53,6 +54,14 @@ export async function POST(req: Request) {
     // 학급 미연결 보드는 자랑해요 대상이 아님 (메인화면이 학급 단위라)
     return NextResponse.json(
       { error: "board_not_classroom_linked" },
+      { status: 400 }
+    );
+  }
+  // dj-queue 등 결과물 컨텍스트 아닌 layout 차단 — 음악 신청 카드 등 자랑
+  // 해요 대상 아님. portfolio 그리드와 정책 일치.
+  if (!isPortfolioEligibleLayout(card.board.layout)) {
+    return NextResponse.json(
+      { error: "board_layout_excluded" },
       { status: 400 }
     );
   }
