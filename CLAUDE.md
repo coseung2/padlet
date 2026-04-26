@@ -13,6 +13,11 @@
 - **로컬 확인 시 항상 dev 서버를 재시작한다**: `fuser -k 3000/tcp; rm -rf .next; PORT=3000 npm run dev`
 - **port 4000은 절대 건드리지 않는다** (다른 프로젝트 사용 중)
 
+## Git 워크플로우
+
+- **솔로 프로젝트라 PR/리뷰어 게이트가 없다**. feature/incident 브랜치는 작업 완료 후 `main` 으로 직접 fast-forward 머지(원격 푸시) 한다. `gh pr create` 사용하지 말 것.
+- 푸시 전엔 CLAUDE.md 의 push 검증 게이트(`npm run build` + `npm run typecheck` + 모든 마커 유효) 통과 필수.
+
 ## 프로젝트 구조
 
 ```
