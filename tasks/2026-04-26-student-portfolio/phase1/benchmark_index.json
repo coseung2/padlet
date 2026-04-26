@@ -1,0 +1,100 @@
+{
+  "captured_at": "2026-04-26T00:30:00+09:00",
+  "method": "Claude in Chrome MCP — get_page_text + screenshot. 헤디드 크로미움 캡처는 화면 뷰포트 1568×737/783. save_to_disk 로 디스크 저장 시도했으나 path return 미지원 환경이라 화면 표시본만 확보. 인용 quote + URL 로 evidence 처리.",
+  "targets": [
+    {
+      "id": "seesaw-family-journal",
+      "product": "Seesaw",
+      "page": "How do I view my child's Journal (Help Center, Families)",
+      "url": "https://help.seesaw.me/hc/en-us/articles/208755076-How-do-I-view-my-child-s-Journal",
+      "captured": true,
+      "screenshot_id": "ss_4036oukuo",
+      "key_observations": [
+        "Family 계정에 Journals 탭 존재 — 학부모가 자녀 여러 명 있으면 모두 한 화면에 노출",
+        "각 학생 항목에 '1 class, 3 archived classes' 같이 학급 수 메타 표시",
+        "학생 이름 클릭 → 그 학생의 Journal 진입 (per-student aggregation 패턴)"
+      ]
+    },
+    {
+      "id": "seesaw-learning-journal-engage",
+      "product": "Seesaw",
+      "page": "Using The Learning Journal to engage with your student's work",
+      "url": "https://help.seesaw.me/hc/en-us/articles/205803229-Using-The-Learning-Journal-to-engage-with-your-student-s-work",
+      "captured": true,
+      "screenshot_id": "ss_54819r9w3",
+      "key_quotes": [
+        "Pinned items will appear at the top, with all other student work appearing in chronological order.",
+        "You can also filter Activities in folders by tapping on the filter icon in the upper left.",
+        "Family members can like posts, add voice comments to student work, and add text comments to student work. Family members cannot add posts to The Learning Journal."
+      ]
+    },
+    {
+      "id": "classdojo-portfolios-marketing",
+      "product": "ClassDojo",
+      "page": "ClassDojo Portfolios (Korean marketing landing)",
+      "url": "https://www.classdojo.com/ko-kr/studentstories/?redirect=true",
+      "captured": true,
+      "screenshot_id": "ss_326268ten",
+      "key_quotes": [
+        "오직 학부모만 자녀의 교내 활동을 볼 수 있습니다.",
+        "학생들의 게시물은 선생님의 승인을 받아야 가정과 학부모에게 공유됩니다."
+      ],
+      "key_observations": [
+        "교사 승인 게이트 → 학부모 전용 노출. 또래(peer) 사이 공개는 없음.",
+        "아이콘 3-스텝 설명: 로그인 → 생성 → 제출 (학생 워크플로 고정)"
+      ]
+    },
+    {
+      "id": "padlet-gallery",
+      "product": "Padlet",
+      "page": "Gallery profile",
+      "url": "https://padlet.com/gallery",
+      "captured": true,
+      "screenshot_id": "ss_1424tb980",
+      "key_observations": [
+        "Gallery는 'gallery' 사용자의 profile page — 그 사용자의 padlet들이 썸네일 그리드로 정렬",
+        "각 썸네일에 제목 + 'Gallery · 16일' (작성자 + 상대시간) 메타. 다른 사용자 보드와 동일 형태",
+        "헤더에 사용자 아이콘 + 이름 — '특정 사용자 작품 모음' 패턴이 우리 학생 포트폴리오 페이지와 가장 가까움"
+      ]
+    },
+    {
+      "id": "behance-featured-guide",
+      "product": "Behance (Adobe)",
+      "page": "Guide: Featured Projects",
+      "url": "https://help.behance.net/hc/en-us/articles/204483974-Guide-Featured-Projects",
+      "captured": true,
+      "screenshot_id": "ss_3767b99ys",
+      "key_quotes": [
+        "Projects displayed on the Discover tab are hand-picked and sorted by our curatorial team, a dedicated group who review every published project on Behance.",
+        "Featured projects are denoted by a Feature Flag found on the Cover Image when you hover over a project."
+      ],
+      "key_observations": [
+        "Featured = 에디토리얼 큐레이션 (사용자 opt-in 아님). 우리 자랑해요(학생 본인 opt-in) 와 반대 방향.",
+        "Featured 표시 = Cover Image 위 작은 배지 — 우리도 카드에 '🌟 자랑해요' 배지 적용 가능",
+        "스크린샷: 'Best of Behance' 탭 — Featured 콘텐츠가 별도 그리드 페이지로 노출"
+      ]
+    },
+    {
+      "id": "padlet-blog-features",
+      "product": "Padlet (3rd-party blog)",
+      "page": "Five New Padlet Features for Higher Education To Try Today (Sussex blog)",
+      "url": "https://blogs.sussex.ac.uk/tel/2024/05/30/five-new-padlet-features-for-higher-education-to-try-today/",
+      "captured": false,
+      "key_observations": [
+        "WebSearch 결과만. 'Account types set up with a Teacher role will see the Featured tab included in the Gallery' — Featured 탭이 Gallery 안에 별도 존재 (curated tab vs 일반 그리드)"
+      ]
+    },
+    {
+      "id": "seesaw-blog-portfolios",
+      "product": "Seesaw",
+      "page": "How Digital Portfolios Transform Student Learning (blog)",
+      "url": "https://seesaw.com/blog/the-power-of-digital-portfolios-for-students/",
+      "captured": true,
+      "screenshot_id": "ss_0175lsazo",
+      "key_observations": [
+        "히어로 이미지: 학생들이 같은 디바이스 둘러보며 작업 공유 — 사회적 학습 컨텍스트 강조",
+        "본문은 마케팅 카피 위주. UX 디테일은 help center가 더 유용"
+      ]
+    }
+  ]
+}

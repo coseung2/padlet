@@ -1,0 +1,102 @@
+{
+  "patterns": [
+    {
+      "pattern_id": "two-pane-peer-roster",
+      "description": "좌측 학생/사용자 이름 리스트, 우측에 선택된 사용자의 작품 그리드. Contacts/사이드바 네비게이션 패턴의 변형. 클릭 한 번으로 다른 사람 작품으로 컨텍스트 스위칭.",
+      "source_url": "https://www.google.com/search?q=user+profile+gallery+grid+sidebar+contacts+app+ui+design&udm=2",
+      "evidence_screenshot_id": "ss_4740xcwnc",
+      "examples": [
+        "Mobbin '20 profile page design examples'",
+        "Dribbble Profile Sidebar 패턴 다수",
+        "전형적 IM/연락처 앱 (Slack, Telegram) 의 좌측 룸 리스트"
+      ],
+      "fits_our_use_case": "high — 사용자가 명시한 '좌측 학생목록 + 이름 클릭 → 작품' 요구와 1:1 매핑.",
+      "tradeoffs": "좁은 모바일에선 두 칼럼 동시 노출 어려움 — 모바일은 학생 리스트→상세 페이지 stack 으로 전환 필요"
+    },
+    {
+      "pattern_id": "profile-gallery-grid",
+      "description": "한 사용자(작가/학생) 의 프로필 페이지에 그/그녀의 작품 썸네일을 그리드로 노출. 각 카드는 제목 + 메타(시간, 출처).",
+      "source_url": "https://padlet.com/gallery",
+      "evidence_screenshot_id": "ss_1424tb980",
+      "examples": [
+        "Padlet Gallery profile (썸네일 그리드 + 제목 + 'Gallery · 16일')",
+        "Behance user profile (Project 그리드)",
+        "Seesaw Journal (chronological + pinned)"
+      ],
+      "fits_our_use_case": "high — 우측 panel 그대로 적용 가능. 카드 메타에 출처 보드/주제 추가.",
+      "tradeoffs": "썸네일 비주얼이 빈약하면(텍스트만 카드) 그리드가 단조로움 — color background + 텍스트 fallback 필요"
+    },
+    {
+      "pattern_id": "pinned-top-feed",
+      "description": "Instagram '핀 고정' / Seesaw 'Pinned items appear at top' — 사용자 opt-in 으로 강조하고 싶은 게시물을 피드 최상단에 고정. 최대 N개 (Instagram = 3개) 후 chronological 노출.",
+      "source_url": "https://www.google.com/search?q=featured+highlight+showcase+pinned+posts+feed+ui+pattern&udm=2",
+      "evidence_screenshot_id": "ss_7777tna65",
+      "evidence_quote_seesaw": "Pinned items will appear at the top, with all other student work appearing in chronological order.",
+      "examples": [
+        "Instagram pinned posts (3-cell at top)",
+        "Seesaw Journal pinned section",
+        "Twitter/X pinned tweet"
+      ],
+      "fits_our_use_case": "high — 자랑해요 = 학급 메인화면용 본인 큐레이션과 정확히 일치.",
+      "tradeoffs": "최대 N 고정 안 두면 자랑해요 = 일반 피드 똑같아짐. v1 N=3~5 제한 권장."
+    },
+    {
+      "pattern_id": "feature-flag-badge",
+      "description": "큐레이션/하이라이트된 카드에 작은 배지(별/핀/플래그) 노출. Cover Image 위 코너 또는 hover 시.",
+      "source_url": "https://help.behance.net/hc/en-us/articles/204483974-Guide-Featured-Projects",
+      "evidence_screenshot_id": "ss_3767b99ys",
+      "evidence_quote": "Featured projects are denoted by a Feature Flag found on the Cover Image when you hover over a project.",
+      "examples": [
+        "Behance Featured 배지 (hover-revealed Feature Flag)",
+        "Instagram pinned posts 핀 아이콘"
+      ],
+      "fits_our_use_case": "medium — 자랑해요 카드를 포트폴리오 페이지에서도 시각적 구분 가능 (🌟 배지)",
+      "tradeoffs": "배지가 너무 두드러지면 메인 카드 디자인을 압도. 작고 코너 처리 권장."
+    },
+    {
+      "pattern_id": "source-breadcrumb-meta",
+      "description": "각 작품 카드에 출처 컨텍스트(어느 보드/프로젝트/모음) 를 작은 라벨/breadcrumb 으로 표시. 클릭 시 원본 컨텍스트 이동.",
+      "source_url": "https://padlet.com/gallery",
+      "evidence_screenshot_id": "ss_1424tb980",
+      "examples": [
+        "Padlet Gallery 카드 하단 'Gallery · 16일' (작성자 · 상대시간)",
+        "Behance project 메타 'In: Branding'",
+        "Seesaw post 'Activity: Math worksheet'"
+      ],
+      "fits_our_use_case": "very high — 사용자 명시 요구 ('어떤 보드인지, 주제별이면 어떤 주제'). 카드 단위로 라벨 1~2줄.",
+      "tradeoffs": "주제별 보드(layout=columns) 카드는 (보드 · 칼럼) 두 단계, 다른 레이아웃은 보드만 — UI 가 비균질"
+    },
+    {
+      "pattern_id": "approval-gated-visibility",
+      "description": "교사 승인 후에만 학부모/외부에 노출. 작성자(학생) → 교사 승인 큐 → 승인 시 가족 노출.",
+      "source_url": "https://www.classdojo.com/ko-kr/studentstories/?redirect=true",
+      "evidence_screenshot_id": "ss_326268ten",
+      "evidence_quote": "학생들의 게시물은 선생님의 승인을 받아야 가정과 학부모에게 공유됩니다.",
+      "examples": [
+        "ClassDojo Portfolio (teacher approval gate)",
+        "Seesaw (similar gate, teacher discretion)"
+      ],
+      "fits_our_use_case": "low — 사용자 명시 'v1 교사 모더레이션 워크플로 스코프 외'. 단, 학부모 노출 분리 시 자랑해요만 학부모 가시 → 자랑해요 자체가 학생 자기검열 게이트 역할",
+      "tradeoffs": "학생 자율 vs 교사 통제 — 우리는 자율 채택. 부적절 콘텐츠 위험 있으나 학급 내 공개라 사회적 통제 작동"
+    },
+    {
+      "pattern_id": "family-only-aggregation",
+      "description": "학부모 계정에 자녀(들) 의 작품만 모아 보는 별도 탭/페이지. 자녀가 여러 명이면 한 화면에 모두 노출 후 학생별 진입.",
+      "source_url": "https://help.seesaw.me/hc/en-us/articles/208755076-How-do-I-view-my-child-s-Journal",
+      "evidence_screenshot_id": "ss_4036oukuo",
+      "evidence_quote": "Tap on the Journals tab. Select the student and class for the Journals you want to view.",
+      "examples": [
+        "Seesaw Family Journals 탭",
+        "ClassDojo parent Stories feed"
+      ],
+      "fits_our_use_case": "high — 학부모 뷰 구현 시 같은 좌측 학생 리스트 패턴 재사용 가능. 단, 학부모는 '자녀'만 + '자랑해요' 만 보이게 권한 필터링."
+    },
+    {
+      "pattern_id": "chronological-grid-fallback",
+      "description": "Pinned/Featured 영역 외 영역은 시간순 그리드로 fallback. 검색·필터는 v1 생략 가능.",
+      "source_url": "https://help.seesaw.me/hc/en-us/articles/205803229-Using-The-Learning-Journal-to-engage-with-your-student-s-work",
+      "evidence_quote": "Pinned items will appear at the top, with all other student work appearing in chronological order.",
+      "fits_our_use_case": "high — request.json non_goals 에 '검색·필터 스코프 외' 명시. chronological 단일 정렬로 v1 충분."
+    }
+  ]
+}
