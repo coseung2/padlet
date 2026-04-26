@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
+import { validateStudentName } from "@/lib/student-name";
 
 export type CreatedStudent = {
   id: string;
@@ -73,6 +74,21 @@ export function AddStudentsModal({ open, classroomId, onClose, onAdded }: Props)
     mode === "text" &&
     text.split("\n").filter((l) => l.trim()).length !== parsed.length;
 
+  // 학생별 이름 유효성 검증 — 행 단위 에러 표시 + 1건이라도 오류면 submit 차단.
+  const validated = useMemo(
+    () =>
+      parsed.map((s) => {
+        const result = validateStudentName(s.name);
+        return {
+          number: s.number,
+          name: s.name,
+          error: result.ok ? null : result.error,
+        };
+      }),
+    [parsed]
+  );
+  const invalidCount = validated.filter((v) => v.error).length;
+
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -96,6 +112,8 @@ export function AddStudentsModal({ open, classroomId, onClose, onAdded }: Props)
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (parsed.length === 0) return;
+    // 이름 검증 실패한 행이 있으면 submit 차단 — early return.
+    if (invalidCount > 0) return;
 
     setBusy(true);
     try {
@@ -197,7 +215,7 @@ export function AddStudentsModal({ open, classroomId, onClose, onAdded }: Props)
                   ? `📄 ${fileName}`
                   : "클릭하여 파일 선택 (.xlsx, .csv)"}
               </button>
-              {fileStudents.length > 0 && (
+              {validated.length > 0 && (
                 <div
                   style={{
                     marginTop: 8,
@@ -209,9 +227,21 @@ export function AddStudentsModal({ open, classroomId, onClose, onAdded }: Props)
                     padding: 8,
                   }}
                 >
-                  {fileStudents.map((s, i) => (
-                    <div key={i}>
+                  {validated.map((s, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        color: s.error
+                          ? "var(--color-danger, #c62828)"
+                          : undefined,
+                      }}
+                    >
                       {s.number}번 {s.name}
+                      {s.error && (
+                        <span style={{ marginLeft: 8, fontSize: 12 }}>
+                          ⚠ {s.error}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -246,7 +276,40 @@ export function AddStudentsModal({ open, classroomId, onClose, onAdded }: Props)
                 형식 오류가 있는 줄이 있습니다
               </span>
             )}
+            {invalidCount > 0 && (
+              <span
+                role="alert"
+                style={{
+                  color: "var(--color-danger, #c62828)",
+                  marginLeft: 8,
+                }}
+              >
+                이름 오류 {invalidCount}건 — 수정 후 다시 시도해 주세요
+              </span>
+            )}
           </p>
+
+          {invalidCount > 0 && mode === "text" && (
+            <ul
+              role="alert"
+              style={{
+                margin: "4px 0 8px",
+                padding: "8px 12px 8px 28px",
+                fontSize: 12,
+                color: "var(--color-danger, #c62828)",
+                background: "var(--color-status-returned-bg, #ffebee)",
+                borderRadius: 6,
+              }}
+            >
+              {validated
+                .filter((v) => v.error)
+                .map((v, i) => (
+                  <li key={i}>
+                    {v.number}번 “{v.name}” — {v.error}
+                  </li>
+                ))}
+            </ul>
+          )}
 
           <div className="modal-actions">
             <button
@@ -259,8 +322,9 @@ export function AddStudentsModal({ open, classroomId, onClose, onAdded }: Props)
             </button>
             <button
               type="submit"
-              disabled={busy || parsed.length === 0}
+              disabled={busy || parsed.length === 0 || invalidCount > 0}
               className="modal-btn-submit"
+              aria-invalid={invalidCount > 0 ? true : undefined}
             >
               {busy ? "추가 중..." : `${parsed.length}명 추가`}
             </button>

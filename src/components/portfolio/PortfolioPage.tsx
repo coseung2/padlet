@@ -77,6 +77,9 @@ export function PortfolioPage({
 
   // 모바일 stack 모드 — 학생 선택 시 listView 숨기고 detail 만 표시
   const [mobileShowDetail, setMobileShowDetail] = useState(false);
+  // 데스크톱 로스터 사이드바 토글 (DJ 재생완료 드로어 패턴). 기본 열림 —
+  // 로스터가 학생 탐색 entry-point 라 닫힌 채 시작하면 사용성 ↓.
+  const [rosterOpen, setRosterOpen] = useState(true);
   function selectStudent(id: string) {
     setSelectedStudentId(id);
     if (isMobile) setMobileShowDetail(true);
@@ -95,24 +98,49 @@ export function PortfolioPage({
     );
   }
 
+  // 데스크톱: 좌측 slot 안에서 rail ↔ 친구 목록 토글. 모바일: 기존 stack.
+  // showSlot — 모바일 detail 모드에서만 슬롯 자체 숨김
+  const showSlot = !(isMobile && mobileShowDetail);
+  const rosterClosed = !isMobile && !rosterOpen;
+
   return (
     <div
       className={[
         "portfolio-page",
         isMobile ? "is-mobile" : "",
         isMobile && mobileShowDetail ? "is-detail" : "",
+        rosterClosed ? "is-roster-closed" : "",
       ]
         .filter(Boolean)
         .join(" ")}
     >
-      {(!isMobile || !mobileShowDetail) && (
-        <PortfolioRoster
-          classroomName={initialRoster.classroom.name}
-          students={roster.students}
-          selectedStudentId={selectedStudentId}
-          selfStudentId={selfStudentId}
-          onSelect={selectStudent}
-        />
+      {showSlot && (
+        <div className="portfolio-roster-slot">
+          {rosterClosed ? (
+            <button
+              type="button"
+              className="portfolio-roster-rail"
+              onClick={() => setRosterOpen(true)}
+              aria-label="우리 반 친구들 보기"
+              aria-expanded={false}
+              title="우리 반 친구들 보기"
+            >
+              <span className="portfolio-roster-rail-icon" aria-hidden>
+                👥
+              </span>
+              <span className="portfolio-roster-rail-label">우리 반 친구들</span>
+            </button>
+          ) : (
+            <PortfolioRoster
+              classroomName={initialRoster.classroom.name}
+              students={roster.students}
+              selectedStudentId={selectedStudentId}
+              selfStudentId={selfStudentId}
+              onSelect={selectStudent}
+              onClose={!isMobile ? () => setRosterOpen(false) : undefined}
+            />
+          )}
+        </div>
       )}
       <main className="portfolio-main">
         {isMobile && mobileShowDetail && (
@@ -120,9 +148,9 @@ export function PortfolioPage({
             type="button"
             className="portfolio-mobile-back"
             onClick={backToList}
-            aria-label="학생 명단으로"
+            aria-label="친구 목록으로"
           >
-            ← 학생 명단
+            ← 친구 목록
           </button>
         )}
         {selectedStudentId ? (

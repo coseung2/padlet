@@ -33,3 +33,12 @@
      Left as-is so any future iOS/PWA install still behaves correctly. */
   --fab-bottom-safe: calc(32px + env(safe-area-inset-bottom, 0px));
 }
+
+/* 데스크톱(≥1280px) 컨테이너 폭 확장 — base.css 의 --container-max-width
+   기본 960px 을 1240px 로 override. 태블릿(<1280px) 은 기존대로 좁은 폭
+   유지. 본문 가독성 + 데스크톱 white space 균형. */
+@media (min-width: 1280px) {
+  :root {
+    --container-max-width: 1240px;
+  }
+}

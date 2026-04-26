@@ -33,29 +33,82 @@
 }
 
 .portfolio-page {
-  display: grid;
-  grid-template-columns: clamp(220px, 28%, 280px) 1fr;
+  display: flex;
   min-height: 480px;
   background: var(--color-bg);
+  position: relative;
 }
 .portfolio-page.is-empty {
-  grid-template-columns: 1fr;
+  display: block;
   place-items: center;
   padding: 48px 16px;
 }
-.portfolio-page.is-mobile {
-  grid-template-columns: 1fr;
-}
-.portfolio-page.is-mobile.is-detail .portfolio-roster {
+.portfolio-page.is-mobile.is-detail .portfolio-roster-slot {
   display: none;
 }
 
-/* ── 좌측 학생 리스트 ── */
-.portfolio-roster {
-  border-right: 1px solid var(--color-border);
-  padding: 12px 8px;
+/* ── 좌측 슬롯 (열림: 친구 목록 / 닫힘: 세로 rail 토글) ── */
+.portfolio-roster-slot {
+  flex: 0 0 clamp(240px, 30%, 320px);
+  display: flex;
+  flex-direction: column;
   background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  transition: flex-basis 260ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.portfolio-page.is-roster-closed .portfolio-roster-slot {
+  /* 닫힘 상태: 세로 rail 폭만 유지 — 토글 버튼 항상 노출. */
+  flex: 0 0 44px;
+}
+.portfolio-page.is-mobile .portfolio-roster-slot {
+  flex: 1 1 auto;
+  border-right: 0;
+}
+
+/* 닫힘 상태 rail — 세로 탭 핸들 */
+.portfolio-roster-rail {
+  flex: 1 1 auto;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 16px 0;
+  gap: 8px;
+  font-size: 1.1rem;
+  color: var(--color-text-muted);
+  transition: background 100ms;
+}
+.portfolio-roster-rail:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+}
+.portfolio-roster-rail:focus-visible {
+  outline: 2px solid var(--color-accent-tinted-text);
+  outline-offset: -2px;
+}
+.portfolio-roster-rail-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+/* 세로 라벨 — 두 글자씩 위에서 아래로 (CSS writing-mode) */
+.portfolio-roster-rail-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  color: var(--color-text-faint);
+}
+
+/* 열림 상태 친구 목록 본체 */
+.portfolio-roster {
+  flex: 1 1 auto;
+  padding: 12px 8px;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 .portfolio-roster-head {
   display: flex;
@@ -89,16 +142,23 @@
 }
 .portfolio-roster-item {
   display: grid;
-  grid-template-columns: 16px 28px 1fr auto auto;
+  /* 2-line 레이아웃 — 이름이 column squish 로 잘리는 버그(2026-04-26) 해결.
+     좌: 출석번호(28px) / 우 상단: 이름(전체 너비) / 우 하단: 메타(작품수·자랑해요).
+     name span 은 minmax(0,1fr) + ellipsis 로 보호하지만 220+px 너비 가
+     주어져 일반 한국 이름은 모두 풀 노출. */
+  grid-template-columns: 28px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "num name"
+    "num meta";
+  column-gap: 10px;
+  row-gap: 1px;
   align-items: center;
-  gap: 6px;
   width: 100%;
-  min-height: 44px;
+  min-height: 48px;
   padding: 8px 12px;
   border: 0;
   background: transparent;
-  font-size: 0.875rem;
-  font-weight: 500;
   color: var(--color-text);
   text-align: left;
   cursor: pointer;
@@ -112,50 +172,85 @@
   background: var(--color-accent-tinted-bg);
   color: var(--color-accent-tinted-text);
 }
-.portfolio-roster-item.is-self {
+.portfolio-roster-item.is-self .portfolio-roster-name {
   font-weight: 700;
 }
 .portfolio-roster-item:focus-visible {
   outline: 2px solid var(--color-accent-tinted-text);
   outline-offset: -2px;
 }
-.portfolio-roster-self-dot {
-  font-size: 0.75rem;
-  line-height: 1;
-}
 .portfolio-roster-num {
-  font-size: 0.75rem;
+  grid-area: num;
+  font-size: 0.85rem;
   color: var(--color-text-faint);
   text-align: right;
   font-variant-numeric: tabular-nums;
+  align-self: center;
 }
 .portfolio-roster-name {
+  grid-area: name;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.92rem;
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
-.portfolio-roster-count-badge {
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-  background: var(--color-surface-alt);
-  border-radius: 999px;
-  padding: 1px 8px;
+.portfolio-roster-meta {
+  grid-area: meta;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: var(--color-text-faint);
   font-variant-numeric: tabular-nums;
 }
-.portfolio-roster-count-badge.is-zero {
+.portfolio-roster-meta-empty {
   color: var(--color-text-faint);
-  background: transparent;
+  opacity: 0.6;
+}
+.portfolio-roster-self-dot {
+  font-size: 0.7rem;
+  line-height: 1;
+  flex-shrink: 0;
 }
 .portfolio-roster-showcase {
-  font-size: 0.875rem;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--color-showcase);
 }
 
 /* ── 우측 그리드 ── */
 .portfolio-main {
+  flex: 1 1 auto;
+  min-width: 0; /* flex item 의 본문이 ellipsis 가능하게 */
   padding: 16px;
   overflow-y: auto;
 }
+
+/* 로스터 헤더 닫기 버튼 (열린 상태에서 노출) */
+.portfolio-roster-close {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--color-text-muted);
+}
+.portfolio-roster-close:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+}
+
 .portfolio-mobile-back {
   display: inline-flex;
   align-items: center;

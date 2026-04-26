@@ -1,7 +1,7 @@
 /* -------- Assignment Board -------- */
 
 .assign-board {
-  max-width: 960px;
+  max-width: var(--container-max-width);
   margin: 0 auto;
 }
 
@@ -439,7 +439,7 @@
 
 .assign-board--teacher,
 .assign-board--student {
-  max-width: 960px;
+  max-width: var(--container-max-width);
   margin: 0 auto;
   padding-bottom: 32px;
 }

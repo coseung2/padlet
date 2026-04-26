@@ -4,7 +4,7 @@
   min-height: 100vh;
   background: var(--color-bg);
   padding: 48px 32px;
-  max-width: 960px;
+  max-width: var(--container-max-width);
   margin: 0 auto;
 }
 

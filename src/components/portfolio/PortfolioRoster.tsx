@@ -8,6 +8,8 @@ type Props = {
   selectedStudentId: string | null;
   selfStudentId: string | null;
   onSelect: (studentId: string) => void;
+  /** 데스크톱 사이드바 토글 닫기 — undefined 면 닫기 버튼 미노출(모바일 등) */
+  onClose?: () => void;
 };
 
 export function PortfolioRoster({
@@ -16,6 +18,7 @@ export function PortfolioRoster({
   selectedStudentId,
   selfStudentId,
   onSelect,
+  onClose,
 }: Props) {
   return (
     <aside
@@ -25,9 +28,20 @@ export function PortfolioRoster({
       <header className="portfolio-roster-head">
         <h2 className="portfolio-roster-title">{classroomName}</h2>
         <span className="portfolio-roster-count">{students.length}명</span>
+        {onClose && (
+          <button
+            type="button"
+            className="portfolio-roster-close"
+            onClick={onClose}
+            aria-label="친구 목록 접기"
+            title="접기"
+          >
+            ×
+          </button>
+        )}
       </header>
       {students.length === 0 ? (
-        <p className="portfolio-roster-empty">학급에 등록된 학생이 없어요.</p>
+        <p className="portfolio-roster-empty">우리 반에 친구가 아직 없어요.</p>
       ) : (
         <ul className="portfolio-roster-list" role="listbox">
           {students.map((s) => {
@@ -50,34 +64,38 @@ export function PortfolioRoster({
                     s.number != null ? `, 출석번호 ${s.number}` : ""
                   }, 작품 ${s.cardCount}개${
                     s.showcaseCount > 0 ? `, 자랑해요 ${s.showcaseCount}개` : ""
-                  }${isSelf ? ", 본인" : ""}`}
+                  }${isSelf ? ", 나" : ""}`}
+                  title={s.name}
                   onClick={() => onSelect(s.id)}
                 >
-                  {isSelf && (
-                    <span className="portfolio-roster-self-dot" aria-hidden>
-                      🟢
-                    </span>
-                  )}
                   <span className="portfolio-roster-num">
                     {s.number ?? "—"}
                   </span>
-                  <span className="portfolio-roster-name">{s.name}</span>
-                  <span
-                    className={`portfolio-roster-count-badge ${
-                      s.cardCount === 0 ? "is-zero" : ""
-                    }`}
-                  >
-                    {s.cardCount}
+                  <span className="portfolio-roster-name">
+                    {isSelf && (
+                      <span className="portfolio-roster-self-dot" aria-hidden>
+                        🟢
+                      </span>
+                    )}
+                    {s.name}
                   </span>
-                  {s.showcaseCount > 0 && (
+                  <span className="portfolio-roster-meta">
                     <span
-                      className="portfolio-roster-showcase"
-                      aria-label={`자랑해요 ${s.showcaseCount}개`}
-                      title={`자랑해요 ${s.showcaseCount}개`}
+                      className={
+                        s.cardCount === 0 ? "portfolio-roster-meta-empty" : ""
+                      }
                     >
-                      🌟
+                      작품 {s.cardCount}개
                     </span>
-                  )}
+                    {s.showcaseCount > 0 && (
+                      <span
+                        className="portfolio-roster-showcase"
+                        aria-label={`자랑해요 ${s.showcaseCount}개`}
+                      >
+                        🌟 {s.showcaseCount}
+                      </span>
+                    )}
+                  </span>
                 </button>
               </li>
             );
