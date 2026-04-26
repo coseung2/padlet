@@ -387,3 +387,73 @@ VibeCodingStudio · PlayModal · ReviewPanel · TeacherModerationDashboard · 8 
 
 ### Feature gate
 `VibeArcadeConfig.enabled` Boolean (기본 false). Pro tier 전용. `crossClassroomVisible` false 기본.
+
+## Student Portfolio + Showcase (student-portfolio) — 2026-04-26
+
+학생들이 학급 친구 결과물을 한 곳에 모아 보고, 학생 본인이 자기 카드 중
+잘된 것을 학급 메인화면에 옵트인으로 띄울 수 있는 자랑해요 채널.
+학부모는 자녀 본인 카드 + 학급 자랑해요만 노출.
+
+### Data model
+- **`ShowcaseEntry`** (신규): `cardId`, `studentId`, `classroomId`, `createdAt`. `@@unique([cardId, studentId])` — 한 학생 한 카드 1슬롯. classroomId denorm 으로 학급 highlight 쿼리 가속. `Card`, `Student` 양쪽에 reverse relation.
+- 기존 `Card`/`Student` 컬럼 무변경. 마이그레이션 `20260426_showcase_entry` (zero-downtime).
+
+### Permission model
+- `src/lib/portfolio-acl-pure.ts` — pure 함수 (단위 테스트 가능). `canViewStudent`, `canViewClassroomShowcase`, `canToggleShowcase`.
+- `src/lib/portfolio-acl.ts` — `resolvePortfolioViewer()` (server-only). teacher → parent → student 순 (NextAuth user 가 학생 cookie 보다 우선).
+- 3 viewer kind:
+  - **student**: 자기 학급 학생 명단만, 본인 작성/공동작성 카드만 자랑해요 토글 가능
+  - **parent**: 활성 ParentChildLink 자녀 본인 카드 + 자녀 학급의 자랑해요만
+  - **teacher_owner**: 자기 학급 (Classroom.teacherId 매칭)
+
+### API (5 신규 + 1 channel helper)
+
+| Method | Path | Role |
+|---|---|---|
+| GET | `/api/student-portfolio/roster?classroomId=X` | student/parent/teacher 학급 boundary 검증 |
+| GET | `/api/student-portfolio/:studentId` | canViewStudent gate. include board/section/attachments/showcaseEntries (N+1 방지) |
+| POST | `/api/showcase` body `{cardId}` | student session only. transaction COUNT 한도 3 검증. 초과 시 409 + 현재 자랑해요 카드 응답 |
+| DELETE | `/api/showcase?cardId=X` | student session, 본인 슬롯만 |
+| GET | `/api/showcase/classroom/:classroomId` | LIMIT 30 학급 자랑해요 chronological |
+| GET | `/api/parent/portfolio?childId=X` | parent only. 자녀 카드 + 자녀 학급 자랑해요. AC-8 학부모 leak 0건 보장 |
+
+`classroomShowcaseChannelKey(classroomId)` — `src/lib/realtime.ts` 신규 헬퍼. `publish()` 는 no-op 승계 (엔진 미정).
+
+### Routes
+- `/student/portfolio` — 좌측 학급 학생 리스트 + 우측 카드 그리드 (2-pane peer roster)
+- `/student` (수정) — 상단 ShowcaseHighlightStrip + 포트폴리오 CTA
+- `/parent/(app)/child/[studentId]/portfolio` — 자녀 카드 + 학급 자랑해요 (ChildTabs "포트폴리오" 탭 추가)
+
+### Components (`src/components/portfolio/`)
+
+- `PortfolioPage` — 컨테이너, 모바일 stack 분기
+- `PortfolioRoster` — 좌측 학생 리스트 (출석번호 ASC, 본인 🟢 강조)
+- `PortfolioStudentView` — 우측 카드 그리드 + 빈상태/로딩/에러
+- `PortfolioCardItem` — CardBody 재사용 + 출처 라벨 + 🌟 배지 + 컨텍스트 메뉴
+- `ShowcaseHighlightStrip` / `ShowcaseCardChip` — 학급 dashboard 가로 carousel
+- `ShowcaseLimitModal` — 4번째 토글 시 "내릴 카드 1개 선택" 모달
+- `ParentPortfolioView` — 자녀 카드 + 학급 자랑해요 통합
+- `useShowcaseToggle` — 낙관적 + 409 한도 모달 트리거 훅
+- `source-label.ts` — 출처 라벨 빌더 (`columns` 면 `보드·칼럼`, 그 외 `보드`)
+
+### Design tokens (1 alias)
+
+| 토큰 | 값 | 용도 |
+|---|---|---|
+| `--color-showcase` | `var(--color-vibe-rating)` (#f5a623) | 🌟 자랑해요 배지·strip 헤더 |
+
+신규 hex 0개. itch.io/Steam 별점 amber 와 시맨틱 일관(주목·하이라이트).
+
+### 한도·정책
+- 자랑해요 학생당 **최대 3개** (상수 `SHOWCASE_LIMIT_PER_STUDENT` in `src/app/api/showcase/route.ts`)
+- 카드 삭제 시 ShowcaseEntry 자동 cascade (`onDelete: Cascade` 양쪽)
+- 공동작성자(R4): `Card.authors` 또는 `studentAuthorId` 어느 쪽이든 본인 매칭이면 토글 가능. 한 카드에 학생별 별도 슬롯
+- 교사 모더레이션 / 좋아요·댓글 / 검색·필터 → v2
+
+### 회귀 테스트
+- `src/lib/__tests__/portfolio-acl.vitest.ts` — 12 테스트 (권한 매트릭스 student/parent/teacher × view/showcase)
+- `src/components/portfolio/__tests__/source-label.vitest.ts` — 4 테스트 (출처 라벨 4 분기)
+
+### 알려진 한계
+- Realtime publish no-op → 자랑해요 토글 즉시 다른 탭 반영 X. 진입 시 fetch 로 fallback
+- 자랑해요 한도 race 잠재 (Prisma SELECT FOR UPDATE 미지원). 클라이언트 busy state + transaction COUNT 가드. 멀티 디바이스 race 발생 시 hotfix (SERIALIZABLE 격리 또는 raw INSERT WHERE COUNT<3) 가능
