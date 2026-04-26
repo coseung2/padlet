@@ -1,0 +1,13 @@
+{
+  "additions": [
+    {
+      "name": "--color-showcase",
+      "value": "var(--color-vibe-rating)",
+      "hex_alias_of": "#f5a623",
+      "purpose": "자랑해요 🌟 배지 + highlight strip 헤더. itch.io/Steam 별점 amber와 동일 시맨틱(주목·하이라이트). 별도 hex 추가 없음.",
+      "applied_in": "src/styles/base.css (다른 :root 토큰 옆), 사용처 src/components/portfolio/*"
+    }
+  ],
+  "modifications": [],
+  "removals": []
+}
