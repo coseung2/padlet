@@ -43,72 +43,70 @@
   place-items: center;
   padding: 48px 16px;
 }
-.portfolio-page.is-mobile.is-detail .portfolio-roster-slot {
+.portfolio-page.is-mobile.is-detail .portfolio-roster {
   display: none;
 }
 
-/* ── 좌측 슬롯 (열림: 친구 목록 / 닫힘: 세로 rail 토글) ── */
-.portfolio-roster-slot {
+/* ── 친구 목록 본체 (열림 상태에서만 렌더) ── */
+.portfolio-roster {
   flex: 0 0 clamp(240px, 30%, 320px);
   display: flex;
   flex-direction: column;
   background: var(--color-surface);
   border-right: 1px solid var(--color-border);
-  transition: flex-basis 260ms cubic-bezier(0.32, 0.72, 0, 1);
+  padding: 12px 8px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
-.portfolio-page.is-roster-closed .portfolio-roster-slot {
-  /* 닫힘 상태: 세로 rail 폭만 유지 — 토글 버튼 항상 노출. */
-  flex: 0 0 44px;
-}
-.portfolio-page.is-mobile .portfolio-roster-slot {
+.portfolio-page.is-mobile .portfolio-roster {
   flex: 1 1 auto;
   border-right: 0;
 }
 
-/* 닫힘 상태 rail — 세로 탭 핸들 */
-.portfolio-roster-rail {
-  flex: 1 1 auto;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
+/* 닫힘 시 화면 좌측 회색 여백에 떠있는 토글 — 페이지 박스(centered
+   max-width) 밖이라 fixed-position 사용. desktop only (모바일은
+   기존 stack 패턴). */
+.portfolio-floating-toggle {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+  display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
-  padding: 16px 0;
-  gap: 8px;
-  font-size: 1.1rem;
-  color: var(--color-text-muted);
-  transition: background 100ms;
-}
-.portfolio-roster-rail:hover {
-  background: var(--color-surface-alt);
+  gap: 6px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
   color: var(--color-text);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition:
+    background 100ms,
+    transform 120ms;
 }
-.portfolio-roster-rail:focus-visible {
+.portfolio-floating-toggle:hover {
+  background: var(--color-surface-alt);
+  transform: translateY(-50%) translateX(2px);
+}
+.portfolio-floating-toggle:focus-visible {
   outline: 2px solid var(--color-accent-tinted-text);
-  outline-offset: -2px;
+  outline-offset: 2px;
 }
-.portfolio-roster-rail-icon {
-  font-size: 1.4rem;
-  line-height: 1;
-}
-/* 세로 라벨 — 두 글자씩 위에서 아래로 (CSS writing-mode) */
-.portfolio-roster-rail-label {
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  writing-mode: vertical-rl;
-  text-orientation: upright;
-  color: var(--color-text-faint);
-}
-
-/* 열림 상태 친구 목록 본체 */
-.portfolio-roster {
-  flex: 1 1 auto;
-  padding: 12px 8px;
-  overflow-y: auto;
-  overflow-x: hidden;
+/* 좁은 뷰포트(태블릿/모바일)에서는 화면 박스가 화면을 꽉 채워 좌측
+   여백이 없음 — 토글이 콘텐츠 위로 올라타 시각 노이즈가 됨. 모바일은
+   stack 패턴으로 별도 처리되니 floating 자체를 숨김. 함께 닫기 버튼도
+   숨겨 닫혀서 reopen 못하는 막다른 상태 회피. */
+@media (max-width: 1279px) {
+  .portfolio-floating-toggle {
+    display: none;
+  }
+  .portfolio-roster-close {
+    display: none;
+  }
 }
 .portfolio-roster-head {
   display: flex;
