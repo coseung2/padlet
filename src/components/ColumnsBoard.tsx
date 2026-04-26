@@ -1,36 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AddCardButton } from "./AddCardButton";
 import { AddCardModal, type AddCardData } from "./AddCardModal";
-import { CardBody } from "./cards/CardBody";
 import { CardDetailModal } from "./cards/CardDetailModal";
 import { CardAuthorEditor, type SavedAuthor } from "./cards/CardAuthorEditor";
-import { ContextMenu } from "./ContextMenu";
-import { ColumnMenu } from "./columns/ColumnMenu";
 import { EditCardModal } from "./EditCardModal";
 import { ExportModal } from "./ExportModal";
 import { CanvaFolderModal } from "./CanvaFolderModal";
 import { SectionActionsPanel } from "./SectionActionsPanel";
 import { AiFeedbackModal } from "./feedback/AiFeedbackModal";
+import { ColumnView } from "./columns/ColumnView";
+import { comparatorFor, toSortMode, type SortMode } from "./columns/sort";
+import {
+  useBoardStream,
+  type StreamSection,
+} from "./columns/useBoardStream";
+import { useColumnRoster, type RosterEntry } from "./columns/useColumnRoster";
 import type { CardData } from "./DraggableCard";
 
-type SortMode = "manual" | "newest" | "oldest" | "title";
-
-type SectionData = {
-  id: string;
-  title: string;
-  order: number;
-  accessToken?: string | null;
-  /** shared-column-sort (2026-04-20): 교사가 고른 칼럼별 정렬 모드.
-   *  null은 "manual"로 해석. SSE를 통해 학생에게도 실시간 전파됨. */
-  sortMode?: string | null;
-};
-
-function toSortMode(v: string | null | undefined): SortMode {
-  return v === "newest" || v === "oldest" || v === "title" ? v : "manual";
-}
-
+type SectionData = StreamSection;
 
 type PanelTab = "rename" | "delete";
 
@@ -70,6 +59,16 @@ export function ColumnsBoard({
   const [exportSectionId, setExportSectionId] = useState<string | null>(null);
   const [folderSectionId, setFolderSectionId] = useState<string | null>(null);
   const [organizing, setOrganizing] = useState<string | null>(null);
+  const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
+  const [seedingStudents, setSeedingStudents] = useState(false);
+  const [feedbackTarget, setFeedbackTarget] = useState<{
+    studentId: string | null;
+    name: string | null;
+    number: number | null;
+    roster: RosterEntry[];
+    sectionId: string;
+  } | null>(null);
+
   const canEdit = currentRole === "owner" || currentRole === "editor";
   // Students can add cards to their classroom's columns board. Section
   // membership rules (sectionId must belong to this board) are enforced
@@ -88,14 +87,20 @@ export function ColumnsBoard({
     });
   }
 
+  useBoardStream({ boardId, pendingCardIds, setCards, setSections });
+
+  const { authorsForSection, studentForSectionTitle } = useColumnRoster({
+    classroomId,
+    canEdit,
+  });
+
   /* ── Per-column sort persistence (shared-column-sort 2026-04-20) ──
      localStorage 단독이 아닌 Section.sortMode 서버 값을 단일 소스로 사용.
      교사가 드롭다운을 바꾸면 PATCH /api/sections/:id로 저장 → SSE
      snapshot으로 학생 화면도 동기화. 학생은 드롭다운이 disabled라 읽기만. */
   async function setSortFor(sectionId: string, mode: SortMode) {
-    if (!canEdit) return; // 권한 없는 경로는 UI-level에서도 단락.
+    if (!canEdit) return;
     const prev = sections;
-    // Optimistic — SSE 도착 전 즉시 반영.
     setSections((list) =>
       list.map((s) => (s.id === sectionId ? { ...s, sortMode: mode } : s))
     );
@@ -115,81 +120,17 @@ export function ColumnsBoard({
     }
   }
 
-  /* ── Realtime board stream ── */
-  useEffect(() => {
-    const es = new EventSource(`/api/boards/${boardId}/stream`);
-
-    function onSnapshot(ev: MessageEvent) {
-      try {
-        const data = JSON.parse(ev.data) as {
-          cards: CardData[];
-          sections: SectionData[];
-        };
-        mergeCards(data.cards);
-        mergeSections(data.sections);
-      } catch (e) {
-        console.error("[board stream snapshot]", e);
-      }
-    }
-
-    function onForbidden() {
-      es.close();
-    }
-
-    es.addEventListener("snapshot", onSnapshot as EventListener);
-    es.addEventListener("forbidden", onForbidden);
-
-    return () => {
-      es.removeEventListener("snapshot", onSnapshot as EventListener);
-      es.removeEventListener("forbidden", onForbidden);
-      es.close();
-    };
-    // boardId is the only stable dependency; merge functions read refs/state via setters.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boardId]);
-
-  function mergeCards(serverCards: CardData[]) {
-    setCards((local) => {
-      const localById = new Map(local.map((c) => [c.id, c] as const));
-      const next: CardData[] = [];
-      for (const sc of serverCards) {
-        if (pendingCardIds.current.has(sc.id)) {
-          // Keep optimistic local copy until the in-flight mutation settles.
-          const localCopy = localById.get(sc.id);
-          if (localCopy) next.push(localCopy);
-          else next.push(sc);
-        } else {
-          next.push(sc);
-        }
-      }
-      // Keep locally-created cards that the server snapshot doesn't yet see
-      // (e.g. POST in flight). These are tracked in pendingCardIds.
-      for (const lc of local) {
-        if (
-          pendingCardIds.current.has(lc.id) &&
-          !serverCards.some((sc) => sc.id === lc.id)
-        ) {
-          next.push(lc);
-        }
-      }
-      return next;
-    });
-  }
-
-  function mergeSections(serverSections: SectionData[]) {
-    // Section mutations (rename/delete/reorder) go through dedicated panels
-    // that finalize server state before their success callback updates local
-    // state, so snapshots can take authoritative server-owned values directly.
-    setSections(() => [...serverSections].sort((a, b) => a.order - b.order));
-  }
-
   async function handleOrganizeToCanva(sectionId: string) {
     const section = sections.find((s) => s.id === sectionId);
     if (!section) return;
 
     const sectionCards = getCardsForSection(sectionId);
     const canvaUrls = sectionCards
-      .filter((c) => c.linkUrl && (c.linkUrl.includes("canva.link") || c.linkUrl.includes("canva.com")))
+      .filter(
+        (c) =>
+          c.linkUrl &&
+          (c.linkUrl.includes("canva.link") || c.linkUrl.includes("canva.com"))
+      )
       .map((c) => c.linkUrl!);
 
     if (canvaUrls.length === 0) {
@@ -197,9 +138,12 @@ export function ColumnsBoard({
       return;
     }
 
-    if (!window.confirm(
-      `"${section.title}" 폴더를 Canva에 생성하고\n${canvaUrls.length}개 디자인을 이동할까요?`
-    )) return;
+    if (
+      !window.confirm(
+        `"${section.title}" 폴더를 Canva에 생성하고\n${canvaUrls.length}개 디자인을 이동할까요?`
+      )
+    )
+      return;
 
     setOrganizing(sectionId);
     try {
@@ -248,7 +192,8 @@ export function ColumnsBoard({
             linkUrl: viewUrl,
             linkTitle: d.title,
             linkImage: d.thumbnail || null,
-            x: 0, y: 0,
+            x: 0,
+            y: 0,
             order: getCardsForSection(sectionId).length,
             sectionId,
           }),
@@ -264,9 +209,6 @@ export function ColumnsBoard({
     setFolderSectionId(null);
   }
 
-  // Group cards by section once per cards/sort change, applying the per-column
-  // sort mode. Manual mode falls back to the stored `order` field; the other
-  // modes derive from createdAt or title.
   // shared-column-sort: sortMode는 sections(서버) 기반. sections 변경 시
   // 정렬 재계산 트리거되도록 의존성에 포함.
   const sortModeById = useMemo(() => {
@@ -302,7 +244,9 @@ export function ColumnsBoard({
 
     setCards((list) =>
       list.map((c) =>
-        c.id === cardId ? { ...c, sectionId: targetSectionId, order: newOrder } : c
+        c.id === cardId
+          ? { ...c, sectionId: targetSectionId, order: newOrder }
+          : c
       )
     );
 
@@ -381,9 +325,6 @@ export function ColumnsBoard({
     const normalised = next.map((s, i) => ({ ...s, order: i }));
     setSections(normalised);
 
-    // Every section whose index actually changed gets PATCH'd. For a
-    // move of length K positions this is ≤K+1 rows — still cheap on
-    // typical 3-8 column boards.
     const changed = normalised.filter((s, i) => prev[i]?.id !== s.id);
     try {
       const responses = await Promise.all(
@@ -405,8 +346,6 @@ export function ColumnsBoard({
     }
   }
 
-  const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
-
   /* ── Add card (shared by FAB and per-column buttons) ── */
   async function handleAdd(data: AddCardData) {
     const targetSection = data.sectionId ?? sections[0]?.id ?? null;
@@ -425,7 +364,9 @@ export function ColumnsBoard({
           linkImage: data.linkImage || null,
           attachments: data.attachments,
           color: data.color || null,
-          x: 0, y: 0, order,
+          x: 0,
+          y: 0,
+          order,
           sectionId: targetSection,
         }),
       });
@@ -489,7 +430,8 @@ export function ColumnsBoard({
           linkUrl: card.linkUrl || null,
           videoUrl: card.videoUrl || null,
           color: card.color || null,
-          x: 0, y: 0,
+          x: 0,
+          y: 0,
           order: getCardsForSection(card.sectionId ?? "").length,
           sectionId: card.sectionId,
         }),
@@ -524,108 +466,6 @@ export function ColumnsBoard({
 
   // 학생-시드: 학급 학생을 출석번호 순으로 섹션화. classroom-linked 보드에서만
   // 노출되며 1회성 시드라 현재 섹션 뒤에 append. 명시적 확인 모달 후 호출.
-  const [seedingStudents, setSeedingStudents] = useState(false);
-
-  // AI 평어 — 칼럼 헤더 ⋯ 메뉴에서 진입. 학생 시드된 칼럼 ("1번 홍길동" 형식)
-  // 에서만 활성화되며 제목→학생 매칭은 로스터 fetch 후 정규식으로 해결.
-  const [roster, setRoster] = useState<
-    { id: string; name: string; number: number | null }[]
-  >([]);
-  // feedbackTarget: 모달 host. roster 는 해당 칼럼의 카드 작성자(CardAuthor +
-  // singleton studentAuthorId) 만 포함해 학급 전체 명부 노출을 막는다.
-  // 칼럼 타이틀이 학생 시드 형식이면 그 학생을 preset 으로 추가 체크.
-  // sectionId 는 서버 비전 호출에서 학생별 카드 이미지 lookup 에 사용.
-  const [feedbackTarget, setFeedbackTarget] = useState<
-    | {
-        open: true;
-        studentId: string | null;
-        name: string | null;
-        number: number | null;
-        roster: { id: string; name: string; number: number | null }[];
-        sectionId: string;
-      }
-    | null
-  >(null);
-
-  // 칼럼 카드들의 작성자 학생 set 을 추출. CardAuthor 다중 + studentAuthorId
-  // singleton 양쪽 모두 합치고 dedupe. roster 는 학급 명부 lookup 으로 보강.
-  function authorsForSection(
-    sectionId: string
-  ): { id: string; name: string; number: number | null }[] {
-    const sectionCards = getCardsForSection(sectionId);
-    const ids = new Set<string>();
-    for (const c of sectionCards) {
-      if (c.studentAuthorId) ids.add(c.studentAuthorId);
-      for (const a of c.authors ?? []) {
-        if (a.studentId) ids.add(a.studentId);
-      }
-    }
-    if (ids.size === 0) return [];
-    // roster 가 비어 있으면 displayName 기반 fallback (출석번호 정렬 X).
-    if (roster.length === 0) {
-      const map = new Map<string, { id: string; name: string; number: number | null }>();
-      for (const c of sectionCards) {
-        for (const a of c.authors ?? []) {
-          if (a.studentId && !map.has(a.studentId)) {
-            map.set(a.studentId, { id: a.studentId, name: a.displayName, number: null });
-          }
-        }
-        if (c.studentAuthorId && !map.has(c.studentAuthorId)) {
-          map.set(c.studentAuthorId, {
-            id: c.studentAuthorId,
-            name: c.studentAuthorName ?? "",
-            number: null,
-          });
-        }
-      }
-      return Array.from(map.values()).filter((s) => s.name);
-    }
-    return roster
-      .filter((s) => ids.has(s.id))
-      .sort((a, b) => {
-        if (a.number == null && b.number == null) return a.name.localeCompare(b.name, "ko");
-        if (a.number == null) return 1;
-        if (b.number == null) return -1;
-        return a.number - b.number;
-      });
-  }
-  useEffect(() => {
-    if (!canEdit || !classroomId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`/api/classroom/${classroomId}/students`, {
-          cache: "no-store",
-        });
-        if (!res.ok) return;
-        const data = (await res.json()) as {
-          students: { id: string; name: string; number: number | null }[];
-        };
-        if (!cancelled) setRoster(data.students ?? []);
-      } catch {
-        /* roster fetch best-effort */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [canEdit, classroomId]);
-
-  function studentForSectionTitle(
-    title: string
-  ): { id: string; name: string; number: number | null } | null {
-    if (roster.length === 0) return null;
-    const m = title.match(/^(\d+)번\s*(.+)$/);
-    if (m) {
-      const num = parseInt(m[1], 10);
-      const name = m[2].trim();
-      const hit = roster.find((s) => s.number === num && s.name === name);
-      if (hit) return hit;
-    }
-    // Fallback — 제목 전체가 학생 이름과 정확히 일치
-    const exact = roster.find((s) => s.name === title.trim());
-    return exact ?? null;
-  }
   async function handleSeedFromStudents() {
     if (seedingStudents) return;
     if (!window.confirm("학급 학생 명단으로 칼럼을 추가할까요?")) return;
@@ -666,215 +506,53 @@ export function ColumnsBoard({
 
   return (
     <div className="board-canvas-wrap board-canvas-wrap-columns">
-      {/* Export mode toolbar */}
       <div className="columns-board">
-        {sections.map((section) => {
-          const sectionCards = getCardsForSection(section.id);
-          const hasCanva = sectionCards.some(
-            (c) => c.linkUrl && (c.linkUrl.includes("canva.link") || c.linkUrl.includes("canva.com"))
-          );
-          const sortMode: SortMode = sortModeById[section.id] ?? "manual";
-
-          // 섹션 헤더 ⋯ 한 개로 rename/delete + Canva 옵션 통합.
-          // 공유(브레이크아웃) 진입점은 보드 헤더의 ⚙ → BoardSettingsPanel 로 이동.
-          const sectionStudent = canEdit
-            ? studentForSectionTitle(section.title)
-            : null;
-          const menuItems = canEdit
-            ? [
-                {
-                  label: "이름 변경",
-                  icon: "✏️",
-                  onClick: () =>
-                    setPanelState({ sectionId: section.id, tab: "rename" }),
-                },
-                // AI 평어: classroom-linked 보드면 항상 노출. 자유 주제 칼럼은
-                // 모달 안 picker 로 학생을 직접 선택. 학생 시드 칼럼 ("1번 홍길동")
-                // 은 자동 매칭으로 preset.
-                ...(classroomId
-                  ? (() => {
-                      const sectionAuthors = authorsForSection(section.id);
-                      // sectionStudent (학생 시드 칼럼) 이 작성자 목록에 없어도
-                      // preset 으로 살려두면 모달 roster 가 비는 상황 회피.
-                      const seedRow = sectionStudent
-                        ? sectionAuthors.find((s) => s.id === sectionStudent.id) ??
-                          {
-                            id: sectionStudent.id,
-                            name: sectionStudent.name,
-                            number: sectionStudent.number,
-                          }
-                        : null;
-                      const modalRoster = seedRow
-                        ? sectionAuthors.some((s) => s.id === seedRow.id)
-                          ? sectionAuthors
-                          : [seedRow, ...sectionAuthors]
-                        : sectionAuthors;
-                      // 작성자도 없고 preset 도 없는 칼럼 (자유 주제 + 카드 없음)
-                      // 은 평어 대상이 없으니 메뉴 자체에서 숨긴다.
-                      if (modalRoster.length === 0) return [];
-                      const labelSuffix = sectionStudent
-                        ? ` (${sectionStudent.name})`
-                        : ` (${modalRoster.length}명)`;
-                      return [
-                        {
-                          label: `AI 평어 작성${labelSuffix}`,
-                          icon: "✨",
-                          onClick: () =>
-                            setFeedbackTarget({
-                              open: true,
-                              studentId: sectionStudent?.id ?? null,
-                              name: sectionStudent?.name ?? null,
-                              number: sectionStudent?.number ?? null,
-                              roster: modalRoster,
-                              sectionId: section.id,
-                            }),
-                        },
-                      ];
-                    })()
-                  : []),
-                {
-                  label: "Canva에서 가져오기",
-                  icon: "📁",
-                  onClick: () => setFolderSectionId(section.id),
-                },
-                ...(hasCanva
-                  ? [
-                      {
-                        label: "PDF 내보내기",
-                        icon: "📄",
-                        onClick: () => setExportSectionId(section.id),
-                      },
-                      {
-                        label:
-                          organizing === section.id
-                            ? "정리 중..."
-                            : "Canva 폴더로 정리",
-                        icon: "📂",
-                        onClick: () => handleOrganizeToCanva(section.id),
-                      },
-                    ]
-                  : []),
-                {
-                  label: "섹션 삭제",
-                  icon: "🗑️",
-                  danger: true,
-                  onClick: () =>
-                    setPanelState({ sectionId: section.id, tab: "delete" }),
-                },
-              ]
-            : [];
-
-          return (
-            <div
-              key={section.id}
-              className="column"
-              onDragOver={handleDragOver}
-              onDragEnter={() => setOverSectionId(section.id)}
-              onDragLeave={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                  setOverSectionId(null);
-                }
-              }}
-              onDrop={(e) => handleDrop(e, section.id)}
-            >
-              <div
-                className={`column-header ${
-                  canEdit ? "is-section-draggable" : ""
-                } ${
-                  draggingSectionId === section.id ? "is-section-dragging" : ""
-                }`}
-                draggable={canEdit}
-                onDragStart={(e) => {
-                  if (!canEdit) return;
-                  e.dataTransfer.setData("application/section-id", section.id);
-                  e.dataTransfer.effectAllowed = "move";
-                  setDraggingSectionId(section.id);
-                }}
-                onDragEnd={() => setDraggingSectionId(null)}
-              >
-                <h3 className="column-title">{section.title}</h3>
-                <span className="column-count">{sectionCards.length}</span>
-                {(canEdit || menuItems.length > 0) && (
-                  <ColumnMenu
-                    sortMode={sortMode}
-                    canSort={canEdit}
-                    onSetSort={(mode) => setSortFor(section.id, mode)}
-                    actions={menuItems}
-                  />
-                )}
-              </div>
-              <div className={`column-cards ${overSectionId === section.id ? "column-cards-active" : ""}`}>
-                {sectionCards.map((c) => {
-                  const canModify =
-                    currentRole === "owner" ||
-                    (currentRole === "editor" && c.authorId === currentUserId) ||
-                    // Student-authored card — the author student (role=viewer
-                    // in the fallback session) can still manage their own
-                    // publish. Matches /api/cards/:id student-auth path.
-                    c.studentAuthorId === currentUserId;
-
-                  return (
-                    <article
-                      key={c.id}
-                      className="column-card is-clickable"
-                      style={{ backgroundColor: c.color ?? undefined }}
-                      draggable={canEdit}
-                      onDragStart={(e) => handleDragStart(e, c.id)}
-                      onDragEnd={handleDragEnd}
-                      onClick={() => setOpenCard(c)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          setOpenCard(c);
-                        }
-                      }}
-                      tabIndex={0}
-                      role="button"
-                    >
-                      <CardBody card={c} titleAs="h4" />
-                      {canModify && (
-                        <div className="card-ctx-menu" onClick={(e) => e.stopPropagation()}>
-                          <ContextMenu
-                            items={[
-                              { label: "수정", icon: "✏️", onClick: () => setEditingCard(c) },
-                              // 교사(owner/editor) + 학생 자기 카드 모두에게 노출.
-                              // /api/cards/:id/authors는 canEditCard로 게이트하며
-                              // 학생 own-card를 이미 허용한다(student-author-edit
-                              // 2026-04-20). context menu에서도 조건을 맞춤.
-                              ...(canEdit || c.studentAuthorId === currentUserId
-                                ? [
-                                    {
-                                      label: "작성자 지정",
-                                      icon: "👥",
-                                      onClick: () => setAuthorEditCard(c),
-                                    },
-                                  ]
-                                : []),
-                              { label: "복제", icon: "📋", onClick: () => handleDuplicateCard(c) },
-                              { label: "삭제", icon: "🗑️", danger: true, onClick: () => handleDeleteCard(c.id) },
-                            ]}
-                          />
-                        </div>
-                      )}
-                    </article>
-                  );
-                })}
-                {sectionCards.length === 0 && (
-                  <div className="column-empty">카드를 여기로 끌어오세요</div>
-                )}
-              </div>
-              {canEdit && (
-                <button
-                  type="button"
-                  className="column-inline-add"
-                  onClick={() => setAddForSection(section.id)}
-                >
-                  + 카드 추가
-                </button>
-              )}
-            </div>
-          );
-        })}
+        {sections.map((section) => (
+          <ColumnView
+            key={section.id}
+            section={{ id: section.id, title: section.title }}
+            sectionCards={getCardsForSection(section.id)}
+            canEdit={canEdit}
+            currentRole={currentRole}
+            currentUserId={currentUserId}
+            classroomId={classroomId}
+            sortMode={sortModeById[section.id] ?? "manual"}
+            overSectionId={overSectionId}
+            draggingSectionId={draggingSectionId}
+            organizing={organizing}
+            authorsForSection={authorsForSection}
+            studentForSectionTitle={studentForSectionTitle}
+            onSetSort={(mode) => setSortFor(section.id, mode)}
+            onSectionDragStart={(id) => setDraggingSectionId(id)}
+            onSectionDragEnd={() => setDraggingSectionId(null)}
+            onCardDragStart={handleDragStart}
+            onCardDragEnd={handleDragEnd}
+            onDragOver={handleDragOver}
+            onDragEnter={(id) => setOverSectionId(id)}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                setOverSectionId(null);
+              }
+            }}
+            onDrop={handleDrop}
+            onRename={() =>
+              setPanelState({ sectionId: section.id, tab: "rename" })
+            }
+            onDelete={() =>
+              setPanelState({ sectionId: section.id, tab: "delete" })
+            }
+            onFolder={() => setFolderSectionId(section.id)}
+            onExport={() => setExportSectionId(section.id)}
+            onOrganize={() => handleOrganizeToCanva(section.id)}
+            onFeedback={(args) => setFeedbackTarget(args)}
+            onCardOpen={(c) => setOpenCard(c)}
+            onCardEdit={(c) => setEditingCard(c)}
+            onCardEditAuthors={(c) => setAuthorEditCard(c)}
+            onCardDuplicate={handleDuplicateCard}
+            onCardDelete={handleDeleteCard}
+            onAddInColumn={() => setAddForSection(section.id)}
+          />
+        ))}
 
         {canEdit && (
           <div className="column-add-stack">
@@ -943,7 +621,9 @@ export function ColumnsBoard({
                               .slice(0, 3)
                               .map((a) => a.displayName)
                               .join(", ") +
-                            (authors.length > 3 ? ` 외 ${authors.length - 1}명` : "")
+                            (authors.length > 3
+                              ? ` 외 ${authors.length - 1}명`
+                              : "")
                           : null,
                     }
                   : c
@@ -959,13 +639,13 @@ export function ColumnsBoard({
         onClose={() => setOpenCard(null)}
         // 상세 모달 좌/우 네비게이션이 보드 전체 카드를 순환하지 않고 같은
         // 섹션(칼럼) 내 카드만, 화면에 보이는 정렬 순서대로 순환하도록 필터.
-        // sortModeById를 그대로 반영해 "교사 정렬 = 학생 네비게이션 순서"
-        // 일관성 확보. 삭제된 카드는 cards에서 빠지므로 자동 반영.
         cards={
           openCard
             ? cards
                 .filter((c) => c.sectionId === openCard.sectionId)
-                .sort(comparatorFor(sortModeById[openCard.sectionId ?? ""] ?? "manual"))
+                .sort(
+                  comparatorFor(sortModeById[openCard.sectionId ?? ""] ?? "manual")
+                )
             : cards
         }
         onChange={setOpenCard}
@@ -973,28 +653,28 @@ export function ColumnsBoard({
         canEditAuthors={(c) => canEdit || c.studentAuthorId === currentUserId}
       />
 
-      {panelState && (() => {
-        const section = sections.find((s) => s.id === panelState.sectionId);
-        if (!section) return null;
-        return (
-          <SectionActionsPanel
-            open={true}
-            onClose={() => setPanelState(null)}
-            section={{
-              id: section.id,
-              title: section.title,
-            }}
-            currentRole={currentRole}
-            defaultTab={panelState.tab}
-            onRenamed={(t) => handleSectionRenamed(section.id, t)}
-            onDeleted={() => handleSectionDeleted(section.id)}
-          />
-        );
-      })()}
+      {panelState &&
+        (() => {
+          const section = sections.find((s) => s.id === panelState.sectionId);
+          if (!section) return null;
+          return (
+            <SectionActionsPanel
+              open={true}
+              onClose={() => setPanelState(null)}
+              section={{ id: section.id, title: section.title }}
+              currentRole={currentRole}
+              defaultTab={panelState.tab}
+              onRenamed={(t) => handleSectionRenamed(section.id, t)}
+              onDeleted={() => handleSectionDeleted(section.id)}
+            />
+          );
+        })()}
 
       {folderSectionId && (
         <CanvaFolderModal
-          sectionTitle={sections.find((s) => s.id === folderSectionId)?.title ?? ""}
+          sectionTitle={
+            sections.find((s) => s.id === folderSectionId)?.title ?? ""
+          }
           onImport={(designs) => handleImportFromCanva(folderSectionId, designs)}
           onClose={() => setFolderSectionId(null)}
         />
@@ -1002,11 +682,14 @@ export function ColumnsBoard({
 
       {exportSectionId && (
         <ExportModal
-          sectionTitle={sections.find((s) => s.id === exportSectionId)?.title ?? ""}
+          sectionTitle={
+            sections.find((s) => s.id === exportSectionId)?.title ?? ""
+          }
           cards={getCardsForSection(exportSectionId)}
           onClose={() => setExportSectionId(null)}
         />
       )}
+
       {feedbackTarget && (
         <AiFeedbackModal
           studentId={feedbackTarget.studentId}
@@ -1019,24 +702,4 @@ export function ColumnsBoard({
       )}
     </div>
   );
-}
-
-function comparatorFor(mode: SortMode): (a: CardData, b: CardData) => number {
-  switch (mode) {
-    case "newest":
-      return (a, b) => parseTime(b.createdAt) - parseTime(a.createdAt);
-    case "oldest":
-      return (a, b) => parseTime(a.createdAt) - parseTime(b.createdAt);
-    case "title":
-      return (a, b) => a.title.localeCompare(b.title, "ko");
-    case "manual":
-    default:
-      return (a, b) => a.order - b.order;
-  }
-}
-
-function parseTime(value: string | undefined): number {
-  if (!value) return 0;
-  const t = Date.parse(value);
-  return Number.isFinite(t) ? t : 0;
 }

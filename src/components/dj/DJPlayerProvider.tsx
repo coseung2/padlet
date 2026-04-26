@@ -24,6 +24,21 @@ import {
   useRef,
   useState,
 } from "react";
+import { DJMiniPlayer } from "./DJMiniPlayer";
+import {
+  DEFAULT_PIP,
+  MIN_H,
+  MIN_W,
+  loadPipPos,
+  resolvePipPos,
+  savePipPos,
+  type PipPos,
+} from "./pip-pos";
+import {
+  extractVideoId,
+  loadYouTubeAPI,
+  type YTPlayer,
+} from "./youtube-api";
 
 export type PlayerCard = {
   id: string;
@@ -69,98 +84,7 @@ export function useDJPlayer() {
   return ctx;
 }
 
-type YTPlayer = {
-  destroy: () => void;
-  playVideo: () => void;
-  pauseVideo: () => void;
-};
-type YTState = { data: number };
-declare global {
-  interface Window {
-    YT?: {
-      Player: new (
-        elementId: string,
-        config: {
-          videoId: string;
-          playerVars?: Record<string, string | number>;
-          events?: {
-            onReady?: (e: { target: YTPlayer }) => void;
-            onStateChange?: (e: YTState) => void;
-          };
-        },
-      ) => YTPlayer;
-    };
-    onYouTubeIframeAPIReady?: () => void;
-  }
-}
-
-let ytReady: Promise<void> | null = null;
-function loadYouTubeAPI(): Promise<void> {
-  if (typeof window === "undefined") return Promise.resolve();
-  if (window.YT?.Player) return Promise.resolve();
-  if (ytReady) return ytReady;
-  ytReady = new Promise<void>((resolve) => {
-    const prev = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = () => {
-      if (prev) prev();
-      resolve();
-    };
-    if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
-      const tag = document.createElement("script");
-      tag.src = "https://www.youtube.com/iframe_api";
-      document.head.appendChild(tag);
-    }
-  });
-  return ytReady;
-}
-
 const MOUNT_ID = "dj-global-yt-player";
-const PIP_STORAGE_KEY = "djPipPos";
-const DEFAULT_PIP = { x: -1, y: -1, w: 360, h: 260 }; // -1 = "anchor to right/bottom"
-const MIN_W = 240;
-const MIN_H = 180;
-
-/** YouTube URL → 11자 videoId. 같은 함수가 NowPlayingHeader 에도 있지만
- *  provider 의 auto-advance 경로에서 재사용하려 여기도 복사 (cross-import
- *  순환을 피하기 위함). */
-function extractVideoId(url: string | null | undefined): string | null {
-  if (!url) return null;
-  const m = url.match(/[?&]v=([A-Za-z0-9_-]{11})/);
-  if (m) return m[1];
-  const m2 = url.match(/youtu\.be\/([A-Za-z0-9_-]{11})/);
-  if (m2) return m2[1];
-  const m3 = url.match(/\/shorts\/([A-Za-z0-9_-]{11})/);
-  if (m3) return m3[1];
-  return null;
-}
-
-type PipPos = { x: number; y: number; w: number; h: number };
-
-function loadPipPos(): PipPos {
-  if (typeof window === "undefined") return DEFAULT_PIP;
-  try {
-    const raw = localStorage.getItem(PIP_STORAGE_KEY);
-    if (!raw) return DEFAULT_PIP;
-    const parsed = JSON.parse(raw) as Partial<PipPos>;
-    return {
-      x: typeof parsed.x === "number" ? parsed.x : DEFAULT_PIP.x,
-      y: typeof parsed.y === "number" ? parsed.y : DEFAULT_PIP.y,
-      w: Math.max(MIN_W, typeof parsed.w === "number" ? parsed.w : DEFAULT_PIP.w),
-      h: Math.max(MIN_H, typeof parsed.h === "number" ? parsed.h : DEFAULT_PIP.h),
-    };
-  } catch {
-    return DEFAULT_PIP;
-  }
-}
-
-function savePipPos(p: PipPos) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(PIP_STORAGE_KEY, JSON.stringify(p));
-  } catch {
-    // quota / disabled — ignore
-  }
-}
 
 export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
   const [activeCard, setActiveCard] = useState<PlayerCard | null>(null);
@@ -231,7 +155,7 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
     (fn: (() => Promise<void> | void) | null) => {
       advanceRef.current = fn;
     },
-    [],
+    []
   );
 
   /**
@@ -255,7 +179,7 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
           method: "PATCH",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ status: "played" }),
-        },
+        }
       );
     } catch (e) {
       console.warn("[dj] auto-advance PATCH failed", e);
@@ -263,7 +187,7 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
     }
     try {
       const res = await fetch(
-        `/api/boards/${encodeURIComponent(current.boardId)}/queue/next`,
+        `/api/boards/${encodeURIComponent(current.boardId)}/queue/next`
       );
       if (!res.ok) {
         stop();
@@ -458,8 +382,14 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
       function onMove(ev: PointerEvent) {
         const vw = window.innerWidth;
         const vh = window.innerHeight;
-        const nx = Math.max(0, Math.min(vw - origPos.w, origPos.x + ev.clientX - startX));
-        const ny = Math.max(0, Math.min(vh - origPos.h, origPos.y + ev.clientY - startY));
+        const nx = Math.max(
+          0,
+          Math.min(vw - origPos.w, origPos.x + ev.clientX - startX)
+        );
+        const ny = Math.max(
+          0,
+          Math.min(vh - origPos.h, origPos.y + ev.clientY - startY)
+        );
         setPipPos((p) => ({ ...p, x: nx, y: ny }));
       }
       function onUp() {
@@ -469,45 +399,44 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
     },
-    [hostEl, manualPip, pipPos],
+    [hostEl, manualPip, pipPos]
   );
 
   // PiP 리사이즈 — 3면 핸들(우/하/우하단). direction 별로 w/h 독립 변경.
   type ResizeDir = "e" | "s" | "se";
   const startResize = useCallback(
-    (dir: ResizeDir) =>
-      (e: React.PointerEvent<HTMLDivElement>) => {
-        if (hostEl && !manualPip) return;
-        e.preventDefault();
-        e.stopPropagation();
-        const startX = e.clientX;
-        const startY = e.clientY;
-        const orig = resolvePipPos(pipPos);
-        function onMove(ev: PointerEvent) {
-          const vw = window.innerWidth;
-          const vh = window.innerHeight;
-          const maxW = vw - orig.x;
-          const maxH = vh - orig.y;
-          const dx = ev.clientX - startX;
-          const dy = ev.clientY - startY;
-          let nw = orig.w;
-          let nh = orig.h;
-          if (dir === "e" || dir === "se") {
-            nw = Math.max(MIN_W, Math.min(maxW, orig.w + dx));
-          }
-          if (dir === "s" || dir === "se") {
-            nh = Math.max(MIN_H, Math.min(maxH, orig.h + dy));
-          }
-          setPipPos((p) => ({ ...p, w: nw, h: nh, x: orig.x, y: orig.y }));
+    (dir: ResizeDir) => (e: React.PointerEvent<HTMLDivElement>) => {
+      if (hostEl && !manualPip) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const orig = resolvePipPos(pipPos);
+      function onMove(ev: PointerEvent) {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const maxW = vw - orig.x;
+        const maxH = vh - orig.y;
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        let nw = orig.w;
+        let nh = orig.h;
+        if (dir === "e" || dir === "se") {
+          nw = Math.max(MIN_W, Math.min(maxW, orig.w + dx));
         }
-        function onUp() {
-          window.removeEventListener("pointermove", onMove);
-          window.removeEventListener("pointerup", onUp);
+        if (dir === "s" || dir === "se") {
+          nh = Math.max(MIN_H, Math.min(maxH, orig.h + dy));
         }
-        window.addEventListener("pointermove", onMove);
-        window.addEventListener("pointerup", onUp);
-      },
-    [hostEl, manualPip, pipPos],
+        setPipPos((p) => ({ ...p, w: nw, h: nh, x: orig.x, y: orig.y }));
+      }
+      function onUp() {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+      }
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [hostEl, manualPip, pipPos]
   );
 
   const value: Ctx = {
@@ -562,99 +491,23 @@ export function DJPlayerProvider({ children }: { children: React.ReactNode }) {
   return (
     <DJPlayerContext.Provider value={value}>
       {children}
-      <div className={containerClass} style={containerStyle} aria-hidden={!visible}>
-        {visible && (
-          <>
-            <div className="dj-mini-body">
-              <div id={MOUNT_ID} className="dj-mini-iframe" />
-            </div>
-            {!isDocked && (
-              <>
-                <div className="dj-mini-header" onPointerDown={startDrag}>
-                  <div className="dj-mini-drag-hint" aria-hidden="true">
-                    ⋮⋮
-                  </div>
-                  <div className="dj-mini-title" title={activeCard?.title}>
-                    {activeCard?.title}
-                  </div>
-                  <div className="dj-mini-actions">
-                    <button
-                      type="button"
-                      className="dj-mini-btn"
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={toggle}
-                      aria-label={playing ? "일시정지" : "재생"}
-                    >
-                      {playing ? "❚❚" : "▶"}
-                    </button>
-                    <button
-                      type="button"
-                      className="dj-mini-btn"
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={() => advanceRef.current?.()}
-                      aria-label="다음 곡"
-                      disabled={!advanceRef.current}
-                      style={{ opacity: advanceRef.current ? 1 : 0.4 }}
-                    >
-                      ⏭
-                    </button>
-                    {/* host 가 있을 때만 "도킹 복귀" 버튼 노출. host 가 없는 일반
-                       페이지에선 이미 PiP 가 기본이라 이 버튼이 무의미. */}
-                    {hostEl && manualPip && (
-                      <button
-                        type="button"
-                        className="dj-mini-btn"
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={() => setManualPip(false)}
-                        aria-label="도킹으로 돌리기"
-                        title="NOW PLAYING 카드로 되돌리기"
-                      >
-                        🪝
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="dj-mini-btn dj-mini-close"
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={stop}
-                      aria-label="닫기"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-                <div
-                  className="dj-mini-resize dj-mini-resize-e"
-                  onPointerDown={startResize("e")}
-                  aria-hidden="true"
-                  title="너비 조절"
-                />
-                <div
-                  className="dj-mini-resize dj-mini-resize-s"
-                  onPointerDown={startResize("s")}
-                  aria-hidden="true"
-                  title="높이 조절"
-                />
-                <div
-                  className="dj-mini-resize dj-mini-resize-se"
-                  onPointerDown={startResize("se")}
-                  aria-hidden="true"
-                  title="크기 조절"
-                />
-              </>
-            )}
-          </>
-        )}
-      </div>
+      <DJMiniPlayer
+        mountId={MOUNT_ID}
+        activeCard={activeCard}
+        containerStyle={containerStyle}
+        containerClass={containerClass}
+        visible={visible}
+        isDocked={isDocked}
+        hostEl={hostEl}
+        manualPip={manualPip}
+        playing={playing}
+        toggle={toggle}
+        stop={stop}
+        setManualPip={setManualPip}
+        advanceRef={advanceRef}
+        startDrag={startDrag}
+        startResize={startResize}
+      />
     </DJPlayerContext.Provider>
   );
-}
-
-/** DEFAULT_PIP 의 -1 sentinel 을 실제 뷰포트 기준 "우하단 기본 위치" 로 해석. */
-function resolvePipPos(p: PipPos): PipPos {
-  const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
-  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
-  const x = p.x < 0 ? Math.max(0, vw - p.w - 20) : p.x;
-  const y = p.y < 0 ? Math.max(0, vh - p.h - 20) : p.y;
-  return { x, y, w: p.w, h: p.h };
 }

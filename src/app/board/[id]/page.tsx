@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { db } from "@/lib/db";
@@ -10,7 +9,7 @@ import { GridBoard } from "@/components/GridBoard";
 import { StreamBoard } from "@/components/StreamBoard";
 import { ColumnsBoard } from "@/components/ColumnsBoard";
 import { AssignmentBoard } from "@/components/AssignmentBoard";
-import { QuizBoard, type QuizData } from "@/components/QuizBoard";
+import { QuizBoard } from "@/components/QuizBoard";
 import { PlantRoadmapBoard } from "@/components/PlantRoadmapBoard";
 import { EventSignupBoard } from "@/components/event/EventSignupBoard";
 import { DrawingBoard } from "@/components/DrawingBoard";
@@ -21,14 +20,11 @@ import { VibeArcadeBoard } from "@/components/VibeArcadeBoard";
 import { VibeGalleryBoard } from "@/components/VibeGalleryBoard";
 import { QuestionBoard } from "@/components/QuestionBoard";
 import { cloneStructure } from "@/lib/breakout";
-import { parseObservationPoints, STALL_THRESHOLD_DAYS } from "@/lib/plant-schemas";
 import type { PlantJournalResponse } from "@/types/plant";
-import { AuthHeader } from "@/components/AuthHeader";
-import { EditableTitle } from "@/components/EditableTitle";
-import { BoardSettingsLauncher } from "@/components/BoardSettingsLauncher";
 import type { BoardSection } from "@/components/BoardSettingsPanel";
 import { BoardVisitTracker } from "@/components/BoardVisitTracker";
-import { layoutLabel } from "@/lib/layout-meta";
+import { BoardHeader } from "@/components/BoardHeader";
+import { loadPlantJournalInitial } from "@/lib/board-page/plant-journal-loader";
 
 // Auth + cookie reads already flag this route as dynamic.
 // Dropping the explicit flag keeps the Router Cache warm for navigations.
@@ -272,169 +268,12 @@ export default async function BoardPage({
   // Assemble the plant-journal initial payload when rendering that layout.
   let plantJournalInitial: PlantJournalResponse | null = null;
   if (needsPlantData) {
-    const classroomId = board.classroomId;
-    const [allows, myPlant, plantsForBoard, classroomStudents] = await Promise.all([
-      classroomId
-        ? db.classroomPlantAllow.findMany({
-            where: { classroomId },
-            include: { species: { include: { stages: { orderBy: { order: "asc" } } } } },
-          })
-        : Promise.resolve([]),
-      student && classroomId && student.classroomId === classroomId
-        ? db.studentPlant.findUnique({
-            where: { boardId_studentId: { boardId: board.id, studentId: student.id } },
-            include: {
-              species: { include: { stages: { orderBy: { order: "asc" } } } },
-              currentStage: true,
-              observations: {
-                orderBy: { observedAt: "desc" },
-                include: { images: { orderBy: { order: "asc" } } },
-              },
-            },
-          })
-        : Promise.resolve(null),
-      role === "owner" && classroomId
-        ? db.studentPlant.findMany({
-            where: { boardId: board.id },
-            include: {
-              student: { select: { id: true, name: true, number: true } },
-              species: { include: { stages: { orderBy: { order: "asc" } } } },
-              observations: { orderBy: { observedAt: "desc" }, take: 1 },
-            },
-          })
-        : Promise.resolve([]),
-      role === "owner" && classroomId
-        ? db.student.findMany({
-            where: { classroomId },
-            orderBy: [{ number: "asc" }, { name: "asc" }],
-          })
-        : Promise.resolve([]),
-    ]);
-
-    const speciesOut = allows.map((a) => ({
-      id: a.species.id,
-      key: a.species.key,
-      nameKo: a.species.nameKo,
-      emoji: a.species.emoji,
-      difficulty: a.species.difficulty,
-      season: a.species.season,
-      notes: a.species.notes,
-      stages: a.species.stages.map((s) => ({
-        id: s.id,
-        order: s.order,
-        key: s.key,
-        nameKo: s.nameKo,
-        description: s.description,
-        icon: s.icon,
-        observationPoints: parseObservationPoints(s.observationPoints),
-      })),
-    }));
-
-    const myPlantOut = myPlant
-      ? {
-          id: myPlant.id,
-          speciesId: myPlant.speciesId,
-          nickname: myPlant.nickname,
-          currentStageId: myPlant.currentStageId,
-          species: {
-            id: myPlant.species.id,
-            key: myPlant.species.key,
-            nameKo: myPlant.species.nameKo,
-            emoji: myPlant.species.emoji,
-            difficulty: myPlant.species.difficulty,
-            season: myPlant.species.season,
-            notes: myPlant.species.notes,
-            stages: myPlant.species.stages.map((s) => ({
-              id: s.id,
-              order: s.order,
-              key: s.key,
-              nameKo: s.nameKo,
-              description: s.description,
-              icon: s.icon,
-              observationPoints: parseObservationPoints(s.observationPoints),
-            })),
-          },
-          observations: myPlant.observations.map((o) => ({
-            id: o.id,
-            stageId: o.stageId,
-            memo: o.memo,
-            noPhotoReason: o.noPhotoReason,
-            observedAt: o.observedAt.toISOString(),
-            images: o.images.map((i) => ({
-              id: i.id,
-              url: i.url,
-              thumbnailUrl: i.thumbnailUrl,
-              order: i.order,
-            })),
-          })),
-        }
-      : null;
-
-    let teacherSummary: PlantJournalResponse["teacherSummary"] = null;
-    if (role === "owner" && classroomId) {
-      const now = Date.now();
-      const stalledMs = STALL_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
-      const plantByStudent = new Map(plantsForBoard.map((p) => [p.studentId, p] as const));
-      const distribution: Record<string, number> = {};
-      for (const p of plantsForBoard) {
-        const stage = p.species.stages.find((x) => x.id === p.currentStageId);
-        if (stage) {
-          const k = String(stage.order);
-          distribution[k] = (distribution[k] ?? 0) + 1;
-        }
-      }
-      const rows = classroomStudents.map((s) => {
-        const plant = plantByStudent.get(s.id);
-        if (!plant) {
-          return {
-            id: s.id,
-            number: s.number,
-            name: s.name,
-            nickname: null,
-            speciesName: null,
-            speciesEmoji: null,
-            currentStageOrder: null,
-            currentStageName: null,
-            lastObservedAt: null,
-            stalled: false,
-          };
-        }
-        const stage = plant.species.stages.find((x) => x.id === plant.currentStageId) ?? null;
-        const lastObs = plant.observations[0];
-        const lastObsMs = lastObs?.observedAt?.getTime() ?? plant.createdAt.getTime();
-        return {
-          id: s.id,
-          number: s.number,
-          name: s.name,
-          nickname: plant.nickname,
-          speciesName: plant.species.nameKo,
-          speciesEmoji: plant.species.emoji,
-          currentStageOrder: stage?.order ?? null,
-          currentStageName: stage?.nameKo ?? null,
-          lastObservedAt: new Date(lastObsMs).toISOString(),
-          stalled: now - lastObsMs > stalledMs,
-        };
-      });
-      teacherSummary = {
-        classroomId,
-        totalStudents: classroomStudents.length,
-        plantedCount: plantsForBoard.length,
-        distribution,
-        students: rows,
-      };
-    }
-
-    plantJournalInitial = {
-      board: { id: board.id, title: board.title, classroomId: board.classroomId },
-      role: (role ?? (studentViewer ? "viewer" : null)) as PlantJournalResponse["role"],
-      viewer: {
-        kind: studentViewer ? "student" : role === "owner" ? "teacher_owner" : role ?? "none",
-        studentId: studentViewer?.id ?? null,
-      },
-      species: speciesOut,
-      myPlant: myPlantOut,
-      teacherSummary,
-    };
+    plantJournalInitial = await loadPlantJournalInitial({
+      board,
+      role,
+      student,
+      studentViewer,
+    });
   }
 
   // Sections prop for the board settings ⚙ launcher. Only present for
@@ -802,64 +641,3 @@ export default async function BoardPage({
   );
 }
 
-function BoardHeader({
-  boardId,
-  title,
-  layout,
-  userName,
-  userRole,
-  isStudent,
-  backHref,
-  canEdit,
-  settingsSections,
-}: {
-  boardId?: string;
-  title: string;
-  layout: string;
-  userName?: string;
-  userRole?: string;
-  /** Student identity 로 접근 중이면 true — 뱃지에서 leaked legacy role 숨김. */
-  isStudent?: boolean;
-  /** ← 버튼 이동 경로. 기본 "/"(교사 대시보드). 학생은 "/student" 로 전달. */
-  backHref?: string;
-  canEdit: boolean;
-  settingsSections?: BoardSection[];
-}) {
-  return (
-    <header className="board-header">
-      <div className="board-header-left">
-        <Link
-          href={backHref ?? "/"}
-          className="board-back-link"
-          aria-label="보드 목록으로"
-        >
-          ←
-        </Link>
-        {boardId ? (
-          <EditableTitle boardId={boardId} initialTitle={title} canEdit={canEdit} />
-        ) : (
-          <h1 className="board-title">{title}</h1>
-        )}
-        {boardId && canEdit && (
-          <BoardSettingsLauncher
-            boardId={boardId}
-            layout={layout}
-            sections={settingsSections ?? []}
-          />
-        )}
-        <span className="board-layout-badge">{layoutLabel(layout)}</span>
-        {userName && userRole && !isStudent && (
-          <span className="board-badge">
-            {userName} · {userRole}
-          </span>
-        )}
-        {userName && isStudent && (
-          <span className="board-badge">{userName}</span>
-        )}
-      </div>
-      <div className="board-header-right">
-        <AuthHeader />
-      </div>
-    </header>
-  );
-}

@@ -5,21 +5,14 @@ import { useRouter } from "next/navigation";
 import { AddStudentsModal, type CreatedStudent } from "./AddStudentsModal";
 import { QRPrintSheet } from "./QRPrintSheet";
 import { ClassroomDeleteModal } from "./classroom/ClassroomDeleteModal";
+import { ClassroomSettingsModal } from "./classroom/ClassroomSettingsModal";
+import { StudentRow, type Student } from "./classroom/StudentRow";
 // parent-class-invite-v2 — per-student ParentInviteButton removed.
 // Codes are now classroom-scoped (see /classroom/[id]/parent-access).
 // The separate ParentManagementTab widget was pulled too — connected
 // parents now surface as a count column in the student table, and the
 // full inbox UI lives on the parent-access page (linked via the
 // 🔗 초대 코드 · 승인 관리 action-bar button).
-
-type Student = {
-  id: string;
-  number: number | null;
-  name: string;
-  qrToken: string;
-  textCode: string;
-  createdAt: string;
-};
 
 type Board = {
   id: string;
@@ -40,17 +33,6 @@ type Props = {
 
 // Tab navigation moved to the top <ClassroomNav />. 학부모 연결/공유된 보드
 // = 각자 페이지로 이동. 설정 = 학급명 옆 톱니바퀴 → 모달. (2026-04-21)
-
-/* Handoff roster avatar — hash name → COLOR_POOL, show initial. */
-const AVATAR_COLORS = ["#a69bff", "#ff9ebd", "#8ccfff", "#ffd28c", "#9ee5c1", "#ffb08c"];
-function avatarColor(name: string): string {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
-function avatarInitial(name: string): string {
-  return name ? name.slice(0, 1) : "?";
-}
 
 export function ClassroomDetail({ classroom }: Props) {
   const router = useRouter();
@@ -174,7 +156,11 @@ export function ClassroomDetail({ classroom }: Props) {
     ];
     // UTF-8 BOM 추가 — Excel이 한글 CJK 정상 인식.
     const bom = "\uFEFF";
-    const csv = bom + rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\r\n");
+    const csv =
+      bom +
+      rows
+        .map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(","))
+        .join("\r\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -331,7 +317,11 @@ export function ClassroomDetail({ classroom }: Props) {
   }
 
   async function handleReissue(studentId: string) {
-    if (!confirm("이 학생의 QR 코드를 재발급하시겠습니까? 기존 코드는 사용할 수 없게 됩니다.")) {
+    if (
+      !confirm(
+        "이 학생의 QR 코드를 재발급하시겠습니까? 기존 코드는 사용할 수 없게 됩니다."
+      )
+    ) {
       return;
     }
     try {
@@ -483,7 +473,11 @@ export function ClassroomDetail({ classroom }: Props) {
                   />
                 </th>
                 <th className="classroom-th classroom-th-num">#</th>
-                <th className="classroom-th" style={{ width: 44 }} aria-label="아바타" />
+                <th
+                  className="classroom-th"
+                  style={{ width: 44 }}
+                  aria-label="아바타"
+                />
                 <th className="classroom-th">이름 / 역할</th>
                 <th className="classroom-th">QR</th>
                 <th className="classroom-th">코드</th>
@@ -515,82 +509,17 @@ export function ClassroomDetail({ classroom }: Props) {
       {/* Settings moved to a modal opened by the ⚙ gear button next to the
           classroom name. Content kept 1:1 with the old 설정 탭. */}
       {showSettings && (
-        <div
-          className="modal-backdrop"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowSettings(false);
+        <ClassroomSettingsModal
+          classroomName={classroomName}
+          renaming={renaming}
+          renameErr={renameErr}
+          onRename={(next) => void handleRenameClassroom(next)}
+          onClose={() => setShowSettings(false)}
+          onRequestDelete={() => {
+            setShowSettings(false);
+            setShowClassroomDelete(true);
           }}
-          role="dialog"
-          aria-modal="true"
-          aria-label="학급 설정"
-        >
-          <div className="classroom-settings-modal">
-            <header className="classroom-settings-modal-header">
-              <h3>학급 설정</h3>
-              <button
-                type="button"
-                className="modal-close"
-                onClick={() => setShowSettings(false)}
-                aria-label="닫기"
-              >
-                ×
-              </button>
-            </header>
-
-            <div className="classroom-settings-modal-body">
-              <div className="classroom-setting-row">
-                <label className="classroom-setting-label" htmlFor="classroom-name-input">
-                  학급 이름
-                </label>
-                <div className="classroom-setting-name-row">
-                  <input
-                    id="classroom-name-input"
-                    className="classroom-setting-input"
-                    type="text"
-                    defaultValue={classroomName}
-                    maxLength={100}
-                    onBlur={(e) => {
-                      if (e.target.value.trim() !== classroomName) {
-                        void handleRenameClassroom(e.target.value);
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        (e.target as HTMLInputElement).blur();
-                      }
-                    }}
-                    disabled={renaming}
-                  />
-                  {renaming && <span className="classroom-setting-saving">저장 중…</span>}
-                </div>
-                {renameErr && (
-                  <p className="classroom-setting-err">이름 저장 실패: {renameErr}</p>
-                )}
-              </div>
-
-              <div className="classroom-setting-row classroom-setting-danger">
-                <div>
-                  <p className="classroom-setting-label">학급 삭제</p>
-                  <p className="classroom-setting-hint">
-                    삭제하면 연결된 학부모 액세스가 전부 해제되고 학생 계정은 비활성됩니다.
-                    되돌릴 수 없어요.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="classroom-detail-delete"
-                  onClick={() => {
-                    setShowSettings(false);
-                    setShowClassroomDelete(true);
-                  }}
-                >
-                  🗑 학급 삭제
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        />
       )}
 
       {/* Add students modal */}
@@ -622,127 +551,5 @@ export function ClassroomDetail({ classroom }: Props) {
         }}
       />
     </div>
-  );
-}
-
-/* ── Student row sub-component ── */
-
-function StudentRow({
-  student,
-  classroomId,
-  parentCount,
-  roleKey,
-  roleDefs,
-  onRoleChange,
-  checked,
-  onToggle,
-  onReissue,
-  onDelete,
-}: {
-  student: Student;
-  classroomId: string;
-  parentCount: number;
-  roleKey: string;
-  roleDefs: { key: string; labelKo: string; emoji: string | null }[];
-  onRoleChange: (roleKey: string) => void;
-  checked: boolean;
-  onToggle: () => void;
-  onReissue: () => void;
-  onDelete: () => void;
-}) {
-  const [qrSrc, setQrSrc] = useState<string | null>(null);
-
-  // Generate tiny QR preview on mount
-  useEffect(() => {
-    let cancelled = false;
-    import("qrcode").then((QRCode) => {
-      const url = `${window.location.origin}/qr/${student.qrToken}`;
-      QRCode.toDataURL(url, { width: 40, margin: 1 }).then((dataUrl) => {
-        if (!cancelled) setQrSrc(dataUrl);
-      });
-    });
-    return () => { cancelled = true; };
-  }, [student.qrToken]);
-
-  return (
-    <tr className="classroom-tr">
-      <td className="classroom-td" style={{ width: 36 }}>
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={onToggle}
-        />
-      </td>
-      <td className="classroom-td classroom-td-num">{student.number ?? "-"}</td>
-      <td className="classroom-td classroom-td-avatar">
-        <span
-          className="classroom-avatar"
-          style={{ background: avatarColor(student.name) }}
-          aria-hidden
-        >
-          {avatarInitial(student.name)}
-        </span>
-      </td>
-      <td className="classroom-td classroom-td-name">
-        <div className="classroom-name-stack">
-          <span className="classroom-name-text">{student.name}</span>
-          <select
-            className="classroom-role-select classroom-role-select-inline"
-            value={roleKey}
-            onChange={(e) => onRoleChange(e.target.value)}
-            aria-label={`${student.name} 역할`}
-          >
-            <option value="">역할 없음</option>
-            {roleDefs.map((d) => (
-              <option key={d.key} value={d.key}>
-                {d.emoji ? `${d.emoji} ` : ""}{d.labelKo}
-              </option>
-            ))}
-          </select>
-        </div>
-      </td>
-      <td className="classroom-td classroom-td-qr">
-        {qrSrc ? (
-          // QR is a data: URL generated client-side — next/image can't optimize it
-          // and the origin is our own page, so a raw <img> is intentional here.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={qrSrc} alt="QR" className="classroom-qr-thumb" loading="lazy" />
-        ) : (
-          <span className="classroom-qr-placeholder" />
-        )}
-      </td>
-      <td className="classroom-td classroom-td-code">
-        <code className="classroom-text-code">{student.textCode}</code>
-      </td>
-      <td className="classroom-td classroom-td-parent">
-        <a
-          href={`/classroom/${classroomId}/parent-access?student=${student.id}`}
-          className={`classroom-parent-chip ${parentCount === 0 ? "is-empty" : ""}`}
-          title={parentCount === 0 ? "연결된 학부모 없음" : `학부모 ${parentCount}명`}
-        >
-          {parentCount === 0 ? "–" : `${parentCount}명`}
-        </a>
-      </td>
-      <td className="classroom-td classroom-td-actions">
-        <div className="classroom-row-actions">
-          <button
-            type="button"
-            className="classroom-row-btn classroom-row-btn-reissue"
-            onClick={onReissue}
-            title="QR 재발급"
-          >
-            재발급
-          </button>
-          <button
-            type="button"
-            className="classroom-row-btn classroom-row-btn-delete"
-            onClick={onDelete}
-            title="삭제"
-          >
-            삭제
-          </button>
-        </div>
-      </td>
-    </tr>
   );
 }

@@ -13,12 +13,10 @@
  * /board/[id]/s/[sectionId] route (T0-①).
  */
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { AddCardButton } from "./AddCardButton";
 import { AddCardModal, type AddCardData } from "./AddCardModal";
-import { CardBody } from "./cards/CardBody";
 import { CardDetailModal } from "./cards/CardDetailModal";
-import { ContextMenu, type MenuItem } from "./ContextMenu";
+import { type MenuItem } from "./ContextMenu";
 import { EditCardModal } from "./EditCardModal";
 import type { CardData } from "./DraggableCard";
 import { BreakoutAssignmentManager } from "./BreakoutAssignmentManager";
@@ -26,6 +24,9 @@ import type {
   BreakoutMembershipData,
   BreakoutRosterStudent,
 } from "./BreakoutAssignmentManager";
+import { BreakoutHeader } from "./breakout/BreakoutHeader";
+import { GroupColumn } from "./breakout/GroupColumn";
+import { PoolColumn } from "./breakout/PoolColumn";
 
 type SectionData = {
   id: string;
@@ -63,10 +64,54 @@ type Props = {
  * Parse a section title "모둠 3 · K (아는 것)" into { groupIndex: 3, tabTitle: "K (아는 것)" }.
  * Returns null if the title isn't a group section (e.g. teacher-pool).
  */
-function parseGroupSection(title: string): { groupIndex: number; tabTitle: string } | null {
+function parseGroupSection(
+  title: string
+): { groupIndex: number; tabTitle: string } | null {
   const m = /^모둠\s+(\d+)\s+·\s+(.+)$/.exec(title);
   if (!m) return null;
   return { groupIndex: Number(m[1]), tabTitle: m[2] };
+}
+
+/** Server returns Card rows as plain JSON; map them into our CardData shape. */
+function normalizeCopiedCard(
+  c: Record<string, unknown>,
+  fallbackAuthorId: string
+): CardData {
+  return {
+    id: String(c.id),
+    title: String(c.title ?? ""),
+    content: String(c.content ?? ""),
+    color: (c.color as string | null) ?? null,
+    imageUrl: (c.imageUrl as string | null) ?? null,
+    linkUrl: (c.linkUrl as string | null) ?? null,
+    linkTitle: (c.linkTitle as string | null) ?? null,
+    linkDesc: (c.linkDesc as string | null) ?? null,
+    linkImage: (c.linkImage as string | null) ?? null,
+    videoUrl: (c.videoUrl as string | null) ?? null,
+    fileUrl: (c.fileUrl as string | null) ?? null,
+    fileName: (c.fileName as string | null) ?? null,
+    fileSize: (c.fileSize as number | null) ?? null,
+    fileMimeType: (c.fileMimeType as string | null) ?? null,
+    attachments:
+      (c.attachments as
+        | Array<{
+            id: string;
+            kind: string;
+            url: string;
+            fileName: string | null;
+            fileSize: number | null;
+            mimeType: string | null;
+            order: number;
+          }>
+        | undefined) ?? [],
+    x: Number(c.x ?? 0),
+    y: Number(c.y ?? 0),
+    width: Number(c.width ?? 240),
+    height: Number(c.height ?? 160),
+    order: Number(c.order ?? 0),
+    sectionId: (c.sectionId as string | null) ?? null,
+    authorId: String(c.authorId ?? fallbackAuthorId),
+  };
 }
 
 export function BreakoutBoard({
@@ -93,7 +138,11 @@ export function BreakoutBoard({
   const [copying, setCopying] = useState<string | null>(null);
   const [managerOpen, setManagerOpen] = useState(false);
   const [archiving, setArchiving] = useState(false);
-  const [localStatus, setLocalStatus] = useState<"active" | "archived">(assignment.status);
+  const [localStatus, setLocalStatus] = useState<"active" | "archived">(
+    assignment.status
+  );
+  // sections setter is referenced (for membership/section edits via manager).
+  void setSections;
   const canEdit = currentRole === "owner" || currentRole === "editor";
   const canBulkCopy = currentRole === "owner";
   const isOwner = currentRole === "owner";
@@ -110,7 +159,12 @@ export function BreakoutBoard({
 
   async function handleArchive() {
     if (!isOwner) return;
-    if (!window.confirm("세션을 종료하면 읽기 전용 아카이브로 전환돼요. 계속할까요?")) return;
+    if (
+      !window.confirm(
+        "세션을 종료하면 읽기 전용 아카이브로 전환돼요. 계속할까요?"
+      )
+    )
+      return;
     setArchiving(true);
     try {
       const res = await fetch(`/api/breakout/assignments/${assignment.id}`, {
@@ -175,7 +229,8 @@ export function BreakoutBoard({
   }
 
   async function handleAdd(data: AddCardData) {
-    const targetSection = data.sectionId ?? addForSection ?? sections[0]?.id ?? null;
+    const targetSection =
+      data.sectionId ?? addForSection ?? sections[0]?.id ?? null;
     const order = targetSection ? getCardsForSection(targetSection).length : 0;
     try {
       const res = await fetch(`/api/cards`, {
@@ -191,7 +246,9 @@ export function BreakoutBoard({
           linkImage: data.linkImage || null,
           attachments: data.attachments,
           color: data.color || null,
-          x: 0, y: 0, order,
+          x: 0,
+          y: 0,
+          order,
           sectionId: targetSection,
         }),
       });
@@ -237,15 +294,20 @@ export function BreakoutBoard({
   }
 
   async function handleCopyToAllGroups(sourceCard: CardData) {
-    if (poolTitles.has(
-      sections.find((s) => s.id === sourceCard.sectionId)?.title ?? ""
-    )) {
+    if (
+      poolTitles.has(
+        sections.find((s) => s.id === sourceCard.sectionId)?.title ?? ""
+      )
+    ) {
       alert("팀 공용 자료 섹션의 카드는 일괄 복제 대상이 아니에요.");
       return;
     }
-    if (!window.confirm(
-      `"${sourceCard.title}" 카드를 모든 모둠 섹션에 복제할까요?\n(팀 공용 섹션 제외)`
-    )) return;
+    if (
+      !window.confirm(
+        `"${sourceCard.title}" 카드를 모든 모둠 섹션에 복제할까요?\n(팀 공용 섹션 제외)`
+      )
+    )
+      return;
 
     setCopying(sourceCard.id);
     try {
@@ -264,43 +326,12 @@ export function BreakoutBoard({
       }
       const { copiedTo, cards: newCards } = await res.json();
 
-      // Merge newly created cards into state. Each row is a full Card record.
       if (Array.isArray(newCards) && newCards.length > 0) {
         setCards((prev) => [
           ...prev,
-          ...newCards.map((c: Record<string, unknown>) => ({
-            id: String(c.id),
-            title: String(c.title ?? ""),
-            content: String(c.content ?? ""),
-            color: (c.color as string | null) ?? null,
-            imageUrl: (c.imageUrl as string | null) ?? null,
-            linkUrl: (c.linkUrl as string | null) ?? null,
-            linkTitle: (c.linkTitle as string | null) ?? null,
-            linkDesc: (c.linkDesc as string | null) ?? null,
-            linkImage: (c.linkImage as string | null) ?? null,
-            videoUrl: (c.videoUrl as string | null) ?? null,
-            fileUrl: (c.fileUrl as string | null) ?? null,
-            fileName: (c.fileName as string | null) ?? null,
-            fileSize: (c.fileSize as number | null) ?? null,
-            fileMimeType: (c.fileMimeType as string | null) ?? null,
-            attachments:
-              (c.attachments as Array<{
-                id: string;
-                kind: string;
-                url: string;
-                fileName: string | null;
-                fileSize: number | null;
-                mimeType: string | null;
-                order: number;
-              }> | undefined) ?? [],
-            x: Number(c.x ?? 0),
-            y: Number(c.y ?? 0),
-            width: Number(c.width ?? 240),
-            height: Number(c.height ?? 160),
-            order: Number(c.order ?? 0),
-            sectionId: (c.sectionId as string | null) ?? null,
-            authorId: String(c.authorId ?? currentUserId),
-          })),
+          ...newCards.map((c: Record<string, unknown>) =>
+            normalizeCopiedCard(c, currentUserId)
+          ),
         ]);
       }
       alert(`${copiedTo}개 섹션에 카드가 복제되었어요.`);
@@ -318,7 +349,11 @@ export function BreakoutBoard({
       (currentRole === "editor" && card.authorId === currentUserId);
     const items: MenuItem[] = [];
     if (canModify) {
-      items.push({ label: "수정", icon: "✏️", onClick: () => setEditingCard(card) });
+      items.push({
+        label: "수정",
+        icon: "✏️",
+        onClick: () => setEditingCard(card),
+      });
     }
     if (canBulkCopy && !isPoolCard) {
       items.push({
@@ -342,203 +377,64 @@ export function BreakoutBoard({
 
   return (
     <div className="board-canvas-wrap">
-      <div
-        className="breakout-header"
-        style={{ padding: "8px 16px", display: "flex", alignItems: "center", gap: 8 }}
-      >
-        <span className="breakout-breadcrumb" style={{ flex: 1 }}>
-          {boardTitle} · {assignment.templateName} · {assignment.groupCount}모둠
-          {" · "}
-          {assignment.visibility === "peek-others" ? "👁 모둠 간 열람" : "🔒 자기 모둠만"}
-          {" · "}
-          {assignment.deployMode === "link-fixed" && "🔗 링크 고정"}
-          {assignment.deployMode === "self-select" && "✋ 자율 선택"}
-          {assignment.deployMode === "teacher-assign" && "👩‍🏫 교사 배정"}
-          {localStatus === "archived" && " · 📦 아카이브"}
-        </span>
-        {isOwner && localStatus === "active" && (
-          <>
-            <button
-              type="button"
-              className="column-add-btn"
-              onClick={() => setManagerOpen(true)}
-            >
-              배정 관리
-            </button>
-            <Link href={`/board/${boardSlug}/archive`} className="column-add-btn">
-              아카이브
-            </Link>
-            <button
-              type="button"
-              className="column-add-btn"
-              onClick={handleArchive}
-              disabled={archiving}
-              style={{ borderColor: "var(--color-danger,#c00)" }}
-            >
-              {archiving ? "종료 중…" : "세션 종료"}
-            </button>
-          </>
-        )}
-      </div>
+      <BreakoutHeader
+        boardTitle={boardTitle}
+        boardSlug={boardSlug}
+        templateName={assignment.templateName}
+        groupCount={assignment.groupCount}
+        visibility={assignment.visibility}
+        deployMode={assignment.deployMode}
+        localStatus={localStatus}
+        isOwner={isOwner}
+        archiving={archiving}
+        onOpenManager={() => setManagerOpen(true)}
+        onArchive={handleArchive}
+      />
 
       {poolSections.length > 0 && (
         <section style={{ padding: "8px 16px 16px" }} aria-label="팀 공용 자료">
-          {poolSections.map((s) => {
-            const sectionCards = getCardsForSection(s.id);
-            return (
-              <div key={s.id} className="column" style={{ width: "100%" }}>
-                <div className="column-header">
-                  <h3 className="column-title">📎 {s.title}</h3>
-                  <span className="column-count">{sectionCards.length}</span>
-                </div>
-                <div className="column-cards" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {sectionCards.map((c) => (
-                    <article
-                      key={c.id}
-                      className="column-card is-clickable"
-                      style={{ backgroundColor: c.color ?? undefined, minWidth: 220 }}
-                      onClick={() => setOpenCard(c)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          setOpenCard(c);
-                        }
-                      }}
-                      tabIndex={0}
-                      role="button"
-                    >
-                      <CardBody card={c} titleAs="h4" />
-                      {canEdit && (
-                        <div className="card-ctx-menu" onClick={(e) => e.stopPropagation()}>
-                          <ContextMenu items={cardMenuItems(c, true)} />
-                        </div>
-                      )}
-                    </article>
-                  ))}
-                  {sectionCards.length === 0 && (
-                    <div className="column-empty">공용 자료를 여기에 추가하세요</div>
-                  )}
-                </div>
-                {canEdit && (
-                  <button
-                    type="button"
-                    className="column-inline-add"
-                    onClick={() => setAddForSection(s.id)}
-                  >
-                    + 자료 추가
-                  </button>
-                )}
-              </div>
-            );
-          })}
+          {poolSections.map((s) => (
+            <PoolColumn
+              key={s.id}
+              sectionId={s.id}
+              sectionTitle={s.title}
+              sectionCards={getCardsForSection(s.id)}
+              canEdit={canEdit}
+              cardMenuItems={cardMenuItems}
+              onOpenCard={setOpenCard}
+              onAddInSection={setAddForSection}
+            />
+          ))}
         </section>
       )}
 
       <div className="columns-board" style={{ alignItems: "flex-start" }}>
         {groupedSections.map(([groupIndex, groupSections]) => {
-          const groupMembers = groupSections
-            .flatMap((s) => membershipsBySection.get(s.id) ?? []);
+          const groupMembers = groupSections.flatMap(
+            (s) => membershipsBySection.get(s.id) ?? []
+          );
           // Per teacher dashboard: show the most recent card updatedAt per group
           // to surface stalled groups. Foundation CardData doesn't carry updatedAt,
           // so we approximate with "has cards" presence.
-          const hasAnyCard = groupSections.some((s) => getCardsForSection(s.id).length > 0);
+          const hasAnyCard = groupSections.some(
+            (s) => getCardsForSection(s.id).length > 0
+          );
           return (
-          <div
-            key={groupIndex}
-            className="column"
-            style={{ border: "2px solid var(--color-border,#ddd)", borderRadius: 8 }}
-            aria-label={`모둠 ${groupIndex}`}
-          >
-            <div className="column-header">
-              <h3 className="column-title">모둠 {groupIndex}</h3>
-              <span className="column-count">
-                {groupMembers.length} / {assignment.groupCapacity}
-              </span>
-            </div>
-            {isOwner && (
-              <div
-                style={{
-                  padding: "2px 8px 8px",
-                  fontSize: "0.85rem",
-                  color: "var(--color-muted,#555)",
-                }}
-              >
-                {groupMembers.length === 0 ? (
-                  <span>아직 배정된 학생 없음</span>
-                ) : (
-                  groupMembers
-                    .map((m) =>
-                      m.studentNumber != null
-                        ? `${m.studentNumber}. ${m.studentName}`
-                        : m.studentName
-                    )
-                    .join(", ")
-                )}
-                {!hasAnyCard && groupMembers.length > 0 && (
-                  <span
-                    style={{ color: "var(--color-warn,#8a6d00)", marginLeft: 4 }}
-                    title="활동 시작 안 됨"
-                  >
-                    ⚠ 정체
-                  </span>
-                )}
-              </div>
-            )}
-            <div style={{ display: "grid", gap: 12 }}>
-              {groupSections.map((s) => {
-                const sectionCards = getCardsForSection(s.id);
-                const parsed = parseGroupSection(s.title);
-                const tabTitle = parsed?.tabTitle ?? s.title;
-                return (
-                  <div key={s.id}>
-                    <div className="column-header" style={{ marginTop: 4 }}>
-                      <h4 className="column-title" style={{ fontSize: "0.95rem" }}>
-                        {tabTitle}
-                      </h4>
-                      <span className="column-count">{sectionCards.length}</span>
-                    </div>
-                    <div className="column-cards">
-                      {sectionCards.map((c) => (
-                        <article
-                          key={c.id}
-                          className="column-card is-clickable"
-                          style={{ backgroundColor: c.color ?? undefined }}
-                          onClick={() => setOpenCard(c)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              setOpenCard(c);
-                            }
-                          }}
-                          tabIndex={0}
-                          role="button"
-                        >
-                          <CardBody card={c} titleAs="h4" />
-                          {canEdit && (
-                            <div className="card-ctx-menu" onClick={(e) => e.stopPropagation()}>
-                              <ContextMenu items={cardMenuItems(c, false)} />
-                            </div>
-                          )}
-                        </article>
-                      ))}
-                      {sectionCards.length === 0 && (
-                        <div className="column-empty">아직 카드가 없어요</div>
-                      )}
-                    </div>
-                    {canEdit && (
-                      <button
-                        type="button"
-                        className="column-inline-add"
-                        onClick={() => setAddForSection(s.id)}
-                      >
-                        + 카드 추가
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+            <GroupColumn
+              key={groupIndex}
+              groupIndex={groupIndex}
+              groupSections={groupSections}
+              groupCapacity={assignment.groupCapacity}
+              groupMembers={groupMembers}
+              isOwner={isOwner}
+              canEdit={canEdit}
+              hasAnyCard={hasAnyCard}
+              parseSection={parseGroupSection}
+              getCardsForSection={getCardsForSection}
+              cardMenuItems={cardMenuItems}
+              onOpenCard={setOpenCard}
+              onAddInSection={setAddForSection}
+            />
           );
         })}
       </div>

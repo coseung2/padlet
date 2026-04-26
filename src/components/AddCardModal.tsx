@@ -9,17 +9,16 @@ import {
   formatBytes,
   MAX_ATTACHMENTS_PER_CARD,
 } from "@/lib/file-attachment";
-import { uploadFile } from "@/lib/upload-client";
+import {
+  useCardAttachments,
+  type AttachmentDraft,
+} from "./cards/useCardAttachments";
+import {
+  LibraryPickerModal,
+  type LibraryAsset,
+} from "./cards/LibraryPickerModal";
 
-export type AttachmentDraft = {
-  /** 클라이언트 전용 식별자(DB id 아님). React key용. */
-  tempId: string;
-  kind: "image" | "video" | "file";
-  url: string;
-  fileName?: string;
-  fileSize?: number;
-  mimeType?: string;
-};
+export type { AttachmentDraft } from "./cards/useCardAttachments";
 
 export type AddCardData = {
   title: string;
@@ -37,13 +36,6 @@ export type AddCardData = {
   attachAssetId?: string;
 };
 
-type LibraryAsset = {
-  id: string;
-  title: string;
-  fileUrl: string;
-  thumbnailUrl: string | null;
-};
-
 type SectionOption = { id: string; title: string };
 
 type Props = {
@@ -54,8 +46,16 @@ type Props = {
 };
 
 const COLOR_PRESETS = [
-  null, "#ffd8f4", "#c3faf5", "#ffe6cd", "#fde0f0",
-  "#f2f9ff", "#ffc6c6", "#f6f5f4", "#e8f5e9", "#fff3e0",
+  null,
+  "#ffd8f4",
+  "#c3faf5",
+  "#ffe6cd",
+  "#fde0f0",
+  "#f2f9ff",
+  "#ffc6c6",
+  "#f6f5f4",
+  "#e8f5e9",
+  "#fff3e0",
 ];
 
 // 파일 input accept 문자열 — 모달 JSX에서 여러 번 쓰여서 상수로 분리.
@@ -69,24 +69,25 @@ const FILE_ACCEPT =
   "text/plain,application/zip,application/x-zip-compressed," +
   ".pdf,.docx,.xlsx,.pptx,.hwp,.hwpx,.txt,.zip";
 
-function mintId(): string {
-  return `a_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Props) {
+export function AddCardModal({
+  onAdd,
+  onClose,
+  sections,
+  defaultSectionId,
+}: Props) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [color, setColor] = useState<string | null>(null);
-  const [sectionId, setSectionId] = useState(defaultSectionId ?? sections?.[0]?.id ?? "");
-  const [attachments, setAttachments] = useState<AttachmentDraft[]>([]);
+  const [sectionId, setSectionId] = useState(
+    defaultSectionId ?? sections?.[0]?.id ?? ""
+  );
   const [showImage, setShowImage] = useState(false);
   const [showLink, setShowLink] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
   const [showFile, setShowFile] = useState(false);
   const { preview, loading: previewLoading, fetchPreview } = useLinkPreview();
   const [busy, setBusy] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -95,10 +96,19 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [pickedAssetId, setPickedAssetId] = useState<string | null>(null);
 
-  const totalCount = attachments.length;
-  const canAddMore = totalCount < MAX_ATTACHMENTS_PER_CARD;
-  const countByKind = (kind: AttachmentDraft["kind"]) =>
-    attachments.filter((a) => a.kind === kind).length;
+  const {
+    attachments,
+    uploading,
+    totalCount,
+    canAddMore,
+    countByKind,
+    uploadMany,
+    addLibraryImage,
+    removeAttachment,
+    moveAttachment,
+    isFirstOfKind,
+    isLastOfKind,
+  } = useCardAttachments();
 
   async function openLibrary() {
     setPickerOpen(true);
@@ -122,137 +132,14 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
 
   function confirmLibraryPick() {
     if (!pickedAssetId || !libraryAssets) return;
-    if (attachmentsRef.current.length >= MAX_ATTACHMENTS_PER_CARD) {
-      alert(`첨부는 카드당 최대 ${MAX_ATTACHMENTS_PER_CARD}개까지 가능합니다.`);
-      return;
-    }
     const picked = libraryAssets.find((a) => a.id === pickedAssetId);
     if (picked) {
       const url = picked.thumbnailUrl ?? picked.fileUrl;
       // 라이브러리 픽은 "이미지" attachment로 추가. attachAssetId는 별도
-      // StudentAsset 조인용으로 유지. attachmentsRef도 함께 갱신해서
-      // 이후 업로드 상한 체크가 일관되도록 (codex H3 반영).
-      setAttachments((prev) => {
-        const next: AttachmentDraft[] = [
-          ...prev,
-          { tempId: mintId(), kind: "image", url },
-        ];
-        attachmentsRef.current = next;
-        return next;
-      });
-      setShowImage(true);
+      // StudentAsset 조인용으로 유지.
+      if (addLibraryImage(url)) setShowImage(true);
     }
     setPickerOpen(false);
-  }
-
-  async function uploadOne(
-    file: File,
-    kind: AttachmentDraft["kind"]
-  ): Promise<{ ok: true; draft: AttachmentDraft } | { ok: false; reason: string }> {
-    try {
-      const data = await uploadFile(file);
-      return {
-        ok: true,
-        draft: {
-          tempId: mintId(),
-          kind,
-          url: data.url,
-          fileName: data.name,
-          fileSize: data.size,
-          mimeType: data.mimeType,
-        },
-      };
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "업로드 실패";
-      console.error(`[upload ${kind}] ${file.name}: ${msg}`);
-      return { ok: false, reason: msg };
-    }
-  }
-
-  // 여러 파일 순차 업로드 — 브라우저 메모리 & 서버 레이트 보수적으로.
-  // 입력 파일은 이름순으로 정렬 후 업로드해 attachment 저장 순서도 이름순.
-  async function uploadMany(files: File[], kind: AttachmentDraft["kind"]) {
-    setUploading(true);
-    const failures: string[] = [];
-    // 사용자가 선택한 파일을 한글/숫자 혼합 파일명에 대해 자연스럽게 정렬
-    // (예: "01차시"<"02차시"<"10차시"). localeCompare + numeric:true가 그 역할.
-    const sorted = [...files].sort((a, b) =>
-      a.name.localeCompare(b.name, "ko", { numeric: true, sensitivity: "base" })
-    );
-    for (const f of sorted) {
-      if (attachmentsRef.current.length >= MAX_ATTACHMENTS_PER_CARD) {
-        failures.push(`${f.name}: 첨부 최대 ${MAX_ATTACHMENTS_PER_CARD}개 초과`);
-        continue;
-      }
-      const r = await uploadOne(f, kind);
-      if (r.ok) {
-        setAttachments((prev) => {
-          const next = [...prev, r.draft];
-          attachmentsRef.current = next;
-          return next;
-        });
-      } else {
-        failures.push(`${f.name}: ${r.reason}`);
-      }
-    }
-    setUploading(false);
-    if (failures.length > 0) {
-      alert(
-        `일부 업로드 실패 (${failures.length}/${files.length}):\n\n${failures.join("\n")}`
-      );
-    }
-  }
-
-  // setAttachments는 async 스냅샷이라 for-loop 내부에서 최신 길이 알기 어려움.
-  // 상한 체크용 ref로 현재 리스트 동기 스냅샷 유지.
-  const attachmentsRef = useRef<AttachmentDraft[]>(attachments);
-
-  function removeAttachment(tempId: string) {
-    setAttachments((prev) => {
-      const next = prev.filter((a) => a.tempId !== tempId);
-      attachmentsRef.current = next;
-      return next;
-    });
-  }
-
-  /** 같은 kind 내에서 위/아래로 이동. 카드에 저장되는 최종 order는 서버
-   *  트랜잭션이 배열 인덱스로 매긴다(AddCardModal → payloadAttachments →
-   *  /api/cards에서 idx를 order로 사용). */
-  function moveAttachment(tempId: string, dir: -1 | 1) {
-    setAttachments((prev) => {
-      const idx = prev.findIndex((a) => a.tempId === tempId);
-      if (idx < 0) return prev;
-      const kind = prev[idx].kind;
-      // 같은 kind의 이웃을 찾아 교체. kind 간 순서는 건드리지 않음 —
-      // 렌더도 kind별 섹션으로 분리되므로 kind 내 재배치만 의미 있음.
-      const sameKindIndices = prev
-        .map((a, i) => (a.kind === kind ? i : -1))
-        .filter((i) => i >= 0);
-      const pos = sameKindIndices.indexOf(idx);
-      const swapPos = pos + dir;
-      if (swapPos < 0 || swapPos >= sameKindIndices.length) return prev;
-      const j = sameKindIndices[swapPos];
-      const next = [...prev];
-      [next[idx], next[j]] = [next[j], next[idx]];
-      attachmentsRef.current = next;
-      return next;
-    });
-  }
-
-  function isFirstOfKind(tempId: string): boolean {
-    const sameKind = attachments.filter((a) => {
-      const target = attachments.find((x) => x.tempId === tempId);
-      return target && a.kind === target.kind;
-    });
-    return sameKind[0]?.tempId === tempId;
-  }
-
-  function isLastOfKind(tempId: string): boolean {
-    const sameKind = attachments.filter((a) => {
-      const target = attachments.find((x) => x.tempId === tempId);
-      return target && a.kind === target.kind;
-    });
-    return sameKind[sameKind.length - 1]?.tempId === tempId;
   }
 
   return (
@@ -261,7 +148,9 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
       <div className="add-card-modal">
         <div className="modal-header">
           <h2 className="modal-title">새 카드 만들기</h2>
-          <button type="button" className="modal-close" onClick={onClose}>×</button>
+          <button type="button" className="modal-close" onClick={onClose}>
+            ×
+          </button>
         </div>
 
         <form
@@ -271,7 +160,9 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
             if (!title.trim()) return;
             // codex H3: 제출 전 authoritative 상한 검증.
             if (attachments.length > MAX_ATTACHMENTS_PER_CARD) {
-              alert(`첨부는 카드당 최대 ${MAX_ATTACHMENTS_PER_CARD}개까지 가능합니다.`);
+              alert(
+                `첨부는 카드당 최대 ${MAX_ATTACHMENTS_PER_CARD}개까지 가능합니다.`
+              );
               return;
             }
             setBusy(true);
@@ -290,7 +181,8 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
               linkTitle: preview?.title || undefined,
               linkDesc: preview?.description || undefined,
               linkImage: preview?.image || undefined,
-              attachments: payloadAttachments.length > 0 ? payloadAttachments : undefined,
+              attachments:
+                payloadAttachments.length > 0 ? payloadAttachments : undefined,
               color: color || undefined,
               sectionId: sectionId || undefined,
               attachAssetId: pickedAssetId ?? undefined,
@@ -308,7 +200,9 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
                 className="modal-select"
               >
                 {sections.map((s) => (
-                  <option key={s.id} value={s.id}>{s.title}</option>
+                  <option key={s.id} value={s.id}>
+                    {s.title}
+                  </option>
                 ))}
               </select>
             </>
@@ -342,7 +236,8 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
               className={`modal-attach-btn ${showImage ? "modal-attach-btn-active" : ""}`}
               onClick={() => setShowImage(!showImage)}
             >
-              🖼️ 이미지{countByKind("image") > 0 && ` · ${countByKind("image")}`}
+              🖼️ 이미지
+              {countByKind("image") > 0 && ` · ${countByKind("image")}`}
             </button>
             <button
               type="button"
@@ -356,7 +251,8 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
               className={`modal-attach-btn ${showVideo ? "modal-attach-btn-active" : ""}`}
               onClick={() => setShowVideo(!showVideo)}
             >
-              🎬 동영상{countByKind("video") > 0 && ` · ${countByKind("video")}`}
+              🎬 동영상
+              {countByKind("video") > 0 && ` · ${countByKind("video")}`}
             </button>
             <button
               type="button"
@@ -389,7 +285,10 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
                 {attachments
                   .filter((a) => a.kind === "image")
                   .map((a) => (
-                    <div key={a.tempId} className="modal-attach-list-item modal-attach-list-item-image">
+                    <div
+                      key={a.tempId}
+                      className="modal-attach-list-item modal-attach-list-item-image"
+                    >
                       <div className="optimized-img-wrap">
                         <OptimizedImage
                           src={a.url}
@@ -432,18 +331,30 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
               <div
                 className={`modal-file-drop ${!canAddMore ? "is-disabled" : ""}`}
                 onClick={() => canAddMore && imageInputRef.current?.click()}
-                onDragOver={(e) => { if (!canAddMore) return; e.preventDefault(); e.currentTarget.classList.add("drag-over"); }}
-                onDragLeave={(e) => e.currentTarget.classList.remove("drag-over")}
+                onDragOver={(e) => {
+                  if (!canAddMore) return;
+                  e.preventDefault();
+                  e.currentTarget.classList.add("drag-over");
+                }}
+                onDragLeave={(e) =>
+                  e.currentTarget.classList.remove("drag-over")
+                }
                 onDrop={(e) => {
                   e.preventDefault();
                   e.currentTarget.classList.remove("drag-over");
                   if (!canAddMore) return;
-                  const fs = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
+                  const fs = Array.from(e.dataTransfer.files).filter((f) =>
+                    f.type.startsWith("image/")
+                  );
                   if (fs.length > 0) void uploadMany(fs, "image");
                 }}
               >
                 <span className="modal-file-drop-icon">🖼️</span>
-                <span>{uploading ? "업로드 중..." : "클릭 또는 이미지를 드래그 (여러 개 선택 가능)"}</span>
+                <span>
+                  {uploading
+                    ? "업로드 중..."
+                    : "클릭 또는 이미지를 드래그 (여러 개 선택 가능)"}
+                </span>
                 <input
                   ref={imageInputRef}
                   type="file"
@@ -474,7 +385,11 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
                 className="modal-input"
                 type="url"
               />
-              {previewLoading && <div className="link-preview-loading">미리보기 가져오는 중...</div>}
+              {previewLoading && (
+                <div className="link-preview-loading">
+                  미리보기 가져오는 중...
+                </div>
+              )}
               {preview && (preview.title || preview.image) && (
                 <div className="link-preview-card">
                   {preview.image && (
@@ -483,8 +398,16 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
                     </div>
                   )}
                   <div className="link-preview-card-body">
-                    {preview.title && <div className="link-preview-card-title">{preview.title}</div>}
-                    {preview.description && <div className="link-preview-card-desc">{preview.description}</div>}
+                    {preview.title && (
+                      <div className="link-preview-card-title">
+                        {preview.title}
+                      </div>
+                    )}
+                    {preview.description && (
+                      <div className="link-preview-card-desc">
+                        {preview.description}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -498,8 +421,15 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
                 {attachments
                   .filter((a) => a.kind === "video")
                   .map((a) => (
-                    <div key={a.tempId} className="modal-attach-list-item modal-attach-list-item-video">
-                      <video src={a.url} className="modal-preview-video-file" preload="metadata" />
+                    <div
+                      key={a.tempId}
+                      className="modal-attach-list-item modal-attach-list-item-video"
+                    >
+                      <video
+                        src={a.url}
+                        className="modal-preview-video-file"
+                        preload="metadata"
+                      />
                       <div className="modal-attach-reorder modal-attach-reorder-overlay">
                         <button
                           type="button"
@@ -534,18 +464,28 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
               <div
                 className={`modal-file-drop ${!canAddMore ? "is-disabled" : ""}`}
                 onClick={() => canAddMore && videoInputRef.current?.click()}
-                onDragOver={(e) => { if (!canAddMore) return; e.preventDefault(); e.currentTarget.classList.add("drag-over"); }}
-                onDragLeave={(e) => e.currentTarget.classList.remove("drag-over")}
+                onDragOver={(e) => {
+                  if (!canAddMore) return;
+                  e.preventDefault();
+                  e.currentTarget.classList.add("drag-over");
+                }}
+                onDragLeave={(e) =>
+                  e.currentTarget.classList.remove("drag-over")
+                }
                 onDrop={(e) => {
                   e.preventDefault();
                   e.currentTarget.classList.remove("drag-over");
                   if (!canAddMore) return;
-                  const fs = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("video/"));
+                  const fs = Array.from(e.dataTransfer.files).filter((f) =>
+                    f.type.startsWith("video/")
+                  );
                   if (fs.length > 0) void uploadMany(fs, "video");
                 }}
               >
                 <span className="modal-file-drop-icon">🎬</span>
-                <span>{uploading ? "업로드 중..." : "클릭 또는 동영상을 드래그"}</span>
+                <span>
+                  {uploading ? "업로드 중..." : "클릭 또는 동영상을 드래그"}
+                </span>
                 <input
                   ref={videoInputRef}
                   type="file"
@@ -569,12 +509,18 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
                 {attachments
                   .filter((a) => a.kind === "file")
                   .map((a) => (
-                    <div key={a.tempId} className="modal-file-preview modal-file-preview-file">
+                    <div
+                      key={a.tempId}
+                      className="modal-file-preview modal-file-preview-file"
+                    >
                       <span className="modal-file-preview-icon" aria-hidden>
                         {fileMimeToIcon(a.mimeType ?? "")}
                       </span>
                       <div className="modal-file-preview-body">
-                        <span className="modal-file-preview-name" title={a.fileName ?? ""}>
+                        <span
+                          className="modal-file-preview-name"
+                          title={a.fileName ?? ""}
+                        >
                           {a.fileName ?? "파일"}
                         </span>
                         <span className="modal-file-preview-meta">
@@ -615,8 +561,14 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
               <div
                 className={`modal-file-drop ${!canAddMore ? "is-disabled" : ""}`}
                 onClick={() => canAddMore && fileInputRef.current?.click()}
-                onDragOver={(e) => { if (!canAddMore) return; e.preventDefault(); e.currentTarget.classList.add("drag-over"); }}
-                onDragLeave={(e) => e.currentTarget.classList.remove("drag-over")}
+                onDragOver={(e) => {
+                  if (!canAddMore) return;
+                  e.preventDefault();
+                  e.currentTarget.classList.add("drag-over");
+                }}
+                onDragLeave={(e) =>
+                  e.currentTarget.classList.remove("drag-over")
+                }
                 onDrop={(e) => {
                   e.preventDefault();
                   e.currentTarget.classList.remove("drag-over");
@@ -626,9 +578,14 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
                 }}
               >
                 <span className="modal-file-drop-icon">📎</span>
-                <span>{uploading ? "업로드 중..." : "클릭 또는 파일을 드래그 (여러 개 선택 가능)"}</span>
+                <span>
+                  {uploading
+                    ? "업로드 중..."
+                    : "클릭 또는 파일을 드래그 (여러 개 선택 가능)"}
+                </span>
                 <span className="modal-file-drop-hint">
-                  PDF · Word · Excel · PowerPoint · HWP · TXT · ZIP (파일당 최대 50MB)
+                  PDF · Word · Excel · PowerPoint · HWP · TXT · ZIP (파일당 최대
+                  50MB)
                 </span>
                 <input
                   ref={fileInputRef}
@@ -665,10 +622,19 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
           </div>
 
           <div className="modal-actions">
-            <button type="button" onClick={onClose} disabled={busy || uploading} className="modal-btn-cancel">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={busy || uploading}
+              className="modal-btn-cancel"
+            >
               취소
             </button>
-            <button type="submit" disabled={busy || uploading || !title.trim()} className="modal-btn-submit">
+            <button
+              type="submit"
+              disabled={busy || uploading || !title.trim()}
+              className="modal-btn-submit"
+            >
               {busy ? "추가 중..." : "카드 추가"}
             </button>
           </div>
@@ -676,65 +642,15 @@ export function AddCardModal({ onAdd, onClose, sections, defaultSectionId }: Pro
       </div>
 
       {pickerOpen && (
-        <div className="library-picker-overlay" onClick={() => setPickerOpen(false)}>
-          <div className="library-picker" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title">내 라이브러리</h2>
-              <button
-                type="button"
-                className="modal-close"
-                onClick={() => setPickerOpen(false)}
-              >
-                ×
-              </button>
-            </div>
-            {libraryLoading && <p className="muted">불러오는 중...</p>}
-            {!libraryLoading && libraryAssets && libraryAssets.length === 0 && (
-              <p className="muted">
-                아직 업로드한 그림이 없어요. 그림보드(🎨) 레이아웃에서 먼저 업로드하세요.
-              </p>
-            )}
-            {!libraryLoading && libraryAssets && libraryAssets.length > 0 && (
-              <div className="library-picker-grid">
-                {libraryAssets.map((a) => (
-                  <button
-                    type="button"
-                    key={a.id}
-                    className={`library-picker-item ${
-                      pickedAssetId === a.id ? "selected" : ""
-                    }`}
-                    onClick={() => setPickedAssetId(a.id)}
-                    aria-pressed={pickedAssetId === a.id}
-                  >
-                    {a.thumbnailUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={a.thumbnailUrl} alt={a.title || "그림"} />
-                    ) : (
-                      <span aria-hidden>🖼️</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="modal-btn-cancel"
-                onClick={() => setPickerOpen(false)}
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                className="modal-btn-submit"
-                disabled={!pickedAssetId || !canAddMore}
-                onClick={confirmLibraryPick}
-              >
-                첨부
-              </button>
-            </div>
-          </div>
-        </div>
+        <LibraryPickerModal
+          loading={libraryLoading}
+          assets={libraryAssets}
+          pickedId={pickedAssetId}
+          canConfirm={!!pickedAssetId && canAddMore}
+          onPick={setPickedAssetId}
+          onClose={() => setPickerOpen(false)}
+          onConfirm={confirmLibraryPick}
+        />
       )}
     </>
   );

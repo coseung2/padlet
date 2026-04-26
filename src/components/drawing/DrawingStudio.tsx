@@ -36,16 +36,12 @@ import { BrushPreviewDot } from "./ui/BrushPreviewDot";
 import {
   CANVAS_W,
   CANVAS_H,
-  MAX_LAYERS,
   compose,
-  createLayer,
-  duplicateLayer,
-  flatten,
   generateThumb,
   initialStack,
   type CanvasSize,
 } from "./canvas/LayerStack";
-import { AssetInsertModal, type InsertableAsset } from "./AssetInsertModal";
+import { AssetInsertModal } from "./AssetInsertModal";
 import {
   beginStroke,
   drawSegment,
@@ -57,7 +53,10 @@ import { floodFill } from "./canvas/FloodFill";
 import { sampleHex } from "./canvas/Eyedropper";
 import { useViewportGestures } from "./hooks/useViewportGestures";
 import { useStabilizer } from "./hooks/useStabilizer";
-import type { BlendMode, Layer, StrokeSample, Tool } from "./canvas/types";
+import { useLayerOps } from "./hooks/useLayerOps";
+import { useDrawingSave } from "./hooks/useDrawingSave";
+import { useDrawingShortcuts } from "./hooks/useDrawingShortcuts";
+import type { Layer, StrokeSample, Tool } from "./canvas/types";
 
 type Props = {
   viewerKind?: "teacher" | "student" | "none";
@@ -97,8 +96,6 @@ export function DrawingStudio({
   const [colorOpen, setColorOpen] = useState(false);
   const [layerSheetOpen, setLayerSheetOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
 
   // ─── Undo/Redo ───────────────────────────────────────────
   const historyRef = useRef(new HistoryStack());
@@ -165,18 +162,12 @@ export function DrawingStudio({
     setCanRedo(historyRef.current.canRedo());
   }, []);
 
-  const {
-    zoom,
-    pan,
-    fit,
-    onTouchStart,
-    onTouchMove,
-    onTouchEnd,
-  } = useViewportGestures({
-    onUndo: handleUndo,
-    onRedo: handleRedo,
-    cancelActiveStroke,
-  });
+  const { zoom, pan, fit, onTouchStart, onTouchMove, onTouchEnd } =
+    useViewportGestures({
+      onUndo: handleUndo,
+      onRedo: handleRedo,
+      cancelActiveStroke,
+    });
 
   // ─── Compose scheduling ──────────────────────────────────
   const scheduleCompose = useCallback(() => {
@@ -204,25 +195,29 @@ export function DrawingStudio({
   }, []);
 
   const activeLayer = useMemo(
-    () => layers.find((l) => l.id === activeLayerId) ?? layers[layers.length - 1],
+    () =>
+      layers.find((l) => l.id === activeLayerId) ?? layers[layers.length - 1],
     [layers, activeLayerId]
   );
 
   // ─── Pointer → Stroke ────────────────────────────────────
-  const toSample = useCallback((e: PointerEvent): StrokeSample => {
-    const canvas = compositeRef.current!;
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvasSize.w / rect.width;
-    const scaleY = canvasSize.h / rect.height;
-    return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY,
-      pressure: e.pressure,
-      tiltX: e.tiltX ?? 0,
-      tiltY: e.tiltY ?? 0,
-      timestamp: e.timeStamp ?? Date.now(),
-    };
-  }, [canvasSize.w, canvasSize.h]);
+  const toSample = useCallback(
+    (e: PointerEvent): StrokeSample => {
+      const canvas = compositeRef.current!;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvasSize.w / rect.width;
+      const scaleY = canvasSize.h / rect.height;
+      return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY,
+        pressure: e.pressure,
+        tiltX: e.tiltX ?? 0,
+        tiltY: e.tiltY ?? 0,
+        timestamp: e.timeStamp ?? Date.now(),
+      };
+    },
+    [canvasSize.w, canvasSize.h]
+  );
 
   const onPointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
     if (e.button !== 0) return;
@@ -250,7 +245,12 @@ export function DrawingStudio({
     stable.begin(sample);
     compositeRef.current?.setPointerCapture(e.pointerId);
     activePointerId.current = e.pointerId;
-    strokeRef.current = beginStroke(layer, tool, { color, size, opacity }, sample);
+    strokeRef.current = beginStroke(
+      layer,
+      tool,
+      { color, size, opacity },
+      sample
+    );
     scheduleCompose();
   };
 
@@ -290,182 +290,49 @@ export function DrawingStudio({
     scheduleCompose();
   };
 
-  // ─── Asset insert ────────────────────────────────────────
-  // Stamps an external image (from /api/student-assets shared scope, or a
-  // seeded design asset) onto a fresh layer. Scaled to fit the canvas
-  // while preserving aspect ratio — user can resize with new layer tools
-  // in a future iteration.
+  // ─── Layer ops ───────────────────────────────────────────
+  const {
+    addLayer,
+    deleteLayer,
+    duplicateAt,
+    toggleVisible,
+    reorderLayer,
+    setLayerOpacity,
+    setLayerBlend,
+    insertAsset: insertAssetRaw,
+  } = useLayerOps({ layers, canvasSize, setLayers, setActiveLayerId });
+
   const insertAsset = useCallback(
-    async (asset: InsertableAsset) => {
-      if (layers.length >= MAX_LAYERS) {
-        return; // silent — panel already shows the cap
-      }
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      try {
-        await new Promise<void>((resolve, reject) => {
-          img.onload = () => resolve();
-          img.onerror = () => reject(new Error("image_load_failed"));
-          img.src = asset.fileUrl;
-        });
-      } catch {
-        return;
-      }
-      const name = asset.title ? `에셋 — ${asset.title}` : "에셋";
-      const layer = createLayer({ name, size: canvasSize });
-      const ctx = layer.canvas.getContext("2d");
-      if (!ctx) return;
-      const scale = Math.min(
-        canvasSize.w / img.width,
-        canvasSize.h / img.height,
-        1
-      );
-      const drawW = img.width * scale;
-      const drawH = img.height * scale;
-      const dx = (canvasSize.w - drawW) / 2;
-      const dy = (canvasSize.h - drawH) / 2;
-      ctx.drawImage(img, dx, dy, drawW, drawH);
-      setLayers((c) => [...c, layer]);
-      setActiveLayerId(layer.id);
+    async (asset: Parameters<typeof insertAssetRaw>[0]) => {
+      await insertAssetRaw(asset);
       setAssetInsertOpen(false);
     },
-    [canvasSize, layers.length]
+    [insertAssetRaw]
   );
-
-  // ─── Layer ops ───────────────────────────────────────────
-  const addLayer = useCallback(() => {
-    if (layers.length >= MAX_LAYERS) return;
-    const next = createLayer({ name: `레이어 ${layers.length}`, size: canvasSize });
-    setLayers((c) => [...c, next]);
-    setActiveLayerId(next.id);
-  }, [layers.length]);
-  const deleteLayer = useCallback(
-    (id: string) => {
-      if (layers.length <= 1) return;
-      setLayers((c) => c.filter((l) => l.id !== id));
-    },
-    [layers.length]
-  );
-  const duplicateAt = useCallback(
-    (id: string) => {
-      if (layers.length >= MAX_LAYERS) return;
-      const src = layers.find((l) => l.id === id);
-      if (!src) return;
-      const copy = duplicateLayer(src);
-      setLayers((c) => {
-        const idx = c.findIndex((l) => l.id === id);
-        const next = [...c];
-        next.splice(idx + 1, 0, copy);
-        return next;
-      });
-      setActiveLayerId(copy.id);
-    },
-    [layers]
-  );
-  const toggleVisible = useCallback((id: string) => {
-    setLayers((c) =>
-      c.map((l) => (l.id === id ? { ...l, visible: !l.visible } : l))
-    );
-  }, []);
-  const reorderLayer = useCallback((from: number, to: number) => {
-    if (from === to) return;
-    setLayers((c) => {
-      const next = [...c];
-      const [m] = next.splice(from, 1);
-      next.splice(to, 0, m);
-      return next;
-    });
-  }, []);
-  const setLayerOpacity = useCallback((id: string, o: number) => {
-    setLayers((c) => c.map((l) => (l.id === id ? { ...l, opacity: o } : l)));
-  }, []);
-  const setLayerBlend = useCallback((id: string, m: BlendMode) => {
-    setLayers((c) => c.map((l) => (l.id === id ? { ...l, blendMode: m } : l)));
-  }, []);
 
   // ─── Save ────────────────────────────────────────────────
-  const handleSave = async ({
-    title,
-    shared,
-  }: {
-    title: string;
-    shared: boolean;
-  }) => {
-    setSaving(true);
-    setSaveError(null);
-    try {
-      // Guard against silently exporting a transparent PNG when every layer
-      // (including the white "배경" layer) is hidden — flatten() honours
-      // visibility and would otherwise produce blank output without warning.
-      if (!layers.some((l) => l.visible)) {
-        throw new Error("표시된 레이어가 없어요. 레이어를 켜고 다시 저장하세요.");
-      }
-      const flat = flatten(layers);
-      const blob = await new Promise<Blob | null>((resolve) =>
-        flat.toBlob((b) => resolve(b), "image/png")
-      );
-      if (!blob) throw new Error("PNG 변환 실패");
-      if (viewerKind === "student") {
-        const form = new FormData();
-        form.append("file", new File([blob], `${title}.png`, { type: "image/png" }));
-        form.append("title", title);
-        form.append("source", "drawing-studio");
-        if (shared) form.append("isSharedToClass", "true");
-        const res = await fetch("/api/student-assets", {
-          method: "POST",
-          body: form,
-        });
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body?.error ?? `HTTP ${res.status}`);
-        }
-        onSaved?.();
-      } else {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${title}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }
-      setSaveOpen(false);
-    } catch (e) {
-      setSaveError(e instanceof Error ? e.message : "저장 실패");
-    } finally {
-      setSaving(false);
-    }
+  const { saving, saveError, save } = useDrawingSave({
+    layers,
+    viewerKind,
+    onSaved,
+  });
+
+  const handleSave = async (args: { title: string; shared: boolean }) => {
+    const result = await save(args);
+    if (result.ok) setSaveOpen(false);
   };
 
   // ─── Shortcuts ───────────────────────────────────────────
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
-        e.preventDefault();
-        handleUndo();
-      } else if (
-        ((e.ctrlKey || e.metaKey) && e.key === "y") ||
-        ((e.ctrlKey || e.metaKey) && e.key === "z" && e.shiftKey)
-      ) {
-        e.preventDefault();
-        handleRedo();
-      } else if (e.key === "e") setTool("eraser");
-      else if (e.key === "b") setTool("pencil");
-      else if (e.key === "[") setSize((s) => Math.max(1, s - 2));
-      else if (e.key === "]") setSize((s) => Math.min(120, s + 2));
-      else if (e.key === "l") setLayerSheetOpen((o) => !o);
-      else if (e.key === "0") fit();
-      else if (e.key === "Escape") {
-        setColorOpen(false);
-        setSaveOpen(false);
-        setLayerSheetOpen(false);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [handleUndo, handleRedo, fit]);
+  useDrawingShortcuts({
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    fit,
+    setTool,
+    setSize,
+    setLayerSheetOpen,
+    setColorOpen,
+    setSaveOpen,
+  });
 
   return (
     <div className="ds-root">
@@ -538,10 +405,7 @@ export function DrawingStudio({
         onLayerToggle={() => setLayerSheetOpen((o) => !o)}
       />
 
-      <LayerSheet
-        open={layerSheetOpen}
-        onClose={() => setLayerSheetOpen(false)}
-      >
+      <LayerSheet open={layerSheetOpen} onClose={() => setLayerSheetOpen(false)}>
         <LayerPanel
           layers={layers}
           activeLayerId={activeLayerId}
