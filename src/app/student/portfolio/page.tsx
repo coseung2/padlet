@@ -1,0 +1,88 @@
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { db } from "@/lib/db";
+import { getCurrentStudent } from "@/lib/student-auth";
+import { PortfolioPage } from "@/components/portfolio/PortfolioPage";
+import type { PortfolioRosterDTO } from "@/lib/portfolio-dto";
+
+export const dynamic = "force-dynamic";
+
+// student-portfolio (2026-04-26): 학생 포트폴리오 — 좌측 학급 학생 리스트 +
+// 우측 선택 학생 카드 그리드. 본인이면 우클릭 메뉴에 자랑해요 토글 노출.
+//
+// roster 는 SSR 로 prefetch (좌측 리스트 즉시 렌더). 학생별 상세 카드는
+// 클라이언트에서 fetch.
+export default async function StudentPortfolioPage() {
+  const student = await getCurrentStudent();
+  if (!student) {
+    redirect("/student/login");
+  }
+
+  const classroomId = student.classroomId;
+  const classroom = await db.classroom.findUnique({
+    where: { id: classroomId },
+    select: { id: true, name: true },
+  });
+  if (!classroom) {
+    // 학생 세션은 있는데 학급이 사라진 케이스 — 데이터 정합성 깨짐, login 으로
+    redirect("/student/login");
+  }
+
+  const students = await db.student.findMany({
+    where: { classroomId },
+    orderBy: [{ number: "asc" }, { name: "asc" }],
+    select: { id: true, name: true, number: true },
+  });
+
+  // 학생별 카드 수 + 자랑해요 수 단일 round-trip
+  const counts = await db.$queryRaw<
+    Array<{ studentId: string; cardCount: bigint }>
+  >`
+    SELECT s.id AS "studentId", COUNT(DISTINCT c.id) AS "cardCount"
+    FROM "Student" s
+    LEFT JOIN "Card" c ON (
+      c."studentAuthorId" = s.id
+      OR c.id IN (SELECT "cardId" FROM "CardAuthor" WHERE "studentId" = s.id)
+    )
+    WHERE s."classroomId" = ${classroomId}
+    GROUP BY s.id
+  `;
+  const cardCountById = new Map(
+    counts.map((r) => [r.studentId, Number(r.cardCount)])
+  );
+  const showcaseCounts = await db.showcaseEntry.groupBy({
+    by: ["studentId"],
+    where: { classroomId },
+    _count: { _all: true },
+  });
+  const showcaseCountById = new Map(
+    showcaseCounts.map((r) => [r.studentId, r._count._all])
+  );
+
+  const initialRoster: PortfolioRosterDTO = {
+    classroom: { id: classroom.id, name: classroom.name },
+    students: students.map((s) => ({
+      id: s.id,
+      name: s.name,
+      number: s.number,
+      cardCount: cardCountById.get(s.id) ?? 0,
+      showcaseCount: showcaseCountById.get(s.id) ?? 0,
+    })),
+  };
+
+  return (
+    <main className="student-page student-page-portfolio">
+      <header className="student-portfolio-header">
+        <Link href="/student" className="student-portfolio-back" aria-label="학생 메인으로">
+          ←
+        </Link>
+        <h1>포트폴리오</h1>
+      </header>
+      <PortfolioPage
+        initialRoster={initialRoster}
+        selfStudentId={student.id}
+        defaultStudentId={student.id}
+      />
+    </main>
+  );
+}

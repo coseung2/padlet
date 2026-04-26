@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
 import { layoutLabel } from "@/lib/layout-meta";
+import { ShowcaseHighlightStrip } from "@/components/portfolio/ShowcaseHighlightStrip";
 
 type BoardItem = {
   id: string;
@@ -25,11 +26,18 @@ type Duty = {
 type Props = {
   studentName: string;
   classroomName: string;
+  classroomId: string;
   boards: BoardItem[];
   duties: Duty[];
 };
 
-export function StudentDashboard({ studentName, classroomName, boards, duties }: Props) {
+export function StudentDashboard({
+  studentName,
+  classroomName,
+  classroomId,
+  boards,
+  duties,
+}: Props) {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -55,6 +63,17 @@ export function StudentDashboard({ studentName, classroomName, boards, duties }:
         >
           {loggingOut ? "로그아웃 중..." : "로그아웃"}
         </button>
+      </div>
+
+      <ShowcaseHighlightStrip
+        classroomId={classroomId}
+        hrefBase="/student/portfolio"
+      />
+
+      <div className="student-portfolio-cta-row">
+        <Link href="/student/portfolio" className="student-portfolio-cta">
+          📚 우리 학급 포트폴리오 →
+        </Link>
       </div>
 
       {duties.length > 0 && (

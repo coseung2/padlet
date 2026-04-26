@@ -34,6 +34,18 @@ export function assignmentChannelKey(boardId: string): string {
   return `board:${boardId}:assignment`;
 }
 
+/** Classroom 자랑해요 highlight 영역 (student-portfolio 2026-04-26).
+ *  학급 dashboard 가 구독해 자랑해요 추가/제거 시 즉시 반영. */
+export function classroomShowcaseChannelKey(classroomId: string): string {
+  if (!classroomId)
+    throw new Error("classroomShowcaseChannelKey: classroomId required");
+  return `classroom:${classroomId}:showcase`;
+}
+
+export type ShowcaseRealtimeEvent =
+  | { type: "showcase_added"; cardId: string; studentId: string; classroomId: string; createdAt: string }
+  | { type: "showcase_removed"; cardId: string; studentId: string; classroomId: string };
+
 export type AssignmentRealtimeEvent =
   | {
       type: "slot.updated";

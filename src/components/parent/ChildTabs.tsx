@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 // Scrollable on narrow viewports so the 5 labels don't clip.
 
 const TABS = [
+  { key: "portfolio", label: "포트폴리오" },
   { key: "plant", label: "식물" },
   { key: "drawing", label: "그림" },
   { key: "assignments", label: "숙제" },

@@ -83,6 +83,10 @@ img.emoji {
   --color-vibe-sandbox-bg: #1a1a1a;
   --color-vibe-chat-user-bg: var(--color-accent-tinted-bg);
 
+  /* student-portfolio (2026-04-26). 자랑해요 🌟 배지·하이라이트 strip 헤더.
+     itch.io/Steam 별점 amber 와 동일 시맨틱(주목·하이라이트) 으로 alias. */
+  --color-showcase: var(--color-vibe-rating);
+
   /* Radii */
   --radius-card: 12px;
   --radius-btn: 4px;

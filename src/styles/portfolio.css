@@ -1,0 +1,551 @@
+/* student-portfolio (2026-04-26)
+ *
+ * 좌측 학생 리스트 + 우측 카드 그리드 (≥768px), 모바일 stack.
+ * 자랑해요: highlight strip (학생 dashboard 상단 가로 carousel) + 카드 코너 🌟 배지.
+ * design_spec phase5 와이어프레임 일치. */
+
+.student-page-portfolio {
+  padding: 0;
+}
+
+.student-portfolio-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-alt);
+}
+.student-portfolio-header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+.student-portfolio-back {
+  text-decoration: none;
+  color: var(--color-text);
+  font-size: 1.25rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.student-portfolio-back:hover {
+  background: var(--color-surface-alt);
+}
+
+.portfolio-page {
+  display: grid;
+  grid-template-columns: clamp(220px, 28%, 280px) 1fr;
+  min-height: 480px;
+  background: var(--color-bg);
+}
+.portfolio-page.is-empty {
+  grid-template-columns: 1fr;
+  place-items: center;
+  padding: 48px 16px;
+}
+.portfolio-page.is-mobile {
+  grid-template-columns: 1fr;
+}
+.portfolio-page.is-mobile.is-detail .portfolio-roster {
+  display: none;
+}
+
+/* ── 좌측 학생 리스트 ── */
+.portfolio-roster {
+  border-right: 1px solid var(--color-border);
+  padding: 12px 8px;
+  background: var(--color-surface);
+  overflow-y: auto;
+}
+.portfolio-roster-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 8px 8px;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 8px;
+}
+.portfolio-roster-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.portfolio-roster-count {
+  font-size: 0.75rem;
+  color: var(--color-text-faint);
+}
+.portfolio-roster-empty {
+  padding: 16px 8px;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+.portfolio-roster-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.portfolio-roster-item {
+  display: grid;
+  grid-template-columns: 16px 28px 1fr auto auto;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 100ms;
+}
+.portfolio-roster-item:hover {
+  background: var(--color-surface-alt);
+}
+.portfolio-roster-item.is-selected {
+  background: var(--color-accent-tinted-bg);
+  color: var(--color-accent-tinted-text);
+}
+.portfolio-roster-item.is-self {
+  font-weight: 700;
+}
+.portfolio-roster-item:focus-visible {
+  outline: 2px solid var(--color-accent-tinted-text);
+  outline-offset: -2px;
+}
+.portfolio-roster-self-dot {
+  font-size: 0.75rem;
+  line-height: 1;
+}
+.portfolio-roster-num {
+  font-size: 0.75rem;
+  color: var(--color-text-faint);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.portfolio-roster-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.portfolio-roster-count-badge {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  background: var(--color-surface-alt);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-variant-numeric: tabular-nums;
+}
+.portfolio-roster-count-badge.is-zero {
+  color: var(--color-text-faint);
+  background: transparent;
+}
+.portfolio-roster-showcase {
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+/* ── 우측 그리드 ── */
+.portfolio-main {
+  padding: 16px;
+  overflow-y: auto;
+}
+.portfolio-mobile-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.portfolio-student-head h2 {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+.portfolio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+.portfolio-empty {
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+.portfolio-empty p {
+  margin: 0 0 12px;
+}
+.portfolio-empty-cta {
+  display: inline-block;
+  padding: 8px 16px;
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+.portfolio-empty-cta:hover {
+  background: var(--color-accent-active);
+}
+
+.portfolio-student-skeleton {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+.portfolio-card-skeleton {
+  height: 200px;
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-alt) 25%,
+    var(--color-bg) 50%,
+    var(--color-surface-alt) 75%
+  );
+  background-size: 200% 100%;
+  animation: portfolio-skeleton-shimmer 1.6s ease-in-out infinite;
+}
+@keyframes portfolio-skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── 카드 아이템 ── */
+.portfolio-card {
+  position: relative;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 100ms, transform 100ms;
+}
+.portfolio-card:hover {
+  border-color: var(--color-border-hover);
+}
+.portfolio-card:focus-visible {
+  outline: 2px solid var(--color-accent-tinted-text);
+  outline-offset: 2px;
+}
+.portfolio-card.is-showcased-mine {
+  /* 본인이 자랑해요 등록한 카드 — 더 강한 시각 강조 */
+  box-shadow: 0 0 0 2px var(--color-showcase);
+}
+.portfolio-card-badge {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  background: var(--color-showcase);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 0.95rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  z-index: 1;
+}
+.portfolio-card-link {
+  text-decoration: none;
+  color: var(--color-text);
+  display: block;
+}
+.portfolio-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+}
+.portfolio-card-source {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.portfolio-card-menu {
+  flex-shrink: 0;
+}
+
+/* ── Showcase highlight strip ── */
+.showcase-strip {
+  margin: 16px 0;
+  padding: 12px 0;
+  background: var(--color-bg-alt);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+.showcase-strip-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 16px 8px;
+}
+.showcase-strip-head h2,
+.showcase-strip-head h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.showcase-strip-more {
+  font-size: 0.875rem;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+.showcase-strip-more:hover {
+  color: var(--color-accent-active);
+}
+.showcase-strip-row {
+  display: flex;
+  gap: 12px;
+  padding: 4px 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding: 16px;
+}
+.showcase-strip-row::-webkit-scrollbar { height: 6px; }
+.showcase-strip-row::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+.showcase-chip {
+  flex: 0 0 auto;
+  width: 160px;
+  height: 120px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  text-decoration: none;
+  color: var(--color-text);
+  scroll-snap-align: start;
+  overflow: hidden;
+  transition: transform 100ms, border-color 100ms;
+}
+.showcase-chip:hover {
+  border-color: var(--color-border-hover);
+  transform: translateY(-2px);
+}
+.showcase-chip-thumb {
+  position: relative;
+  background: var(--color-surface-alt);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.showcase-chip-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.showcase-chip-thumb-fallback {
+  font-size: 1.5rem;
+  color: var(--color-text-faint);
+}
+.showcase-chip-meta {
+  padding: 6px 8px;
+  display: grid;
+  gap: 1px;
+}
+.showcase-chip-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.showcase-chip-author {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}
+.showcase-chip-skeleton {
+  flex: 0 0 auto;
+  width: 160px;
+  height: 120px;
+  border-radius: 8px;
+  background: var(--color-surface-alt);
+  animation: portfolio-skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+/* ── 한도 모달 ── */
+.showcase-limit-modal {
+  background: var(--color-surface);
+  border-radius: 12px;
+  padding: 24px;
+  width: min(480px, 92vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+.showcase-limit-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.showcase-limit-head h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+.showcase-limit-msg {
+  margin: 0 0 16px;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+.showcase-limit-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.showcase-limit-item {
+  display: grid;
+  grid-template-columns: 24px 64px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 100ms;
+}
+.showcase-limit-item:hover {
+  border-color: var(--color-border-hover);
+}
+.showcase-limit-item:has(input:checked) {
+  border-color: var(--color-accent);
+  background: var(--color-accent-tinted-bg);
+}
+.showcase-limit-thumb {
+  width: 64px;
+  height: 48px;
+  border-radius: 4px;
+  background: var(--color-surface-alt);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+.showcase-limit-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.showcase-limit-thumb-placeholder {
+  font-size: 1.25rem;
+  color: var(--color-text-faint);
+}
+.showcase-limit-meta {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.showcase-limit-meta strong {
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.showcase-limit-meta span {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+.showcase-limit-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ── Student dashboard 포트폴리오 CTA ── */
+.student-portfolio-cta-row {
+  margin: 16px 0;
+}
+.student-portfolio-cta {
+  display: inline-block;
+  padding: 8px 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+.student-portfolio-cta:hover {
+  border-color: var(--color-border-hover);
+  background: var(--color-surface-alt);
+}
+
+/* ── 학부모 자녀 셀렉터 ── */
+.parent-child-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.parent-child-selector-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+.parent-child-selector select {
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  font-size: 0.875rem;
+}
+
+/* ── 학부모 포트폴리오 뷰 ── */
+.parent-portfolio {
+  padding: 16px;
+}
+.parent-portfolio-head h2 {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+.parent-portfolio-showcase {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+/* ── 모바일 ── */
+@media (max-width: 767px) {
+  .portfolio-page {
+    grid-template-columns: 1fr;
+  }
+  .portfolio-roster {
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+    max-height: none;
+  }
+  .portfolio-grid {
+    grid-template-columns: 1fr;
+  }
+}

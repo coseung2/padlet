@@ -265,6 +265,7 @@ model Student {
   vibePlaySessions      VibePlaySession[]         @relation("VibePlayer")
   boardResponses        BoardResponse[]           @relation("StudentBoardResponses")
   aiFeedbacks           AiFeedback[]
+  showcaseEntries       ShowcaseEntry[]
 
   @@unique([classroomId, number])
   @@index([classroomId])
@@ -482,11 +483,32 @@ model Card {
   assignmentSlot   AssignmentSlot?   @relation("AssignmentSlotCard")
   authors          CardAuthor[]
   attachments      CardAttachment[]  @relation("CardAttachments")
+  showcaseEntries  ShowcaseEntry[]
 
   @@index([boardId])
   @@index([sectionId])
   @@index([authorId])
   @@index([studentAuthorId])
+}
+
+// student-portfolio (2026-04-26): 학생이 자기 카드를 학급 메인화면 자랑해요
+// 영역에 띄울지 옵트인 토글. 한 학생 한 카드 1슬롯(@@unique). 학생당
+// 자랑해요 한도(현재 N=3)는 application-level COUNT 트랜잭션으로 enforce.
+// classroomId 는 학급 dashboard highlight 쿼리 가속 denorm — card.board.
+// classroomId 와 항상 일치 (트리거 없이 application 단에서 쓰기).
+model ShowcaseEntry {
+  id          String   @id @default(cuid())
+  cardId      String
+  studentId   String
+  classroomId String
+  createdAt   DateTime @default(now())
+
+  card    Card    @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([cardId, studentId])
+  @@index([studentId])
+  @@index([classroomId, createdAt])
 }
 
 // multi-attachment (2026-04-20): 카드 1개에 이미지·동영상·파일 여러 개를

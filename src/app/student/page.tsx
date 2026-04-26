@@ -39,6 +39,7 @@ export default async function StudentPage() {
       <StudentDashboard
         studentName={student.name}
         classroomName={student.classroom.name}
+        classroomId={student.classroomId}
         boards={boardItems}
         duties={duties}
       />
